@@ -1,7 +1,5 @@
 require('dotenv').config();
 const express = require('express');
-const livereload = require('livereload');
-const connectLivereload = require('connect-livereload');
 const fs = require('fs').promises;
 const fsSync = require('fs');
 const path = require('path');
@@ -9,11 +7,22 @@ const session = require('express-session');
 const bcrypt = require('bcrypt');
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 
-// Live Reload Setup
-const liveReloadServer = livereload.createServer();
-liveReloadServer.watch(__dirname);
-
 const app = express();
+
+// === LIVE RELOAD (SOLO IN SVILUPPO) ===
+if (process.env.NODE_ENV !== 'production') {
+  const livereload = require('livereload');
+  const connectLivereload = require('connect-livereload');
+  
+  const liveReloadServer = livereload.createServer();
+  liveReloadServer.watch(__dirname);
+  
+  app.use(connectLivereload());
+  
+  liveReloadServer.server.once("connection", () => {
+    setTimeout(() => liveReloadServer.refresh("/"), 100);
+  });
+}
 
 // === MIDDLEWARE (ORDINE CORRETTO!) ===
 app.use(session({
@@ -26,8 +35,6 @@ app.use(session({
     maxAge: 24 * 60 * 60 * 1000
   }
 }));
-
-app.use(connectLivereload());
 
 // ⚠️ WEBHOOK DEVE essere PRIMA di express.json()
 app.post('/webhook/stripe', 
@@ -969,6 +976,11 @@ app.get('/IDs/:restaurantId/statistics', requireAuth, async (req, res) => {
   res.redirect(`/IDs/${restaurantId}/statistics/${currentMonth}`);
 });
 
+// Health check endpoint per Render
+app.get('/health', (req, res) => {
+  res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error('Errore non gestito:', err);
@@ -983,10 +995,6 @@ initializeDirectories();
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
-  console.log(`Webhook URL: http://localhost:${PORT}/webhook/stripe`);
-});
-
-liveReloadServer.server.once("connection", () => {
-  setTimeout(() => liveReloadServer.refresh("/"), 100);
+  console.log(`Server running on port ${PORT}`);
+  console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
 });
