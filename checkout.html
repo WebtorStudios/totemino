@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <script>
+    (function() {
+      const saved = localStorage.getItem('totemino_theme');
+      const theme = saved || 
+        (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+      document.documentElement.setAttribute('data-theme', theme);
+    })();
+  </script>
+  <title>Totemino - Checkout</title>
+  <link rel="icon" type="image/png" href="img/favicon.png">
+  <link rel="stylesheet" href="checkout-styles.css" />
+</head>
+<body>
+  <!-- Luci -->
+  <div class="bg-light light1"></div>
+  <div class="bg-light light2"></div>
+  <div class="bg-light light3"></div>
+  
+  <!-- Header -->
+  <div class="title">
+    <div class="logo_space">
+      <img class="theme-img" data-light="img/logo_light.png" data-dark="img/logo_dark.png" alt="Logo">
+      <a href="index.html"><h1>Totemino</h1></a>
+    </div>
+    <div>
+      <button id="back-to-menu" class="header-btn" type="button"><img class="theme-img" data-light="img/exit_light.png" data-dark="img/exit_dark.png" alt="Torna al menu"></button>
+      <button id="theme" class="header-btn" type="button"><img class="theme-img" data-light="img/theme_light.png" data-dark="img/theme_dark.png" alt="Cambia tema"></button>
+    </div>
+  </div>
+
+  <!-- Step Navbar -->
+  <div class="categories" id="checkout-nav">
+    <div class="pill"></div>
+    <button class="active">Il tuo ordine</button>
+    <button>Riepilogo</button>
+  </div>
+
+  <!-- Sezione: Il tuo ordine -->
+  <div id="section-ordine" class="checkout-section">
+    <div class="checkout-wrapper">
+      <div class="checkout-list" id="checkout-list"></div>
+    </div>
+
+    <!-- Popup per modifiche ordine -->
+    <div class="popup hidden">
+      <div class="popup-content">
+        <button class="close-popup">
+          <img src="img/x.png" />
+        </button>
+        <img class="popup-img" src="" alt="Prodotto" />
+        <h2 class="popup-title"></h2>
+        <p class="popup-ingredients"></p>
+        <div class="popup-notes-wrapper">
+          <textarea class="popup-notes" placeholder="Scrivi modifiche..."></textarea>
+          <button class="popup-send-btn">
+            <img src="img/send.png" alt="Invia" />
+          </button>
+        </div>      
+        <div class="popup-controls"></div>
+      </div>
+    </div>
+
+    <div class="suggestions-wrapper">
+      <div class="suggestions-list"></div>
+    </div>
+
+    <div class="checkout-total">
+      <p>Totale</p>
+      <h3 id="checkout-total">€0.00</h3>
+      <button class="next">Completa</button>
+    </div>
+  </div>
+
+  <!-- Sezione: Pagamento -->
+  <div id="section-pagamento" class="checkout-section" style="display: none;">
+
+    <div class="service-methods">
+      <div class="service-option" id="service-table" tabindex="0" role="button" aria-pressed="false">
+        <img class="theme-img" data-light="img/service-table_light.png" data-dark="img/service-table_dark.png" alt="Servizio al Tavolo">
+
+        <h3>Servizio al Tavolo</h3>
+      </div>
+      <div class="service-option" id="service-pickup" tabindex="0" role="button" aria-pressed="false">
+        <img class="theme-img" data-light="img/service-pickup_light.png" data-dark="img/service-pickup_dark.png" alt="Ritiro al Banco">
+        
+        <h3>Ritiro al Banco</h3>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Custom Popup for Table Number -->
+  <div class="popup-table-number hidden">
+    <div class="popup-table-content">
+      <button class="close-popup close-popup-table">
+        <img src="img/x.png" alt="Close"/>
+      </button>
+      <h3>Che tavolo?</h3>
+      <p>Inserisci il numero del tavolo</p>
+      <input type="number" id="table-number-input" placeholder="00" />
+      <button id="confirm-table-number">Conferma</button>
+    </div>
+  </div>
+  
+  <div class="popup-suggestions hidden">
+    <div class="popup-suggestions-content">
+      <h3><span id="title-name">Totemino</span> ti consiglia:</h3>
+      <div class="suggestions-grid"></div>
+      <button id="suggestions-action-btn" class="next locked">No grazie</button>
+    </div>
+  </div>
+
+  <script src="suggestions-engine.js"></script>
+  <script src="checkout-script.js"></script>
+  <script src="collect-user-info.js"></script>
+  <script src="theme.js"></script>
+</body>
+</html>

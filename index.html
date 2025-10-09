@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script>
+      (function() {
+        const saved = localStorage.getItem('totemino_theme');
+        const theme = saved || 
+          (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+        document.documentElement.setAttribute('data-theme', theme);
+      })();
+    </script>
+    <title>Totemino - Ordina Senza Parole</title>
+    <link rel="icon" type="image/png" href="img/favicon.png">
+
+    <link rel="stylesheet" href="index-styles.css"/>
+    <link rel="stylesheet" href="billing-styles.css"/>
+    <link rel="stylesheet" href="cookie-banner.css"/>
+    <script src="cookie-banner.js"></script>
+</head>
+<body>
+    <div class="bg-light light1"></div>
+    <div class="bg-light light2"></div>
+    <div class="bg-light light3"></div>
+    
+    <!-- Nav buttons -->
+    <div class="nav-buttons">
+        <a href="login.html" class="nav-btn" id="loginBtn">Accedi</a>
+        <a href="#" class="nav-btn" id="gestioneBtn" style="display: none;">Vai a Gestione</a>
+        <button class="nav-btn logout" id="logoutBtn" style="display: none;">Esci</button>
+    </div>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="hero-content">
+            <div class="logo-container">
+                <img class="logo theme-img" data-light="img/logo_light.png" data-dark="img/logo_dark.png" alt="Logo">
+                <h1 class="main-title">Totemino</h1>
+            </div>
+            <p class="subtitle">Ordina ciò che<br>desideri, <span class="italic-text">senza</span><br>alcuna parola</p>
+            <button class="start-btn">Iniziamo!</button>
+
+            <div class="login-card">
+                <h2 class="greeting" id="greeting"></h2>
+                <p class="login-description">
+                    Hai già trovato il codice a 4 cifre?<br>
+                    Controlla sul tavolo o chiedi al personale.
+                </p>
+                
+                <div class="pin-inputs">
+                    <input type="tel" maxlength="1" />
+                    <input type="tel" maxlength="1" />
+                    <input type="tel" maxlength="1" />
+                    <input type="tel" maxlength="1" />
+                </div>
+                
+                <p class="qr-link">Apri l'app camera per scansionare il QR</p>
+                <button class="submit-btn">Vai al Menu</button>
+            </div>
+        </div>
+    </section>
+
+    <!-- Packages Section -->
+    <div id="create-billing-comparison"></div>
+
+    <!-- FAQ Section -->
+    <section class="faq-section">
+        <div class="faq-container">
+            <h2 class="faq-title">Domande Frequenti</h2>
+            
+            <!-- FAQ Ristoratore -->
+            <div class="faq-category">
+                <h3 class="faq-category-title">Per il Ristoratore</h3>
+                
+                <div class="faq-item">
+                    <div class="faq-question">
+                        <span>Cos'è Totemino e come funziona per il ristoratore?</span>
+                        <span class="faq-icon"><img src="img/down_arrow.png" alt="Espandi elemento FAQ"></span>
+                    </div>
+                    <div class="faq-answer">
+                        <div class="faq-answer-content">
+                            Totemino è una piattaforma digitale che permette di gestire ordini e menu del ristorante tramite un pannello online. Tutti gli ordini dei clienti arrivano in un'unica interfaccia, facilitando la gestione.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="faq-item">
+                    <div class="faq-question">
+                        <span>Come registrarsi e accedere al pannello di gestione?</span>
+                        <span class="faq-icon"><img src="img/down_arrow.png" alt="Espandi elemento FAQ"></span>
+                    </div>
+                    <div class="faq-answer">
+                        <div class="faq-answer-content">
+                            Visita la pagina di login, seleziona "Registrati", scegli un ID a 4 cifre e una password sicura. Poi puoi accedere al pannello inserendo ID e password.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="faq-item">
+                    <div class="faq-question">
+                        <span>Come creare e modificare il menu digitale?</span>
+                        <span class="faq-icon"><img src="img/down_arrow.png" alt="Espandi elemento FAQ"></span>
+                    </div>
+                    <div class="faq-answer">
+                        <div class="faq-answer-content">
+                            Dal pannello clicca su "Modifica Menu" per aggiungere, modificare o eliminare prodotti, aggiornare ingredienti e allergeni e caricare immagini personalizzate.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="faq-item">
+                    <div class="faq-question">
+                        <span>Come aggiungere immagini e allergeni ai prodotti?</span>
+                        <span class="faq-icon"><img src="img/down_arrow.png" alt="Espandi elemento FAQ"></span>
+                    </div>
+                    <div class="faq-answer">
+                        <div class="faq-answer-content">
+                            Durante la creazione o modifica del prodotto puoi caricare immagini dal dispositivo e selezionare gli allergeni presenti nella griglia dedicata.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="faq-item">
+                    <div class="faq-question">
+                        <span>Come gestire prodotti nascosti o novità?</span>
+                        <span class="faq-icon"><img src="img/down_arrow.png" alt="Espandi elemento FAQ"></span>
+                    </div>
+                    <div class="faq-answer">
+                        <div class="faq-answer-content">
+                            Puoi nascondere temporaneamente un prodotto senza eliminarlo e segnarlo come novità per evidenziarlo nel menu.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="faq-item">
+                    <div class="faq-question">
+                        <span>Come funzionano i backup del menu?</span>
+                        <span class="faq-icon"><img src="img/down_arrow.png" alt="Espandi elemento FAQ"></span>
+                    </div>
+                    <div class="faq-answer">
+                        <div class="faq-answer-content">
+                            Ogni salvataggio del menu genera automaticamente un backup. Il sistema mantiene fino a tre backup storici eliminando il più vecchio quando serve.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="faq-item">
+                    <div class="faq-question">
+                        <span>Come vedere, aggiornare e cancellare ordini?</span>
+                        <span class="faq-icon"><img src="img/down_arrow.png" alt="Espandi elemento FAQ"></span>
+                    </div>
+                    <div class="faq-answer">
+                        <div class="faq-answer-content">
+                            Gli ordini arrivano nel pannello divisi per tavolo e ritiro al banco. Puoi cambiare lo stato, aggiornare la lista manualmente o eliminare ordini con conferma.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="faq-item">
+                    <div class="faq-question">
+                        <span>Quali piani offre Totemino e differenze tra Free, Premium e Pro?</span>
+                        <span class="faq-icon"><img src="img/down_arrow.png" alt="Espandi elemento FAQ"></span>
+                    </div>
+                    <div class="faq-answer">
+                        <div class="faq-answer-content">
+                            Free è gratuito con funzionalità base, Premium offre menu completo e gestione ordini, Pro include tutto Premium più suggerimenti intelligenti, statistiche dettagliate e supporto prioritario.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="faq-item">
+                    <div class="faq-question">
+                        <span>Cosa include il piano Pro e i suggerimenti con IA?</span>
+                        <span class="faq-icon"><img src="img/down_arrow.png" alt="Espandi elemento FAQ"></span>
+                    </div>
+                    <div class="faq-answer">
+                        <div class="faq-answer-content">
+                            Il piano Pro offre suggerimenti intelligenti che analizzano l'ordine del cliente e suggeriscono prodotti complementari, aumentando il valore medio dell'ordine.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="faq-item">
+                    <div class="faq-question">
+                        <span>Come funzionano le statistiche e report sulle vendite?</span>
+                        <span class="faq-icon"><img src="img/down_arrow.png" alt="Espandi elemento FAQ"></span>
+                    </div>
+                    <div class="faq-answer">
+                        <div class="faq-answer-content">
+                            La dashboard mostra vendite, numero ordini, ticket medio, prodotti più e meno venduti e trend mensili, con possibilità di filtrare per categoria.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="faq-item">
+                    <div class="faq-question">
+                        <span>I miei dati sono sicuri su Totemino?</span>
+                        <span class="faq-icon"><img src="img/down_arrow.png" alt="Espandi elemento FAQ"></span>
+                    </div>
+                    <div class="faq-answer">
+                        <div class="faq-answer-content">
+                            Le password sono criptate, le sessioni sono sicure e solo il ristoratore può accedere ai dati tramite credenziali.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="faq-item">
+                    <div class="faq-question">
+                        <span>Posso usare Totemino da più dispositivi e offline?</span>
+                        <span class="faq-icon"><img src="img/down_arrow.png" alt="Espandi elemento FAQ"></span>
+                    </div>
+                    <div class="faq-answer">
+                        <div class="faq-answer-content">
+                            Puoi accedere da qualsiasi dispositivo con internet. Totemino non funziona offline.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="faq-item">
+                    <div class="faq-question">
+                        <span>Come funziona l'assistenza e la risoluzione problemi per i ristoratori?</span>
+                        <span class="faq-icon"><img src="img/down_arrow.png" alt="Espandi elemento FAQ"></span>
+                    </div>
+                    <div class="faq-answer">
+                        <div class="faq-answer-content">
+                            Gli utenti Pro hanno supporto prioritario. In caso di problemi con ordini o accesso, puoi contattare il supporto tecnico.
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- FAQ Cliente -->
+            <div class="faq-category">
+                <h3 class="faq-category-title">Per il Cliente</h3>
+                
+                <div class="faq-item">
+                    <div class="faq-question">
+                        <span>Cos'è Totemino e come funziona il menu digitale per il cliente?</span>
+                        <span class="faq-icon"><img src="img/down_arrow.png" alt="Espandi elemento FAQ"></span>
+                    </div>
+                    <div class="faq-answer">
+                        <div class="faq-answer-content">
+                            Totemino permette di ordinare direttamente dal tavolo tramite codice PIN o QR code, senza parlare con il personale, accedendo a un menu digitale semplice e multilingua.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="faq-item">
+                    <div class="faq-question">
+                        <span>Come ordinare al ristorante con Totemino?</span>
+                        <span class="faq-icon"><img src="img/down_arrow.png" alt="Espandi elemento FAQ"></span>
+                    </div>
+                    <div class="faq-answer">
+                        <div class="faq-answer-content">
+                            Scansiona il QR code o inserisci il codice PIN sul tavolo, scegli i prodotti e invia l'ordine direttamente alla cucina.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="faq-item">
+                    <div class="faq-question">
+                        <span>Totemino supporta più lingue?</span>
+                        <span class="faq-icon"><img src="img/down_arrow.png" alt="Espandi elemento FAQ"></span>
+                    </div>
+                    <div class="faq-answer">
+                        <div class="faq-answer-content">
+                            Sì, il menu digitale è disponibile in diverse lingue, facilitando l'esperienza anche ai clienti stranieri.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="faq-item">
+                    <div class="faq-question">
+                        <span>Posso modificare un ordine già inviato?</span>
+                        <span class="faq-icon"><img src="img/down_arrow.png" alt="Espandi elemento FAQ"></span>
+                    </div>
+                    <div class="faq-answer">
+                        <div class="faq-answer-content">
+                            Dopo l'invio, occorre contattare il personale per eventuali modifiche, perché l'ordine arriva immediatamente al sistema.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="faq-item">
+                    <div class="faq-question">
+                        <span>Come vedere allergeni e informazioni sui prodotti?</span>
+                        <span class="faq-icon"><img src="img/down_arrow.png" alt="Espandi elemento FAQ"></span>
+                    </div>
+                    <div class="faq-answer">
+                        <div class="faq-answer-content">
+                            Ogni prodotto mostra gli allergeni presenti. Basta cliccare sul prodotto per visualizzare i dettagli prima di aggiungerlo al carrello.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- CTA Section -->
+    <section class="cta-section">
+        <div class="cta-content">
+            <h2 class="cta-title">Pronto a fare la differenza?</h2>
+            <p class="cta-description">
+                Unisciti a migliaia di persone che hanno già scoperto il futuro dell'ordinazione digitale.
+                Semplice, veloce e senza parole.
+            </p>
+            <button class="cta-btn" onclick="document.querySelector('.packages-section').scrollIntoView({ behavior: 'smooth' })">
+                Inizia Ora
+            </button>
+        </div>
+    </section>
+    <footer>
+        <p>Fatto con amore da &copy; Webtor Studios<br>Cell. 351 054 8462</p>
+        <div class="footer-img">
+          <a href="https://wa.me/+393510548462"><img src="img/whatsapp-logo.png" title="WhatsApp" draggable="false"></a>
+          <a href="https://instagram.com/webtorstudios"><img src="img/instagram-logo.png" title="Instagram" draggable="false"></a>
+          <a href="https://bit.ly/4buVxwY"><img src="img/mail-logo.png" title="Invia una email" draggable="false"></a>
+        </div>
+        <a href="termini-e-condizioni.html">Termini e condizioni</a> <a id="nohover"> | </a> <a href="cookie-policy.html">Informativa Privacy</a>
+    </footer>
+    <script src="auth-protection.js"></script>
+    <script src="index-script.js"></script>
+    <script src="billing-script.js"></script>
+    <script src="theme.js"></script>
+
+</body>
+</html>

@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script>
+      (function() {
+        const saved = localStorage.getItem('totemino_theme');
+        const theme = saved || 
+          (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+        document.documentElement.setAttribute('data-theme', theme);
+      })();
+    </script>
+    <title>Totemino - Statistiche</title>
+    <link rel="icon" type="image/png" href="img/favicon.png">
+    <link rel="stylesheet" href="statistics-styles.css">
+
+</head>
+<body>
+    <div class="bg-light light1"></div>
+    <div class="bg-light light2"></div>
+    <div class="bg-light light3"></div>
+    <div class="title">
+        <div class="logo_space">
+          <img class="theme-img" data-light="img/logo_light.png" data-dark="img/logo_dark.png" alt="Logo">
+          <a href="index.html"><h1>Totemino</h1></a>
+          <p>Dashboard</p>
+        </div>
+        <div>
+          <button id="back-btn" class="header-btn" type="button">
+            <img class="theme-img" data-light="img/exit_light.png" data-dark="img/exit_dark.png" alt="Torna a Gestione">
+          </button>
+          <button id="theme" class="header-btn" type="button">
+            <img class="theme-img" data-light="img/theme_light.png" data-dark="img/theme_dark.png" alt="Cambia tema">
+          </button>
+        </div>
+      </div>
+    
+    <div class="container">
+        <div id="loading" class="loading"></div>
+        <div id="errorContainer"></div>
+        
+        <div id="dashboard" style="display: none;">
+            <!-- Controlli Mese -->
+            <div class="control-container">
+                <div class="control-row">
+                    <div class="nav-group">
+                        <button id="prevMonth" class="nav-button">
+                            <svg class="nav-icon" viewBox="0 0 24 24">
+                                <polyline points="15,18 9,12 15,6"></polyline>
+                            </svg>
+                        </button>
+                        <div id="currentMonthDisplay" class="current-display"></div>
+                        <button id="nextMonth" class="nav-button">
+                            <svg class="nav-icon" viewBox="0 0 24 24">
+                                <polyline points="9,18 15,12 9,6"></polyline>
+                            </svg>
+                        </button>
+                    </div>
+                    <select id="monthDropdown" class="dropdown"></select>
+                </div>
+            </div>
+            
+            <!-- Overview -->
+            <div class="section">
+                <div class="overview-grid">
+                    <div class="card large-card">
+                        <h3>Vendite Totali</h3>
+                        <div class="value" id="totalSales">€0</div>
+                        <div class="change" id="salesChange">-</div>
+                        <div class="chart-container">
+                            <canvas id="salesTrendChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="side-cards">
+                        <div class="card">
+                            <h3>Ticket Medio (AOV)</h3>
+                            <div class="value" id="avgTicket">€0</div>
+                            <div class="change" id="ticketChange">-</div>
+                        </div>
+                        <div class="card">
+                            <h3>Numero Ordini</h3>
+                            <div class="value" id="totalOrders">0</div>
+                            <div class="change" id="ordersChange">-</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Insights -->
+            <div class="section">
+                <h2>Approfondimenti</h2>
+                <div class="filter-group">
+                    <label for="categoryFilter">Categoria:</label>
+                    <select id="categoryFilter" class="dropdown">
+                        <option value="all">Tutte</option>
+                    </select>
+                </div>
+                <div class="cards-row">
+                    <div class="card">
+                        <h3>Più venduti</h3>
+                        <div class="podium-list" id="bestSellers"></div>
+                    </div>
+                    <div class="card">
+                        <h3>Ricavi migliori</h3>
+                        <div class="podium-list" id="bestRevenue"></div>
+                    </div>
+                    <div class="card">
+                        <h3>Prodotti meno venduti</h3>
+                        <div class="podium-list" id="worstSellers"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Performance -->
+            <div class="section">
+                <h2>Performance e Suggerimenti</h2>
+                <div class="cards-row">
+                    <div class="card">
+                        <h3>Efficacia dei suggerimenti</h3>
+                        <div class="metric-container">
+                            <div class="metric-item">
+                                <span class="metric-label">Tasso di Conversione</span>
+                                <div class="metric-value" id="suggestionConversionRate">0%</div>
+                            </div>
+                            <div class="metric-item">
+                                <span class="metric-label">Valore Medio Suggerimento</span>
+                                <div class="metric-value" id="avgSuggestionValue">€0</div>
+                            </div>
+                            <div class="metric-item">
+                                <span class="metric-label">Impatto sui Ricavi</span>
+                                <div class="metric-value" id="revenueImpact">0%</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <h3>Categorie migliori</h3>
+                        <div class="metric-container" id="categoryPerformance"></div>
+                    </div>
+                    <div class="card">
+                        <h3>Analisi Trend</h3>
+                        <div class="metric-container">
+                            <div class="metric-item">
+                                <span class="metric-label">Andamento MoM</span>
+                                <div class="metric-value" id="monthlyGrowth">-</div>
+                            </div>
+                            <div class="metric-item">
+                                <span class="metric-label">Miglior giorno</span>
+                                <div class="metric-value" id="bestDay">-</div>
+                            </div>
+                            <div class="metric-item">
+                                <span class="metric-label">Previsione fine mese</span>
+                                <div class="metric-value" id="forecast">-</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- Utenti -->
+            <div class="section">
+                <h2>Analisi Clienti</h2>
+                <div class="cards-row">
+                    <div class="card">
+                        <h3>Frequenza e Ritorno</h3>
+                        <div class="metric-container">
+                            <div class="metric-item">
+                                <span class="metric-label">Clienti abituali</span>
+                                <div class="metric-value" id="repeatCustomers">0</div>
+                            </div>
+                            <div class="metric-item">
+                                <span class="metric-label">Nuovi clienti</span>
+                                <div class="metric-value" id="newCustomers">0</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <h3>Valore Clienti</h3>
+                        <div class="metric-container">
+                            <div class="metric-item">
+                                <span class="metric-label">Spesa media per cliente</span>
+                                <div class="metric-value" id="avgCustomerValue">€0</div>
+                            </div>
+                            <div class="metric-item">
+                                <span class="metric-label">Ordini medi per cliente</span>
+                                <div class="metric-value" id="avgOrdersPerCustomer">0</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <h3>Segmentazione Clienti</h3>
+                        <div class="metric-container">
+                            <div class="metric-item">
+                                <span class="metric-label">Fascia oraria preferita</span>
+                                <div class="metric-value" id="preferredTimeSlot">-</div>
+                            </div>
+                            <div class="metric-item">
+                                <span class="metric-label">Giorno preferito</span>
+                                <div class="metric-value" id="purchaseChannel">-</div>
+                            </div>
+                        </div>
+                    </div>            
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="paywall-system.js"></script>
+    <script src="auth-protection.js"></script>
+    <script src="statistics-script.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="theme.js"></script>
+
+</body>
+</html>

@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script>
+    (function() {
+      const saved = localStorage.getItem('totemino_theme');
+      const theme = saved || 
+        (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+      document.documentElement.setAttribute('data-theme', theme);
+    })();
+  </script>
+  <title>Totemino - Modifica Menu</title>
+  <link rel="icon" type="image/png" href="img/favicon.png">
+  <link rel="stylesheet" href="gestione-menu-styles.css">
+</head>
+<body>
+  <!-- Luci animate di sfondo -->
+  <div class="bg-light light1"></div>
+  <div class="bg-light light2"></div>
+  <div class="bg-light light3"></div>
+
+  <!-- Header -->
+  <div class="title">
+    <div class="logo_space">
+      <img class="theme-img" data-light="img/logo_light.png" data-dark="img/logo_dark.png" alt="Logo">
+      <a href="index.html"><h1>Totemino</h1></a>
+      <p>Modifica Menu</p>
+    </div>
+    <div>
+      <button id="back-btn" class="header-btn" type="button">
+          <img class="theme-img" data-light="img/exit_light.png" data-dark="img/exit_dark.png" alt="Torna a Gestione">
+      </button>
+      <button id="theme" class="header-btn" type="button">
+        <img class="theme-img" data-light="img/theme_light.png" data-dark="img/theme_dark.png" alt="Cambia tema">
+      </button>
+    </div>
+  </div>
+
+  <!-- Contenuto principale -->
+  <div class="management-container">
+    <div class="menu-sections" id="menu-sections">
+      <!-- Le sezioni verranno caricate dinamicamente -->
+    </div>
+    
+    <!-- Pulsante salva modifiche -->
+    <div class="save-section">
+      <button class="save-btn" id="save-menu">Salva Menu</button>
+    </div>
+  </div>
+
+  <!-- Popup per modificare/aggiungere elementi -->
+  <div class="popup hidden" id="edit-popup">
+    <div class="popup-content management-popup">
+      <button class="close-popup" id="close-edit-popup">
+        <img src="img/x.png" alt="Chiudi">
+      </button>
+      
+      <h2 class="popup-title" id="popup-title">Modifica Elemento</h2>
+      
+      <!-- Sezione principale con nome, prezzo e immagine -->
+      <div class="main-form-section">
+        <div class="image-section">
+          <p style="display: block; font-weight: 600; margin-bottom: 0.3rem; color: var(--text-primary); font-size: 0.95rem;">Immagine</p>
+          <div class="image-upload-area" id="product-image-area">
+            <img id="product-preview" src="" alt="Anteprima prodotto" class="image-preview hidden">
+            <div class="upload-placeholder" id="product-placeholder">
+              <img src="img/upload.png" alt="Carica">
+              <span>Trascina o clicca</span>
+            </div>
+            <input type="file" id="product-image" accept="image/*" class="hidden">
+          </div>
+        </div>
+        <div class="text-inputs">
+          <div class="form-field">
+            <label for="item-name">Nome prodotto:</label>
+            <input type="text" id="item-name" placeholder="Es. Pizza Margherita">
+          </div>
+          
+          <div class="form-field">
+            <label for="item-price">Prezzo (€):</label>
+            <input type="number" id="item-price" step="0.10" placeholder="Es. 6.90">
+          </div>
+        </div>
+      </div>
+
+      <!-- Descrizione -->
+      <div class="form-field">
+        <label for="item-description">Descrizione (opzionale):</label>
+        <textarea id="item-description" placeholder="Descrivi gli ingredienti del prodotto, separati da una virgola. (Es. Pomodoro, mozzarella, basilico)"></textarea>
+      </div>
+
+      <!-- Checkbox novità -->
+      <div class="checkbox-section">
+        <label class="checkbox-label">
+          <input type="checkbox" id="item-new">
+          <span class="checkmark"></span>
+          <span class="checkbox-text">Segna come "Novità"</span>
+        </label>
+        <label class="checkbox-label">
+          <input type="checkbox" id="hide-item">
+          <span class="checkmark"></span>
+          <span class="checkbox-text">Nascondi elemento</span>
+        </label>
+      </div>
+
+      <!-- Sezione allergeni -->
+      <div class="allergens-section">
+        <h3>Allergeni</h3>
+        <div class="allergens-grid" id="allergens-grid">
+          <!-- Gli allergeni verranno generati dinamicamente -->
+        </div>
+      </div>
+
+      <div class="popup-actions">
+        <button class="btn-danger hidden" id="delete-item">Elimina</button>
+        <button class="btn-secondary" id="cancel-edit">Annulla</button>
+        <button class="btn-primary" id="save-item">Salva</button>
+      </div>
+    </div>
+  </div>
+  
+  <div class="delete-popup-overlay popup hidden" id="delete-popup">
+    <div class="delete-popup">
+      <div class="delete-popup-header">
+        <h1>Sei sicuro?</h1>
+        <p>Eliminare questo elemento non può essere annullato</p>
+      </div>
+      <div class="delete-popup-actions">
+        <button id="cancel-delete">Annulla</button>
+        <button id="confirm-delete">Elimina</button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Notifica di salvataggio -->
+  <div class="notification hidden" id="save-notification">
+    <span>Menu salvato con successo!</span>
+  </div>
+  
+  <script src="paywall-system.js"></script>
+  <script src="auth-protection.js"></script>
+  <script src="theme.js"></script>
+  <script src="gestione-menu-script.js"></script>
+</body>
+</html>

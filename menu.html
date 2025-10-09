@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="it">
+  <head>
+	<meta charset="UTF-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+	<script>
+	  (function() {
+		const saved = localStorage.getItem('totemino_theme');
+		const theme = saved || 
+		  (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+		document.documentElement.setAttribute('data-theme', theme);
+	  })();
+	</script>
+	<title>Totemino</title>
+    <link rel="icon" type="image/png" href="img/favicon.png">
+	<link rel="stylesheet" href="menu-styles.css"/>
+  </head>
+  <body>
+	<div class="bg-light light1"></div>
+	<div class="bg-light light2"></div>
+	<div class="bg-light light3"></div>
+	<div class="title">
+		<div>
+			<img class="theme-img" data-light="img/logo_light.png" data-dark="img/logo_dark.png" alt="Logo">
+			<a href="index.html"><h1>Totemino</h1></a>
+		</div>
+		<button id="theme" class="header-btn" type="button"><img class="theme-img" data-light="img/theme_light.png" data-dark="img/theme_dark.png" alt="Cambia tema"></button>
+	</div>
+	<nav class="categories"></nav>
+	<div class="items"></div>
+	<div class="order">
+		<div>
+			<div class="cart">
+				<img src="img/cart.png" alt="carrello">
+				<h3>0</h3>
+			</div>
+			<div class="text-wrapper">
+				<h2>Il tuo ordine</h2>
+				<h2 class="price">€0.00</h2>
+			</div>
+		</div>
+		<button class="next">Avanti</button>
+	</div>
+	<div id="allergen-popup" class="hidden"></div>
+	<div class="popup hidden">
+		<div class="popup-content">
+		<button class="close-popup"><img src="img/x.png"></button>
+		<img class="popup-img" src="" alt="Prodotto">
+		<h2 class="popup-title"></h2>
+		<p class="popup-ingredients"></p>
+		<div class="popup-controls"></div>
+		<p id="titolo-allergeni">- Allergeni -</p>
+		<div class="popup-allergens"></div>
+		</div>
+	</div>
+	
+	<script src="menu-script.js"></script>
+	<script src="theme.js"></script>
+  </body>
+</html>
