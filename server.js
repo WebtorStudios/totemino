@@ -36,9 +36,17 @@ app.use(session({
     secure: true,
     httpOnly: true,
     maxAge: 24 * 60 * 60 * 1000,
-    sameSite: 'lax'  
+    sameSite: 'none'  
   }
 }));
+
+app.use((req, res, next) => {
+  console.log('Headers ricevuti:', req.headers);
+  console.log('Session:', req.session);
+  console.log('Secure:', req.secure);
+  console.log('Protocol:', req.protocol);
+  next();
+});
 
 // ⚠️ WEBHOOK DEVE essere PRIMA di express.json()
 app.post('/webhook/stripe', 
@@ -1002,6 +1010,7 @@ app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
   console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
 });
+
 
 
 
