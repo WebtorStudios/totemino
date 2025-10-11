@@ -27,16 +27,24 @@ if (process.env.NODE_ENV !== 'production') {
 }
 
 // === MIDDLEWARE (ORDINE CORRETTO!) ===
+app.use((req, res, next) => {
+  if (req.headers['x-forwarded-proto'] === 'https' || 
+      req.headers['cloudfront-forwarded-proto'] === 'https') {
+    req.secure = true;
+  }
+  next();
+});
+
 app.use(session({
   secret: process.env.SESSION_SECRET || 'fallback-secret-key',
   resave: false,
   saveUninitialized: false,
-  proxy: true,  
+  proxy: true,
   cookie: {
     secure: true,
     httpOnly: true,
     maxAge: 24 * 60 * 60 * 1000,
-    sameSite: 'none'  
+    sameSite: 'none'
   }
 }));
 
@@ -1010,6 +1018,7 @@ app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
   console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
 });
+
 
 
 
