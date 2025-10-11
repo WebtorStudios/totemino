@@ -26,11 +26,11 @@ if (process.env.NODE_ENV !== 'production') {
   });
 }
 
-// 1️⃣ Forza HTTPS prima di tutto
+// 1️⃣ Forza HTTPS
 app.use((req, res, next) => {
   if (req.headers['cloudfront-forwarded-proto'] === 'https') {
     req.secure = true;
-    req.connection.encrypted = true; // opzionale ma utile per compatibilità
+    req.connection.encrypted = true; 
   }
   next();
 });
@@ -48,13 +48,6 @@ app.use(session({
     sameSite: 'none'
   }
 }));
-
-// 3️⃣ Log di debug
-app.use((req, res, next) => {
-  console.log('Secure:', req.secure);
-  console.log('Protocol:', req.protocol);
-  next();
-});
 
 // ⚠️ WEBHOOK DEVE essere PRIMA di express.json()
 app.post('/webhook/stripe', 
@@ -1018,6 +1011,7 @@ app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
   console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
 });
+
 
 
 
