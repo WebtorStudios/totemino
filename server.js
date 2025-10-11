@@ -26,22 +26,7 @@ if (process.env.NODE_ENV !== 'production') {
   });
 }
 
-// === MIDDLEWARE (ORDINE CORRETTO!) ===
-app.use((req, res, next) => {
-  console.log('🔍 Checking headers...');
-  console.log('x-forwarded-proto:', req.headers['x-forwarded-proto']);
-  console.log('cloudfront-forwarded-proto:', req.headers['cloudfront-forwarded-proto']);
-  
-  if (req.headers['x-forwarded-proto'] === 'https' || 
-      req.headers['cloudfront-forwarded-proto'] === 'https') {
-    console.log('✅ Setting req.secure = true');
-    req.secure = true;
-  } else {
-    console.log('❌ Condition not met');
-  }
-  next();
-});
-
+// 1️⃣ Session configuration
 app.use(session({
   secret: process.env.SESSION_SECRET || 'fallback-secret-key',
   resave: false,
@@ -55,9 +40,17 @@ app.use(session({
   }
 }));
 
+// 2️⃣ DOPO session: forza req.secure
 app.use((req, res, next) => {
-  console.log('Headers ricevuti:', req.headers);
-  console.log('Session:', req.session);
+  if (req.headers['cloudfront-forwarded-proto'] === 'https') {
+    req.secure = true;
+    req.connection.encrypted = true; // ← Aggiungi anche questo
+  }
+  next();
+});
+
+// 3️⃣ Log di debug
+app.use((req, res, next) => {
   console.log('Secure:', req.secure);
   console.log('Protocol:', req.protocol);
   next();
@@ -1025,6 +1018,7 @@ app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
   console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
 });
+
 
 
 
