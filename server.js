@@ -28,9 +28,16 @@ if (process.env.NODE_ENV !== 'production') {
 
 // === MIDDLEWARE (ORDINE CORRETTO!) ===
 app.use((req, res, next) => {
+  console.log('🔍 Checking headers...');
+  console.log('x-forwarded-proto:', req.headers['x-forwarded-proto']);
+  console.log('cloudfront-forwarded-proto:', req.headers['cloudfront-forwarded-proto']);
+  
   if (req.headers['x-forwarded-proto'] === 'https' || 
       req.headers['cloudfront-forwarded-proto'] === 'https') {
+    console.log('✅ Setting req.secure = true');
     req.secure = true;
+  } else {
+    console.log('❌ Condition not met');
   }
   next();
 });
@@ -1018,6 +1025,7 @@ app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
   console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
 });
+
 
 
 
