@@ -33,7 +33,7 @@ app.use(session({
   saveUninitialized: false,
   proxy: true,  
   cookie: {
-    secure: process.env.NODE_ENV === "production",
+    secure: true,
     httpOnly: true,
     maxAge: 24 * 60 * 60 * 1000,
     sameSite: 'lax'  
@@ -1002,6 +1002,7 @@ app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
   console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
 });
+
 
 
 
