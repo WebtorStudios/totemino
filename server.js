@@ -9,6 +9,8 @@ const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 
 const app = express();
 
+app.set('trust proxy', 1);
+
 // === LIVE RELOAD (SOLO IN SVILUPPO) ===
 if (process.env.NODE_ENV !== 'production') {
   const livereload = require('livereload');
@@ -30,7 +32,7 @@ app.use(session({
   resave: false,
   saveUninitialized: false,
   cookie: {
-    secure: false,
+    process.env.NODE_ENV === 'production',
     httpOnly: true,
     maxAge: 24 * 60 * 60 * 1000
   }
@@ -998,4 +1000,5 @@ app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
   console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
 });
+
 
