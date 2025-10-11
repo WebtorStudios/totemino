@@ -1,4 +1,7 @@
-// Sistema di suggerimenti intelligenti per Totemino - Versione Avanzata
+// ============================================
+// SISTEMA SUGGERIMENTI - GDPR COMPLIANT
+// ============================================
+
 class SuggestionsEngine {
   constructor() {
     this.menuData = {};
@@ -7,43 +10,80 @@ class SuggestionsEngine {
     this.userId = null;
   }
 
-  // Ottiene l'ID utente dal localStorage
+  // ===== CONTROLLO CONSENSO =====
+  canUsePreferences() {
+    if (typeof window.CookieConsent === 'undefined') {
+      console.warn('⚠️ Sistema cookie non caricato');
+      return false;
+    }
+    return window.CookieConsent.canTrackUser();
+  }
+
+  // ===== OTTIENI USER ID (CON CONTROLLO CONSENSO) =====
   getUserId() {
+    if (!this.canUsePreferences()) {
+      console.log('🚫 Suggerimenti personalizzati disabilitati (consenso negato)');
+      return null;
+    }
+    
+    // Usa la funzione globale sicura
+    if (typeof window.getUserId === 'function') {
+      return window.getUserId();
+    }
+    
+    // Fallback (non dovrebbe mai accadere)
     return localStorage.getItem("totemino_user_id");
   }
 
-  // Carica le preferenze dell'utente dal file locale
+  // ===== CARICA PREFERENZE (CON CONTROLLO CONSENSO) =====
   async loadUserPreferences() {
     try {
-      this.userId = this.getUserId();
-      if (!this.userId) {
-        console.log("Nessun userId trovato, utente nuovo");
+      // ✅ CONTROLLO CONSENSO
+      if (!this.canUsePreferences()) {
+        console.log('ℹ️ Suggerimenti generici (senza profilazione)');
+        this.userPreferences = null;
         return null;
       }
 
+      this.userId = this.getUserId();
+      
+      if (!this.userId) {
+        console.log('ℹ️ Nessun userId, suggerimenti generici');
+        return null;
+      }
+
+      // ✅ Consenso OK: carica preferenze
       const response = await fetch('/userdata/users-preferences.json');
+      
       if (!response.ok) {
-        console.log("File preferenze non trovato");
+        console.log('ℹ️ File preferenze non trovato');
         return null;
       }
 
       const allPreferences = await response.json();
       this.userPreferences = allPreferences[this.userId] || null;
       
-      console.log("Preferenze utente caricate:", this.userPreferences);
+      if (this.userPreferences) {
+        console.log('✅ Preferenze utente caricate:', Object.keys(this.userPreferences).length, 'ingredienti');
+      } else {
+        console.log('ℹ️ Nessuna preferenza salvata per questo utente');
+      }
+      
       return this.userPreferences;
+      
     } catch (error) {
-      console.error("Errore caricamento preferenze:", error);
+      console.error('❌ Errore caricamento preferenze:', error);
       return null;
     }
   }
 
-  // Carica i dati del menu
+  // ===== CARICA DATI MENU =====
   loadMenuData(menuData) {
     this.menuData = menuData;
+    console.log('📋 Menu caricato:', Object.keys(menuData).length, 'categorie');
   }
 
-  // Carica l'ordine corrente dal localStorage
+  // ===== CARICA ORDINE CORRENTE =====
   loadCurrentOrder() {
     const selectedItems = JSON.parse(localStorage.getItem("totemino_selected") || "[]");
     this.currentOrder = [];
@@ -61,9 +101,11 @@ class SuggestionsEngine {
         });
       }
     }
+    
+    console.log('🛒 Ordine corrente:', this.currentOrder.length, 'items');
   }
 
-  // Trova un prodotto nel menu
+  // ===== TROVA ITEM NEL MENU =====
   findItemInMenu(itemName) {
     for (const [category, items] of Object.entries(this.menuData)) {
       const found = items.find(item => item.name === itemName);
@@ -74,7 +116,7 @@ class SuggestionsEngine {
     return null;
   }
 
-  // Analizza l'ordine corrente per categoria
+  // ===== ANALISI CATEGORIE ORDINE =====
   getCategoryAnalysis() {
     const analysis = {};
     
@@ -92,28 +134,24 @@ class SuggestionsEngine {
     return analysis;
   }
 
-  // Determina le categorie da cui suggerire (escludi quelle con 1+ items)
+  // ===== CATEGORIE DA SUGGERIRE =====
   getCategoriesToSuggest() {
     const categoryAnalysis = this.getCategoryAnalysis();
     const allCategories = Object.keys(this.menuData);
     
-    // Filtra categorie: prendi solo quelle con 0 items nell'ordine
     const categoriesToSuggest = allCategories.filter(cat => {
       const count = categoryAnalysis[cat]?.count || 0;
       return count === 0;
     });
     
-    console.log("📊 Analisi ordine corrente:", categoryAnalysis);
-    console.log("🎯 Categorie da suggerire:", categoriesToSuggest);
-    
+    console.log('🎯 Categorie mancanti:', categoriesToSuggest);
     return categoriesToSuggest;
   }
 
-  // Estrae gli ingredienti dalla descrizione del menu
+  // ===== ESTRAI INGREDIENTI =====
   extractIngredientsFromDescription(description) {
     if (!description) return [];
     
-    // Rimuovi punteggiatura e splitta per virgole
     return description
       .toLowerCase()
       .replace(/[^\w\s,]/g, '')
@@ -122,13 +160,13 @@ class SuggestionsEngine {
       .filter(ing => ing.length > 0);
   }
 
-  // Calcola lo score basato sul matching con le preferenze utente
+  // ===== CALCOLA SCORE PREFERENZE =====
   calculatePreferenceScore(item) {
+    // Se non ci sono preferenze, score = 0 (suggerimenti casuali)
     if (!this.userPreferences) {
       return 0;
     }
 
-    // Estrae ingredienti dalla descrizione
     const itemIngredients = this.extractIngredientsFromDescription(item.description);
     
     if (itemIngredients.length === 0) {
@@ -146,32 +184,36 @@ class SuggestionsEngine {
       }
     });
 
-    // Bonus per maggior numero di ingredienti matchati
-    const matchPercentage = matchedIngredients / itemIngredients.length;
     const bonusScore = matchedIngredients * 2;
-    
     return totalScore + bonusScore;
   }
 
-  // Algoritmo principale per generare suggerimenti
+  // ===== GENERA SUGGERIMENTI =====
   async generateSuggestions() {
     this.loadCurrentOrder();
+    
+    // ✅ Carica preferenze (con controllo consenso interno)
     await this.loadUserPreferences();
 
     const suggestions = [];
     const currentItems = new Set(this.currentOrder.map(item => item.name));
     const categoriesToSuggest = this.getCategoriesToSuggest();
 
-    console.log("🔍 Inizio generazione suggerimenti...");
+    console.log('🔍 Generazione suggerimenti...');
+    
+    if (this.userPreferences) {
+      console.log('✨ Modalità: PERSONALIZZATI (con preferenze)');
+    } else {
+      console.log('🎲 Modalità: GENERICI (senza preferenze)');
+    }
 
-    // STEP 1: Per ogni categoria mancante, trova i migliori 2 items
+    // STEP 1: Per ogni categoria, trova i migliori 2 items
     const suggestionsByCategory = {};
     
     for (const category of categoriesToSuggest) {
       const categoryItems = this.menuData[category] || [];
       const scoredItems = [];
 
-      // Calcola score per ogni item disponibile
       for (const item of categoryItems) {
         if (currentItems.has(item.name)) continue;
         
@@ -183,20 +225,20 @@ class SuggestionsEngine {
         });
       }
 
-      // Ordina per score decrescente
-      scoredItems.sort((a, b) => b.preferenceScore - a.preferenceScore);
+      // Ordina per score (o casualmente se score = 0)
+      scoredItems.sort((a, b) => {
+        if (a.preferenceScore === 0 && b.preferenceScore === 0) {
+          return Math.random() - 0.5; // Casuale
+        }
+        return b.preferenceScore - a.preferenceScore;
+      });
       
-      // Prendi i top 2 items per categoria
       suggestionsByCategory[category] = scoredItems.slice(0, 2);
-      
-      console.log(`📦 ${category}: ${scoredItems.length} items disponibili, top 2 selezionati`);
     }
 
-    // STEP 2: Distribuisci equamente tra le categorie per arrivare a 4 suggerimenti
+    // STEP 2: Raccogli fino a 4 suggerimenti
     const maxSuggestions = 4;
     let remainingSlots = maxSuggestions;
-
-    // Raccogli tutti i suggerimenti per categoria
     const categorizedSuggestions = [];
 
     for (const category of categoriesToSuggest) {
@@ -207,13 +249,12 @@ class SuggestionsEngine {
             categorizedSuggestions.push(item);
             currentItems.add(item.name);
             remainingSlots--;
-            console.log(`✅ Aggiunto: ${item.name} (${category}) - Score: ${item.preferenceScore}`);
           }
         });
       }
     }
 
-    // STEP 3: Se ancora mancano slot, cerca items con alto score
+    // STEP 3: Riempimento se necessario
     if (remainingSlots > 0) {
       const allRemainingItems = [];
       
@@ -226,18 +267,22 @@ class SuggestionsEngine {
         });
       });
 
-      allRemainingItems.sort((a, b) => b.preferenceScore - a.preferenceScore);
+      allRemainingItems.sort((a, b) => {
+        if (a.preferenceScore === 0 && b.preferenceScore === 0) {
+          return Math.random() - 0.5;
+        }
+        return b.preferenceScore - a.preferenceScore;
+      });
       
       while (remainingSlots > 0 && allRemainingItems.length > 0) {
         const item = allRemainingItems.shift();
         categorizedSuggestions.push(item);
         currentItems.add(item.name);
         remainingSlots--;
-        console.log(`✅ Aggiunto (riempimento): ${item.name} (${item.category}) - Score: ${item.preferenceScore}`);
       }
     }
 
-    // STEP 4: Ordina per categoria (stesso ordine del menu)
+    // STEP 4: Ordina per categoria
     const categoryOrder = Object.keys(this.menuData);
     categorizedSuggestions.sort((a, b) => {
       return categoryOrder.indexOf(a.category) - categoryOrder.indexOf(b.category);
@@ -245,11 +290,11 @@ class SuggestionsEngine {
 
     suggestions.push(...categorizedSuggestions);
 
-    console.log(`🎉 Generati ${suggestions.length} suggerimenti totali`);
+    console.log(`🎉 ${suggestions.length} suggerimenti generati`);
     return suggestions.slice(0, maxSuggestions);
   }
 
-  // Renderizza i suggerimenti nell'interfaccia
+  // ===== RENDERIZZA SUGGERIMENTI =====
   async renderSuggestions(restaurantId) {
     const suggestions = await this.generateSuggestions();
     const wrapper = document.querySelector(".suggestions-wrapper");
@@ -273,7 +318,7 @@ class SuggestionsEngine {
     wrapperTitle.appendChild(document.createTextNode(" ti consiglia:"));
     suggestionsList.appendChild(wrapperTitle);
 
-    // Renderizza ogni suggerimento
+    // Renderizza suggerimenti
     suggestions.forEach(suggestion => {
       const container = document.createElement("div");
       container.className = "suggested-single";
@@ -313,7 +358,7 @@ class SuggestionsEngine {
     wrapper.style.display = "";
   }
 
-  // Aggiunge un suggerimento all'ordine
+  // ===== AGGIUNGI SUGGERIMENTO ALL'ORDINE =====
   addSuggestionToOrder(suggestion, restaurantId) {
     const currentSelected = JSON.parse(localStorage.getItem("totemino_selected") || "[]");
     const currentNotes = JSON.parse(localStorage.getItem("totemino_notes") || "[]");
@@ -341,16 +386,17 @@ class SuggestionsEngine {
   }
 }
 
-// Inizializza il sistema di suggerimenti
+// ===== INIZIALIZZAZIONE =====
 const suggestionsEngine = new SuggestionsEngine();
 
-// Funzione di utilità per inizializzare i suggerimenti (async)
 async function initializeSuggestions(menuData, restaurantId) {
   suggestionsEngine.loadMenuData(menuData);
   await suggestionsEngine.renderSuggestions(restaurantId);
 }
 
-// Esporta per l'uso in altri file
+// ===== EXPORT =====
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = { SuggestionsEngine, initializeSuggestions };
 }
+
+console.log('💡 Sistema suggerimenti GDPR caricato');
