@@ -26,7 +26,16 @@ if (process.env.NODE_ENV !== 'production') {
   });
 }
 
-// 1️⃣ Session configuration
+// 1️⃣ Forza HTTPS prima di tutto
+app.use((req, res, next) => {
+  if (req.headers['cloudfront-forwarded-proto'] === 'https') {
+    req.secure = true;
+    req.connection.encrypted = true; // opzionale ma utile per compatibilità
+  }
+  next();
+});
+
+// 2️⃣ Configurazione sessione
 app.use(session({
   secret: process.env.SESSION_SECRET || 'fallback-secret-key',
   resave: false,
@@ -39,15 +48,6 @@ app.use(session({
     sameSite: 'none'
   }
 }));
-
-// 2️⃣ DOPO session: forza req.secure
-app.use((req, res, next) => {
-  if (req.headers['cloudfront-forwarded-proto'] === 'https') {
-    req.secure = true;
-    req.connection.encrypted = true; // ← Aggiungi anche questo
-  }
-  next();
-});
 
 // 3️⃣ Log di debug
 app.use((req, res, next) => {
@@ -1018,6 +1018,7 @@ app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
   console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
 });
+
 
 
 
