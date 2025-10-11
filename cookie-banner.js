@@ -1,14 +1,54 @@
-// === GESTIONE COOKIE CONSENT ===
-const COOKIE_CONSENT_KEY = 'totemino_cookie_consent';
+// ============================================
+// SISTEMA COOKIE CONSENT - GDPR COMPLIANT
+// ============================================
 
-// Inserisci HTML del banner
+const COOKIE_CONSENT_KEY = 'totemino_cookie_consent';
+const CONSENT_VERSION = '1.0'; // Incrementa se cambi il consenso
+
+// ===== UTILITÀ GLOBALI =====
+window.CookieConsent = {
+    hasConsent: function(type) {
+        const consent = getCookieConsent();
+        if (!consent) return false;
+        
+        switch(type) {
+            case 'necessary': return true; // Sempre consentiti
+            case 'profiling': return consent.profiling === true;
+            case 'analytics': return consent.analytics === true;
+            default: return false;
+        }
+    },
+    
+    canTrackUser: function() {
+        return this.hasConsent('profiling');
+    },
+    
+    canUseAnalytics: function() {
+        return this.hasConsent('analytics');
+    },
+    
+    getUserIdSafe: function() {
+        if (!this.canTrackUser()) return null;
+        return localStorage.getItem("totemino_user_id");
+    },
+    
+    setUserIdSafe: function(userId) {
+        if (!this.canTrackUser()) {
+            console.warn('🚫 Profilazione non consentita');
+            return false;
+        }
+        localStorage.setItem("totemino_user_id", userId);
+        return true;
+    }
+};
+
+// ===== BANNER HTML =====
 function injectCookieBanner() {
-    if (document.getElementById('cookie-banner')) return; // Già presente
+    if (document.getElementById('cookie-banner')) return;
+    
     const bannerHTML = `
-    <!-- Banner Cookie -->
     <div id="cookie-banner">
         <div class="cookie-content">
-            
             <div class="cookie-text">
                 <h3>🍪 Questo sito utilizza cookie</h3>
                 <p>
@@ -31,7 +71,6 @@ function injectCookieBanner() {
         </div>
     </div>
 
-    <!-- Popup Impostazioni -->
     <div id="cookie-settings">
         <div class="settings-modal">
             <div class="settings-header">
@@ -93,32 +132,39 @@ function injectCookieBanner() {
     document.body.insertAdjacentHTML('beforeend', bannerHTML);
 }
 
-// Mostra il banner se necessario
-function initCookieBanner() {
-    const consent = getCookieConsent();
-    if (!consent) {
-        injectCookieBanner();
-        document.getElementById('cookie-banner').classList.add('show');
-    } else {
-        applyCookieSettings(consent);
+// ===== GESTIONE CONSENSO =====
+function getCookieConsent() {
+    const saved = localStorage.getItem(COOKIE_CONSENT_KEY);
+    if (!saved) return null;
+    
+    try {
+        const consent = JSON.parse(saved);
+        // Verifica versione consenso
+        if (consent.version !== CONSENT_VERSION) {
+            console.log('Versione consenso obsoleta, richiedi nuovamente');
+            localStorage.removeItem(COOKIE_CONSENT_KEY);
+            return null;
+        }
+        return consent;
+    } catch (e) {
+        console.error('Errore parsing consenso:', e);
+        return null;
     }
 }
 
-function getCookieConsent() {
-    const saved = localStorage.getItem(COOKIE_CONSENT_KEY);
-    return saved ? JSON.parse(saved) : null;
-}
-
 function saveCookieConsent(consent) {
+    consent.version = CONSENT_VERSION;
+    consent.timestamp = new Date().toISOString();
     localStorage.setItem(COOKIE_CONSENT_KEY, JSON.stringify(consent));
+    console.log('✅ Consenso salvato:', consent);
 }
 
+// ===== AZIONI BANNER =====
 function acceptAllCookies() {
     const consent = {
         necessary: true,
         profiling: true,
-        analytics: true,
-        timestamp: new Date().toISOString()
+        analytics: true
     };
     saveCookieConsent(consent);
     applyCookieSettings(consent);
@@ -129,8 +175,7 @@ function acceptNecessaryCookies() {
     const consent = {
         necessary: true,
         profiling: false,
-        analytics: false,
-        timestamp: new Date().toISOString()
+        analytics: false
     };
     saveCookieConsent(consent);
     applyCookieSettings(consent);
@@ -156,8 +201,7 @@ function saveCustomCookieSettings() {
     const consent = {
         necessary: true,
         profiling: document.getElementById('cookie-profiling').checked,
-        analytics: document.getElementById('cookie-analytics').checked,
-        timestamp: new Date().toISOString()
+        analytics: document.getElementById('cookie-analytics').checked
     };
     saveCookieConsent(consent);
     applyCookieSettings(consent);
@@ -170,24 +214,59 @@ function hideBanner() {
     if (banner) banner.classList.remove('show');
 }
 
+// ===== APPLICAZIONE CONSENSO =====
 function applyCookieSettings(consent) {
+    console.log('🔧 Applicazione impostazioni:', consent);
+    
+    // PROFILAZIONE
     if (consent.profiling) {
+        console.log('✅ Profilazione ABILITATA');
         window.PROFILING_ENABLED = true;
     } else {
+        console.log('🚫 Profilazione DISABILITATA');
         window.PROFILING_ENABLED = false;
-        localStorage.removeItem('userPreferences');
-        localStorage.removeItem('orderHistory');
+        
+        // PULISCI DATI DI PROFILAZIONE
+        localStorage.removeItem('totemino_user_id');
+        console.log('🧹 Rimosso totemino_user_id');
     }
     
+    // ANALYTICS
     if (consent.analytics) {
+        console.log('✅ Analytics ABILITATO');
         window.ANALYTICS_ENABLED = true;
     } else {
+        console.log('🚫 Analytics DISABILITATO');
         window.ANALYTICS_ENABLED = false;
-        localStorage.removeItem('statsData');
+    }
+    
+    // Dispatch evento per notificare altri script
+    window.dispatchEvent(new CustomEvent('cookieConsentChanged', { 
+        detail: consent 
+    }));
+}
+
+// ===== INIZIALIZZAZIONE =====
+function initCookieBanner() {
+    const consent = getCookieConsent();
+    
+    if (!consent) {
+        // Nessun consenso: mostra banner
+        console.log('📢 Mostra banner cookie');
+        injectCookieBanner();
+        document.getElementById('cookie-banner').classList.add('show');
+        
+        // Imposta tutto a false di default
+        window.PROFILING_ENABLED = false;
+        window.ANALYTICS_ENABLED = false;
+    } else {
+        // Consenso esistente: applica impostazioni
+        console.log('✓ Consenso già presente');
+        applyCookieSettings(consent);
     }
 }
 
-// Inizializza quando il DOM è pronto
+// ===== AVVIO =====
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', initCookieBanner);
 } else {
@@ -201,3 +280,5 @@ document.addEventListener('click', function(e) {
         closeCookieSettings();
     }
 });
+
+console.log('🍪 Sistema cookie GDPR caricato');
