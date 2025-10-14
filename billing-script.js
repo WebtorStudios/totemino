@@ -70,7 +70,7 @@ document.addEventListener("DOMContentLoaded", function() {
           Passa a Pro
         </button>
         <ul class="package-features">
-          <li>Tutti i servizi Base</li>
+          <li>Tutti i servizi Premium</li>
           <li>Suggerimenti in fase di checkout con IA</li>
           <li>Statistiche e report settimanali</li>
           <li>Servizio di supporto prioritario</li>
