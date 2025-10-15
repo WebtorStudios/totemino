@@ -26,19 +26,16 @@ class SuggestionsEngine {
       return null;
     }
     
-    // Usa la funzione globale sicura
     if (typeof window.getUserId === 'function') {
       return window.getUserId();
     }
     
-    // Fallback (non dovrebbe mai accadere)
     return localStorage.getItem("totemino_user_id");
   }
 
   // ===== CARICA PREFERENZE (CON CONTROLLO CONSENSO) =====
   async loadUserPreferences() {
     try {
-      // ✅ CONTROLLO CONSENSO
       if (!this.canUsePreferences()) {
         console.log('ℹ️ Suggerimenti generici (senza profilazione)');
         this.userPreferences = null;
@@ -52,7 +49,6 @@ class SuggestionsEngine {
         return null;
       }
 
-      // ✅ Consenso OK: carica preferenze
       const response = await fetch('/userdata/users-preferences.json');
       
       if (!response.ok) {
@@ -162,7 +158,6 @@ class SuggestionsEngine {
 
   // ===== CALCOLA SCORE PREFERENZE =====
   calculatePreferenceScore(item) {
-    // Se non ci sono preferenze, score = 0 (suggerimenti casuali)
     if (!this.userPreferences) {
       return 0;
     }
@@ -191,8 +186,6 @@ class SuggestionsEngine {
   // ===== GENERA SUGGERIMENTI =====
   async generateSuggestions() {
     this.loadCurrentOrder();
-    
-    // ✅ Carica preferenze (con controllo consenso interno)
     await this.loadUserPreferences();
 
     const suggestions = [];
@@ -207,7 +200,6 @@ class SuggestionsEngine {
       console.log('🎲 Modalità: GENERICI (senza preferenze)');
     }
 
-    // STEP 1: Per ogni categoria, trova i migliori 2 items
     const suggestionsByCategory = {};
     
     for (const category of categoriesToSuggest) {
@@ -225,10 +217,9 @@ class SuggestionsEngine {
         });
       }
 
-      // Ordina per score (o casualmente se score = 0)
       scoredItems.sort((a, b) => {
         if (a.preferenceScore === 0 && b.preferenceScore === 0) {
-          return Math.random() - 0.5; // Casuale
+          return Math.random() - 0.5;
         }
         return b.preferenceScore - a.preferenceScore;
       });
@@ -236,7 +227,6 @@ class SuggestionsEngine {
       suggestionsByCategory[category] = scoredItems.slice(0, 2);
     }
 
-    // STEP 2: Raccogli fino a 4 suggerimenti
     const maxSuggestions = 4;
     let remainingSlots = maxSuggestions;
     const categorizedSuggestions = [];
@@ -254,7 +244,6 @@ class SuggestionsEngine {
       }
     }
 
-    // STEP 3: Riempimento se necessario
     if (remainingSlots > 0) {
       const allRemainingItems = [];
       
@@ -282,7 +271,6 @@ class SuggestionsEngine {
       }
     }
 
-    // STEP 4: Ordina per categoria
     const categoryOrder = Object.keys(this.menuData);
     categorizedSuggestions.sort((a, b) => {
       return categoryOrder.indexOf(a.category) - categoryOrder.indexOf(b.category);
@@ -309,7 +297,6 @@ class SuggestionsEngine {
       return;
     }
 
-    // Titolo
     const wrapperTitle = document.createElement("h3");
     const spanTotemino = document.createElement("span");
     spanTotemino.id = "title-name";
@@ -318,7 +305,6 @@ class SuggestionsEngine {
     wrapperTitle.appendChild(document.createTextNode(" ti consiglia:"));
     suggestionsList.appendChild(wrapperTitle);
 
-    // Renderizza suggerimenti
     suggestions.forEach(suggestion => {
       const container = document.createElement("div");
       container.className = "suggested-single";
@@ -363,6 +349,9 @@ class SuggestionsEngine {
     const currentSelected = JSON.parse(localStorage.getItem("totemino_selected") || "[]");
     const currentNotes = JSON.parse(localStorage.getItem("totemino_notes") || "[]");
     
+    // ✅ Carica gli item suggeriti esistenti
+    const suggestedItems = JSON.parse(localStorage.getItem("totemino_suggested_items") || "[]");
+    
     let itemExists = false;
     
     for (let i = 0; i < currentSelected.length; i += 2) {
@@ -379,8 +368,16 @@ class SuggestionsEngine {
       currentNotes.push("");
     }
     
+    // ✅ MARCA L'ITEM COME SUGGERITO (se non è già presente)
+    if (!suggestedItems.includes(suggestion.name)) {
+      suggestedItems.push(suggestion.name);
+    }
+    
     localStorage.setItem("totemino_selected", JSON.stringify(currentSelected));
     localStorage.setItem("totemino_notes", JSON.stringify(currentNotes));
+    localStorage.setItem("totemino_suggested_items", JSON.stringify(suggestedItems)); // ✅ SALVA FLAG
+    
+    console.log('✅ Item suggerito aggiunto:', suggestion.name);
     
     window.location.reload();
   }
