@@ -18,7 +18,8 @@ const CONFIG = {
     count: "totemino_count",
     theme: "totemino_theme",
     showRiepilogo: "totemino_show_riepilogo",
-    suggestionStats: "totemino_suggestion_stats"
+    suggestionStats: "totemino_suggestion_stats",
+    suggestedItems: "totemino_suggested_items" // ✅ NUOVO
   }
 };
 
@@ -54,13 +55,13 @@ const Utils = {
   clearStorageKeepUser() {
     const theme = localStorage.getItem(CONFIG.storageKeys.theme);
     const userId = localStorage.getItem(CONFIG.storageKeys.userId);
-    const cookieConsent = localStorage.getItem('totemino_cookie_consent'); // 🍪 Salva consenso cookie
+    const cookieConsent = localStorage.getItem('totemino_cookie_consent');
     
     localStorage.clear();
     
     if (userId) localStorage.setItem(CONFIG.storageKeys.userId, userId);
     if (theme) localStorage.setItem(CONFIG.storageKeys.theme, theme);
-    if (cookieConsent) localStorage.setItem('totemino_cookie_consent', cookieConsent); // 🍪 Ripristina consenso
+    if (cookieConsent) localStorage.setItem('totemino_cookie_consent', cookieConsent);
   },
 
   getImagePath(item) {
@@ -89,6 +90,9 @@ const DataManager = {
     const res = await fetch(`IDs/${CONFIG.restaurantId}/menu.json`);
     const menuJson = await res.json();
     const selectedMap = this.loadSelectedItems();
+    
+    // ✅ Carica item suggeriti
+    const suggestedItems = Utils.loadFromStorage(CONFIG.storageKeys.suggestedItems, []);
 
     menuJson.categories.forEach(category => {
       STATE.menuData[category.name] = [];
@@ -110,7 +114,8 @@ const DataManager = {
             ...itemData,
             restaurantId: CONFIG.restaurantId,
             quantity: selectedMap.get(item.name),
-            category: category.name
+            category: category.name,
+            isSuggested: suggestedItems.includes(item.name) // ✅ RIPRISTINA FLAG
           });
           STATE.selectedCategories.add(category.name);
         }
@@ -129,6 +134,13 @@ const DataManager = {
     const arr = STATE.items.flatMap(item => [item.name, item.quantity.toString()]);
     Utils.saveToStorage(CONFIG.storageKeys.selected, arr);
     Utils.saveToStorage(CONFIG.storageKeys.notes, STATE.orderNotes);
+    
+    // ✅ Salva anche gli item suggeriti
+    const suggestedItems = STATE.items
+      .filter(item => item.isSuggested)
+      .map(item => item.name);
+    Utils.saveToStorage(CONFIG.storageKeys.suggestedItems, suggestedItems);
+    
     UI.updateTotal();
   },
 
@@ -247,7 +259,6 @@ const UI = {
   },
 
   updatePillPosition(button) {
-    // Force reflow per assicurarsi che le dimensioni siano calcolate
     button.offsetHeight;
     CONFIG.elements.pill.style.width = `${button.offsetWidth}px`;
     CONFIG.elements.pill.style.transform = `translateX(${button.offsetLeft}px)`;
@@ -401,21 +412,38 @@ const Popup = {
 
     newBtn.onclick = () => {
       if (selectedSuggestions.size > 0) {
-        const currentSelected = Utils.loadFromStorage(CONFIG.storageKeys.selected);
-        const currentNotes = Utils.loadFromStorage(CONFIG.storageKeys.notes);
-
+        // ✅ Trova e marca gli item come suggeriti PRIMA di aggiungerli
         selectedSuggestions.forEach(itemName => {
-          const idx = currentSelected.findIndex((name, i) => i % 2 === 0 && name === itemName);
-          if (idx !== -1) {
-            currentSelected[idx + 1] = (parseInt(currentSelected[idx + 1]) + 1).toString();
-          } else {
-            currentSelected.push(itemName, "1");
-            currentNotes.push("");
+          // Cerca l'item nel menuData
+          for (const category in STATE.menuData) {
+            const menuItem = STATE.menuData[category].find(i => i.name === itemName);
+            if (menuItem) {
+              // Cerca se l'item è già nel carrello
+              const existingItem = STATE.items.find(i => i.name === itemName);
+              
+              if (existingItem) {
+                // Item già presente: incrementa quantità e marca come suggerito
+                existingItem.quantity += 1;
+                existingItem.isSuggested = true; // ✅ MARCA COME SUGGERITO
+              } else {
+                // Nuovo item: aggiungilo al carrello marcato come suggerito
+                STATE.items.push({
+                  ...menuItem,
+                  restaurantId: CONFIG.restaurantId,
+                  quantity: 1,
+                  category: category,
+                  isSuggested: true // ✅ MARCA COME SUGGERITO
+                });
+                STATE.orderNotes.push(""); // Aggiungi nota vuota
+              }
+              break;
+            }
           }
         });
 
-        Utils.saveToStorage(CONFIG.storageKeys.selected, currentSelected);
-        Utils.saveToStorage(CONFIG.storageKeys.notes, currentNotes);
+        // ✅ Salva tutto (inclusi i flag isSuggested)
+        DataManager.saveSelected();
+        
         localStorage.setItem(CONFIG.storageKeys.showRiepilogo, "true");
         window.location.reload();
       } else {
@@ -449,7 +477,6 @@ const Navigation = {
       this.switchToStep(1);
     });
 
-    // Inizializzazione
     if (localStorage.getItem(CONFIG.storageKeys.showRiepilogo) === "true") {
       localStorage.removeItem(CONFIG.storageKeys.showRiepilogo);
       STATE.suggestionsShown = true;
@@ -458,7 +485,6 @@ const Navigation = {
       this.switchToStep(0);
     }
 
-    // Fix dimensioni pill dopo il caricamento completo
     window.addEventListener('load', () => {
       const activeBtn = document.querySelector('.categories button.active');
       if (activeBtn) {
@@ -590,7 +616,8 @@ const Orders = {
         price: item.price,
         quantity: item.quantity,
         category: item.category,
-        ingredients: item.ingredients
+        ingredients: item.ingredients,
+        isSuggested: item.isSuggested || false // ✅ INCLUDI IL FLAG
       })),
       orderNotes: STATE.orderNotes,
       total: STATE.items.reduce((sum, i) => sum + i.price * i.quantity, 0),
@@ -625,5 +652,4 @@ const Orders = {
 DataManager.fetchMenu();
 Navigation.init();
 Payment.init();
-
 Orders.init();
