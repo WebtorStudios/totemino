@@ -54,9 +54,13 @@ const Utils = {
   clearStorageKeepUser() {
     const theme = localStorage.getItem(CONFIG.storageKeys.theme);
     const userId = localStorage.getItem(CONFIG.storageKeys.userId);
+    const cookieConsent = localStorage.getItem('totemino_cookie_consent'); // 🍪 Salva consenso cookie
+    
     localStorage.clear();
+    
     if (userId) localStorage.setItem(CONFIG.storageKeys.userId, userId);
     if (theme) localStorage.setItem(CONFIG.storageKeys.theme, theme);
+    if (cookieConsent) localStorage.setItem('totemino_cookie_consent', cookieConsent); // 🍪 Ripristina consenso
   },
 
   getImagePath(item) {
@@ -621,4 +625,5 @@ const Orders = {
 DataManager.fetchMenu();
 Navigation.init();
 Payment.init();
+
 Orders.init();
