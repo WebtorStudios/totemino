@@ -716,6 +716,7 @@
 }
 
 #suggestions-action-btn.locked {
-  color: var(--text-accent);
+  color: #fdf8db;
   background: var(--btn-secondary);
 }
+
