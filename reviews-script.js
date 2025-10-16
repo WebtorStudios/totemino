@@ -37,7 +37,7 @@ document.addEventListener('DOMContentLoaded', () => {
 	
 	container.innerHTML = `
 		<div class="reviews-section">
-			<h3 class="reviews-title">Cosa pensano i nostri clienti</h3>
+			<h3 class="reviews-title">Dicono di noi</h3>
 			<div class="carousel-wrapper">
 				<div class="carousel-track">
 					${tripleReviews.map(r => `
@@ -104,3 +104,4 @@ document.addEventListener('DOMContentLoaded', () => {
 		animating = true;
 	});
 });
+
