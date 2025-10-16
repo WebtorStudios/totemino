@@ -56,17 +56,25 @@ document.addEventListener('DOMContentLoaded', () => {
 	`;
 	
 	const track = document.querySelector('.carousel-track');
-	const cardWidth = track.querySelector('.review-card').offsetWidth;
-	const resetPoint = cardWidth * reviews.length;
+	const card = track.querySelector('.review-card');
+	const gap = 32; // 2rem gap in px
+	const cardWidth = card.offsetWidth + gap;
+	const singleSetWidth = cardWidth * reviews.length;
 	
 	let pos = 0;
 	let animating = true;
+	let currentOffset = 0;
+	
+	function updatePosition() {
+		// Normalizza la posizione nel range del primo set
+		const normalized = ((currentOffset % singleSetWidth) + singleSetWidth) % singleSetWidth;
+		track.style.transform = `translateX(-${normalized}px)`;
+	}
 	
 	function animate() {
 		if (animating) {
-			pos += 0.5;
-			if (pos >= resetPoint) pos = 0;
-			track.style.transform = `translateX(-${pos}px)`;
+			currentOffset += 0.5;
+			updatePosition();
 		}
 		requestAnimationFrame(animate);
 	}
@@ -77,24 +85,19 @@ document.addEventListener('DOMContentLoaded', () => {
 	track.addEventListener('mouseleave', () => animating = true);
 	
 	// Mobile: scroll manuale con il dito
-	let startX, startPos;
+	let startX, startOffset;
 	
 	track.addEventListener('touchstart', (e) => {
 		animating = false;
 		startX = e.touches[0].clientX;
-		startPos = pos;
+		startOffset = currentOffset;
 	});
 	
 	track.addEventListener('touchmove', (e) => {
 		const currentX = e.touches[0].clientX;
 		const diff = startX - currentX;
-		pos = startPos + diff;
-		
-		// Loop infinito
-		while (pos >= resetPoint) pos -= resetPoint;
-		while (pos < 0) pos += resetPoint;
-		
-		track.style.transform = `translateX(-${pos}px)`;
+		currentOffset = startOffset + diff;
+		updatePosition();
 	});
 	
 	track.addEventListener('touchend', () => {
