@@ -22,7 +22,7 @@ const reviews = [
 	{
 		image: "img/cliente5.jpg",
 		name: "Fast Food Express",
-		text: "Il menu digitale ha migliorato l’esperienza dei clienti e il nostro lavoro quotidiano. Ordini immediati, suggerimenti intelligenti e tutto sotto controllo!"
+		text: "Il menu digitale ha migliorato l'esperienza dei clienti e il nostro lavoro quotidiano. Ordini immediati, suggerimenti intelligenti e tutto sotto controllo!"
 	},
 	{
 		image: "img/cliente6.jpg",
@@ -31,30 +31,22 @@ const reviews = [
 	}
 ];
 
-function createReviewsCarousel() {
+document.addEventListener('DOMContentLoaded', () => {
 	const container = document.querySelector('.create-reviews-section');
+	const tripleReviews = [...reviews, ...reviews, ...reviews];
 	
-	// Duplica le recensioni per creare un loop infinito
-	const duplicatedReviews = [...reviews, ...reviews, ...reviews];
-	
-	const carouselHTML = `
+	container.innerHTML = `
 		<div class="reviews-section">
-			<h3 class="reviews-title">Cosa pensano i nostri clienti</h2>
+			<h3 class="reviews-title">Cosa pensano i nostri clienti</h3>
 			<div class="carousel-wrapper">
 				<div class="carousel-track">
-					${duplicatedReviews.map((review, index) => `
+					${tripleReviews.map(r => `
 						<div class="review-card">
 							<div class="review-box">
-								<img src="${review.image}" alt="${review.name}" class="review-image" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22100%22 height=%22100%22%3E%3Ccircle fill=%22%23601f40%22 cx=%2250%22 cy=%2250%22 r=%2250%22/%3E%3Ctext fill=%22%23fdf8db%22 x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 font-size=%2240%22 font-weight=%22bold%22%3E${review.name.charAt(0)}%3C/text%3E%3C/svg%3E'">
-								<div class="stars">
-									<span class="star">★</span>
-									<span class="star">★</span>
-									<span class="star">★</span>
-									<span class="star">★</span>
-									<span class="star">★</span>
-								</div>
-								<p class="review-text">"${review.text}"</p>
-								<div class="review-author">${review.name}</div>
+								<img src="${r.image}" alt="${r.name}" class="review-image" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22100%22 height=%22100%22%3E%3Ccircle fill=%22%23601f40%22 cx=%2250%22 cy=%2250%22 r=%2250%22/%3E%3Ctext fill=%22%23fdf8db%22 x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 font-size=%2240%22 font-weight=%22bold%22%3E${r.name.charAt(0)}%3C/text%3E%3C/svg%3E'">
+								<div class="stars">★★★★★</div>
+								<p class="review-text">"${r.text}"</p>
+								<div class="review-author">${r.name}</div>
 							</div>
 						</div>
 					`).join('')}
@@ -63,46 +55,51 @@ function createReviewsCarousel() {
 		</div>
 	`;
 	
-	container.innerHTML = carouselHTML;
-	initializeScroll();
-}
-
-function initializeScroll() {
 	const track = document.querySelector('.carousel-track');
-	
-	// Calcola la larghezza di una singola card
 	const cardWidth = track.querySelector('.review-card').offsetWidth;
-	const totalWidth = cardWidth * reviews.length;
+	const resetPoint = cardWidth * reviews.length;
 	
-	let scrollPosition = 0;
+	let pos = 0;
+	let animating = true;
+	let touchTimeout;
 	
 	function animate() {
-		scrollPosition += 0.5; // Velocità dello scroll (più basso = più lento)
-		
-		// Quando arriviamo alla fine del primo set, resettiamo
-		if (scrollPosition >= totalWidth) {
-			scrollPosition = 0;
+		if (animating) {
+			pos += 0.5;
+			if (pos >= resetPoint) pos = 0;
+			track.style.transform = `translateX(-${pos}px)`;
 		}
-		
-		track.style.transform = `translateX(-${scrollPosition}px)`;
 		requestAnimationFrame(animate);
 	}
-	
 	animate();
 	
-	// Pausa al hover
-	track.addEventListener('mouseenter', () => {
-		track.style.animationPlayState = 'paused';
+	// Desktop: hover per fermare
+	track.addEventListener('mouseenter', () => animating = false);
+	track.addEventListener('mouseleave', () => animating = true);
+	
+	// Mobile: touch per fermare, riprende dopo 1s
+	track.addEventListener('touchstart', () => {
+		animating = false;
+		clearTimeout(touchTimeout);
 	});
 	
-	track.addEventListener('mouseleave', () => {
-		track.style.animationPlayState = 'running';
+	track.addEventListener('touchmove', (e) => {
+		const touch = e.touches[0];
+		const startX = touch.clientX;
+		
+		const onMove = (ev) => {
+			const dx = ev.touches[0].clientX - startX;
+			pos = Math.max(0, pos - dx * 0.5);
+		};
+		
+		track.addEventListener('touchmove', onMove, { passive: true });
+		track.addEventListener('touchend', () => {
+			track.removeEventListener('touchmove', onMove);
+		}, { once: true });
+	}, { passive: true });
+	
+	track.addEventListener('touchend', () => {
+		clearTimeout(touchTimeout);
+		touchTimeout = setTimeout(() => animating = true, 1000);
 	});
-}
-
-document.addEventListener('DOMContentLoaded', createReviewsCarousel);
-
-// Reinizializza lo scroll quando si ridimensiona la finestra
-window.addEventListener('resize', () => {
-	initializeScroll();
 });
