@@ -838,18 +838,20 @@ input[type="number"]::-webkit-outer-spin-button {
   }
 }
 
+/* FOOTER */
 footer a {
-	color: #fdf8db;
-	transition: all 0.3s ease;
+  color: #fdf8db;
+  transition: color 0.3s ease;
 }
 
 footer a:hover:not(#nohover) {
-	color: hsl(51, 69%, 73%);
+  color: hsl(51, 69%, 73%);
 }
 
 footer {
   text-align: center;
-  padding: 4em;
+  padding-top: 4em;
+  padding-bottom: 4em;
   color: #fdf8db;
   background: hsl(330, 51%, 15%);
 }
@@ -858,20 +860,17 @@ footer {
   background: hsl(219, 25%, 12%);
 }
 
-
 .footer-img {
-  margin-top: 1em;
-  margin-bottom: 1em;
+  margin: 1em 0;
   display: flex;
   justify-content: center;
 }
 
 .footer-img img {
-  margin-left: 0.5em;
-  margin-right: 0.5em;
+  margin: 0 0.5em;
   height: 2em;
   width: 2em;
-  transition: all 0.3s ease;
+  transition: opacity 0.3s ease;
 }
 
 .footer-img img:hover {
@@ -880,11 +879,9 @@ footer {
 
 .footer-img a {
   opacity: 0.5;
-  transition: all 0.2s ease;
+  transition: opacity 0.2s ease;
 }
 
 .footer-img a:hover {
   opacity: 0.8;
-
 }
-
