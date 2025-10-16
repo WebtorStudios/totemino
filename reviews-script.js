@@ -61,7 +61,6 @@ document.addEventListener('DOMContentLoaded', () => {
 	
 	let pos = 0;
 	let animating = true;
-	let touchTimeout;
 	
 	function animate() {
 		if (animating) {
@@ -77,28 +76,28 @@ document.addEventListener('DOMContentLoaded', () => {
 	track.addEventListener('mouseenter', () => animating = false);
 	track.addEventListener('mouseleave', () => animating = true);
 	
-	// Mobile: touch per scorrere manualmente
-	let startX, startPos, isDragging = false;
+	// Mobile: scroll manuale con il dito
+	let startX, startPos;
 	
 	track.addEventListener('touchstart', (e) => {
 		animating = false;
-		clearTimeout(touchTimeout);
-		isDragging = true;
 		startX = e.touches[0].clientX;
 		startPos = pos;
 	});
 	
 	track.addEventListener('touchmove', (e) => {
-		if (!isDragging) return;
-		const dx = startX - e.touches[0].clientX;
-		pos = startPos + dx;
-		if (pos < 0) pos = resetPoint + pos;
-		if (pos >= resetPoint) pos = pos - resetPoint;
+		const currentX = e.touches[0].clientX;
+		const diff = startX - currentX;
+		pos = startPos + diff;
+		
+		// Loop infinito
+		while (pos >= resetPoint) pos -= resetPoint;
+		while (pos < 0) pos += resetPoint;
+		
+		track.style.transform = `translateX(-${pos}px)`;
 	});
 	
 	track.addEventListener('touchend', () => {
-		isDragging = false;
-		clearTimeout(touchTimeout);
-		touchTimeout = setTimeout(() => animating = true, 1000);
+		animating = true;
 	});
 });
