@@ -208,7 +208,7 @@
   background: hsl(0, 67%, 55%);
   color: white;
   border: none;
-  padding: 1.5rem;
+  padding: 1rem 1.5rem;
   border-radius: 1.5rem;
   font-size: 1rem;
   font-weight: 600;
@@ -244,4 +244,5 @@
       height: 70px;
       font-size: 2rem;
   }
+
 }
