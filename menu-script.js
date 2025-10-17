@@ -5,6 +5,8 @@ const itemsContainer = document.querySelector(".items");
 const priceDisplay = document.querySelector(".price");
 const counterDisplay = document.querySelector(".cart h3");
 const nextBtn = document.querySelector(".next");
+const cartIcon = document.querySelector(".cart");
+const cartPopup = document.querySelector(".cart-popup");
 const allergenNames = {
   "1": "Molluschi", "2": "Lupino", "3": "Soia", "4": "Latte", "5": "Uova",
   "6": "Pesce", "7": "Glutine", "8": "Arachidi", "9": "Frutta a guscio",
@@ -83,6 +85,81 @@ function loadSelectionFromStorage() {
   total = parseFloat(localStorage.getItem("totemino_total")) || 0;
   count = parseInt(localStorage.getItem("totemino_count")) || 0;
 }
+
+let isCartPopupAnimating = false;
+
+function toggleCartPopup() {
+  if (isCartPopupAnimating) return;
+  
+  const cartImg = cartIcon.querySelector("img");
+  const cartCounter = cartIcon.querySelector("h3");
+  
+  if (cartPopup.classList.contains("hidden")) {
+    isCartPopupAnimating = true;
+    renderCartPopup();
+    cartPopup.classList.remove("hidden", "slide-up");
+    cartPopup.classList.add("slide-down");
+    cartImg.src = "img/cart_open.png";
+    cartCounter.style.opacity = "0";
+    setTimeout(() => {
+      isCartPopupAnimating = false;
+    }, 300);
+  } else {
+    isCartPopupAnimating = true;
+    cartPopup.classList.remove("slide-down");
+    cartPopup.classList.add("slide-up");
+    cartImg.src = "img/cart_closed.png";
+    cartCounter.style.opacity = "1";
+    setTimeout(() => {
+      cartPopup.classList.add("hidden");
+      isCartPopupAnimating = false;
+    }, 300);
+  }
+}
+
+function renderCartPopup() {
+  cartPopup.innerHTML = "";
+  
+  for (const [name, qty] of selectedItems) {
+    const item = findItemByName(name);
+    if (!item) continue;
+    
+    const itemDiv = document.createElement("div");
+    itemDiv.className = "cart-popup-item";
+    
+    const img = document.createElement("img");
+    img.src = `IDs/${restaurantId}/${item.img}`;
+    img.onerror = () => { img.src = 'img/placeholder.png'; };
+    
+    itemDiv.appendChild(img);
+    
+    if (qty > 1) {
+      const badge = document.createElement("span");
+      badge.className = "cart-popup-badge";
+      badge.textContent = qty;
+      itemDiv.appendChild(badge);
+    }
+    
+    cartPopup.appendChild(itemDiv);
+  }
+}
+
+cartIcon.addEventListener("click", (e) => {
+  e.stopPropagation();
+  toggleCartPopup();
+});
+
+document.addEventListener("click", (e) => {
+  if (!cartPopup.contains(e.target) && !cartIcon.contains(e.target)) {
+    if (!cartPopup.classList.contains("hidden")) {
+      const cartImg = cartIcon.querySelector("img");
+      const cartCounter = cartIcon.querySelector("h3");
+      cartPopup.classList.add("hidden");
+      cartImg.src = "img/cart_closed.png";
+      cartCounter.style.opacity = "1";
+    }
+  }
+});
 
 // === MENU ===
 async function loadMenu() {
