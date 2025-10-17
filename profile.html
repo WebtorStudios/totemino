@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Profilo - Totemino</title>
+    <link rel="icon" type="image/png" href="img/favicon.png">
+    <link rel="stylesheet" href="profile-styles.css"/>
+</head>
+<body>
+    <!-- Background lights -->
+    <div class="bg-light light1"></div>
+    <div class="bg-light light2"></div>
+    <div class="bg-light light3"></div>
+    
+    <!-- Header originale - NON MODIFICATO -->
+    <div class="title">
+        <div class="logo_space">
+            <img class="theme-img" data-light="img/logo_light.png" data-dark="img/logo_dark.png" alt="Logo">
+            <a href="index.html"><h1>Totemino</h1></a>
+            <p>Profilo</p>
+        </div>
+        <div>
+            <button id="back-btn" class="header-btn" type="button">
+                <img class="theme-img" data-light="img/exit_light.png" data-dark="img/exit_dark.png" alt="Torna">
+            </button>
+            <button id="theme" class="header-btn" type="button">
+                <img class="theme-img" data-light="img/theme_light.png" data-dark="img/theme_dark.png" alt="Tema">
+            </button>
+        </div>
+    </div>
+
+    <main class="container">
+        <!-- Hero Card -->
+        <section class="hero-card">
+            <div class="code-section">
+                <div class="code-label">Codice Univoco Ristorante:</div>
+                <div class="code-display" id="codeDisplay"></div>
+            </div>
+            
+            <div class="plan-section">
+                <div class="plan-card" id="planCard">
+                    <div class="plan-label">Piano attuale</div>
+                    <div class="plan-name" id="planName">Free</div>
+                </div>
+                <button class="btn-manage" id="manageBillingBtn">Migliora il tuo piano</button>
+            </div>
+        </section>
+
+        <!-- Menu Gestione -->
+        <h2 class="section-title">Gestione</h2>
+        <nav class="menu-card">
+            <a href="#" class="menu-item" id="gestioneCard">
+                <div class="menu-left">
+                    <div class="menu-icon">
+                        <img class="theme-img" data-light="img/profile/settings_light.png" data-dark="img/profile/settings_dark.png" alt="Impostazioni">
+                    </div>
+                    <span>Impostazioni</span>
+                </div>
+                <span class="menu-arrow">›</span>
+            </a>
+            
+            <a href="#" class="menu-item" id="menuCard">
+                <div class="menu-left">
+                    <div class="menu-icon">
+                        <img class="theme-img" data-light="img/profile/menu_light.png" data-dark="img/profile/menu_dark.png" alt="Menu">
+                    </div>
+                    <span>Modifica Menu</span>
+                </div>
+                <span class="menu-arrow">›</span>
+            </a>
+            
+            <a href="#" class="menu-item" id="statsCard">
+                <div class="menu-left">
+                    <div class="menu-icon">
+                        <img class="theme-img" data-light="img/profile/stats_light.png" data-dark="img/profile/stats_dark.png" alt="Statistics">
+                    </div>
+                    <span>Statistiche</span>
+                </div>
+                <span class="menu-arrow">›</span>
+            </a>
+        </nav>
+
+        <!-- Menu Anteprima -->
+        <h2 class="section-title">Anteprima</h2>
+        <nav class="menu-card">
+            <a href="#" class="menu-item" id="previewCard">
+                <div class="menu-left">
+                    <div class="menu-icon">
+                        <img class="theme-img" data-light="img/profile/preview_light.png" data-dark="img/profile/preview_dark.png" alt="Anteprima">
+                    </div>
+                    <span>Visualizza Menu</span>
+                </div>
+                <span class="menu-arrow">›</span>
+            </a>
+        </nav>
+
+        <!-- Logout Button -->
+        <div class="logout-section">
+            <button class="btn-logout" id="logoutBtn">Esci dal Profilo</button>
+        </div>
+    </main>
+
+    <!-- Logout Confirmation Popup (identico a gestione.html) -->
+    <div class="delete-popup-overlay" id="logoutPopup">
+        <div class="delete-popup">
+            <div class="delete-popup-header">
+                <h1>Sei sicuro?</h1>
+                <p>Stai per uscire dal profilo.</p>
+            </div>
+            <div class="delete-popup-actions">
+                <button id="cancel-delete">Annulla</button>
+                <button id="delete-btn">Esci</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="paywall-system.js"></script>
+    <script src="auth-protection.js"></script>
+    <script src="theme.js"></script>
+    <script src="profile-script.js"></script>
+</body>
+</html>

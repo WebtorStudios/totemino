@@ -22,6 +22,28 @@ const inputs = document.querySelectorAll('.pin-inputs input');
 const submitBtn = document.querySelector('.submit-btn');
 const hero = document.querySelector('.hero');
 
+
+async function checkAuth() {
+  try {
+    const res = await fetch('/api/auth/me', { credentials: 'include' });
+    const data = await res.json();
+    
+    if (data.success) {
+      const profiloBtnEl = document.getElementById('profiloBtn');
+      if (profiloBtnEl) {
+        profiloBtnEl.style.display = 'inline-block';
+        const restaurantId = data.user.restaurantId; // ✅ prende l'id dalla sessione
+        profiloBtnEl.addEventListener('click', () => {
+          window.location.href = `profile.html?id=${restaurantId}`;
+        });
+      }
+      document.getElementById('loginBtn').style.display = 'none';
+    }
+  } catch (e) {
+    console.error('Errore checkAuth:', e);
+  }
+}
+
 // === AUTH CHECK ===
 async function checkAuth() {
   try {
@@ -30,31 +52,26 @@ async function checkAuth() {
     
     if (data.success) {
       document.getElementById('loginBtn').style.display = 'none';
-      document.getElementById('gestioneBtn').style.display = 'inline-block';
-      document.getElementById('gestioneBtn').href = `gestione.html?id=${data.user.userCode}`;
-      document.getElementById('logoutBtn').style.display = 'inline-block';
+      const profiloBtnEl = document.getElementById('profiloBtn');
+      if (profiloBtnEl) {
+        profiloBtnEl.style.display = 'inline-block';
+        const restaurantId = data.user.restaurantId;
+        profiloBtnEl.addEventListener('click', () => {
+          window.location.href = `profile.html?id=${restaurantId}`;
+        });
+      }
     }
   } catch (e) {
-    // User not logged in, keep default buttons
-  }
-}
-
-// === LOGOUT ===
-async function logout() {
-  if (!confirm('Sei sicuro di uscire?')) return;
-  try {
-    await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
-    location.reload();
-  } catch (e) {
-    alert('Errore logout');
+    console.error('Errore checkAuth:', e);
   }
 }
 
 // === INIT ===
 document.addEventListener('DOMContentLoaded', () => {
   checkAuth();
-  document.getElementById('logoutBtn').onclick = logout;
 });
+
+
 
 // === EXISTING LOGIC ===
 startBtn.addEventListener('click', () => {

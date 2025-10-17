@@ -1,0 +1,247 @@
+@import url("gestione-styles.css");
+
+/* ======================
+  CONTAINER
+  ====================== */
+.container {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 1rem;
+  margin-bottom: 4rem;
+}
+
+/* ======================
+  HERO CARD
+  ====================== */
+.hero-card {
+  background: var(--card-bg);
+  border-radius: 1.5rem;
+  padding: 2rem 1rem;
+  margin: 1.5rem 0;
+  box-shadow: 0 2px 8px var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+}
+
+/* Code Section */
+.code-section {
+  width: 333px;
+  text-align: center;
+  margin: 0 auto;
+  margin-bottom: 2rem;
+  padding-bottom: 1rem;
+}
+
+.code-label {
+  color: var(--text-primary);
+  font-weight: 500;
+  margin-bottom: 0.75rem;
+}
+
+.code-display {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.75rem;
+  justify-content: center;
+  margin: 0 auto;
+  max-width: 280px;
+}
+
+.code-digit {
+  width: 68px;
+  height: 68px;
+  background: linear-gradient(135deg, #f4c430, #ffdb58);
+  border-radius: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Klein-Bold', sans-serif;
+  font-size: 1.8rem;
+  color: #2a2012;
+}
+
+/* Plan Section */
+.plan-section {
+  width: 100%;  
+  max-width: 400px;
+  margin: 0 auto;
+}
+
+.plan-card {
+  background: var(--input-bg);
+  padding: 1.25rem 1.5rem;
+  border-radius: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.plan-card.free {
+  background: var(--input-bg);
+}
+
+.plan-card.premium,
+.plan-card.paid {
+  background: linear-gradient(135deg, #c9a961, #d4b76a, #e6d5a0, #d4b76a, #b8965f, #9d7e4a);
+  color: #2a2012;
+  box-shadow: 0 1px 0 rgba(255,255,255,0.4) inset, 0 -1px 0 rgba(0,0,0,0.2) inset, 0 5px 15px rgba(0,0,0,0.2);
+}
+
+.plan-card.pro {
+  background: linear-gradient(125deg, rgba(255,255,255,0.95), rgba(240,248,255,0.95), rgba(255,240,255,0.95), rgba(240,255,250,0.95), rgba(255,255,255,0.95));
+  color: #3f3150;
+  box-shadow: 0 1px 0 rgba(255,255,255,0.8) inset, 0 3px 10px rgba(0,0,0,0.15);
+}
+
+.plan-label {
+  margin-bottom: 0.5rem;
+}
+
+.plan-name {
+  font-family: 'CalSans', sans-serif;
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+.btn-manage {
+  width: 100%;
+  background: var(--index-btn);
+  color: white;
+  border: none;
+  padding: 0.85rem;
+  border-radius: 0.75rem;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-manage:hover {
+  opacity: 0.9;
+}
+
+/* ======================
+  SECTION TITLE
+  ====================== */
+.section-title {
+  font-family: 'Klein-Bold', sans-serif;
+  font-size: 1.25rem;
+  color: var(--text-accent);
+  margin: 2rem 0 0.75rem;
+  padding-left: 0.25rem;
+}
+
+/* ======================
+  MENU CARDS
+  ====================== */
+.menu-card {
+  background: var(--card-bg);
+  border-radius: 1.5rem;
+  margin-bottom: 1rem;
+  box-shadow: 0 2px 8px var(--shadow-sm);
+  overflow: hidden;
+}
+
+.menu-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.25rem 1.5rem;
+  text-decoration: none;
+  color: var(--text-primary);
+  border-bottom: 1px solid var(--input-bg);
+  transition: background 0.2s;
+}
+
+.menu-item:last-child {
+  border-bottom: none;
+}
+
+.menu-item:hover {
+  background: var(--input-bg);
+}
+
+.menu-left {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.menu-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--input-bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.menu-icon img {
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+}
+
+.menu-left span {
+  font-size: 1rem;
+  font-weight: 500;
+}
+
+.menu-arrow {
+  color: var(--text-primary);
+  font-size: 1.5rem;
+}
+
+/* ======================
+  LOGOUT SECTION
+  ====================== */
+.logout-section {
+  background: var(--card-bg);
+  border-radius: 1.5rem;
+  box-shadow: 0 2px 8px var(--shadow-sm);
+  max-width: 200px;
+  margin: 0 auto;
+  margin-top: 3rem; 
+}
+
+.btn-logout {
+  width: 100%;
+  background: hsl(0, 67%, 55%);
+  color: white;
+  border: none;
+  padding: 1.5rem;
+  border-radius: 1.5rem;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  max-width: 500px;
+  transition: background 0.2s;
+}
+
+.btn-logout:hover {
+  background: hsl(0, 57%, 45%);
+}
+
+/* ======================
+  RESPONSIVE
+  ====================== */
+@media (min-width: 768px) {
+  .hero-card {
+    align-items: center;
+    justify-content: center!important;
+    flex-direction: row;
+  }
+
+  .code-section  {
+    margin-bottom: 0;
+  }
+
+  .container {
+      padding: 0 10rem;
+  }
+
+  .code-digit {
+      width: 70px;
+      height: 70px;
+      font-size: 2rem;
+  }
+}
