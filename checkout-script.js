@@ -19,7 +19,7 @@ const CONFIG = {
     theme: "totemino_theme",
     showRiepilogo: "totemino_show_riepilogo",
     suggestionStats: "totemino_suggestion_stats",
-    suggestedItems: "totemino_suggested_items" // ✅ NUOVO
+    suggestedItems: "totemino_suggested_items" 
   }
 };
 
@@ -409,6 +409,14 @@ const Popup = {
     const oldBtn = document.getElementById("suggestions-action-btn");
     const newBtn = oldBtn.cloneNode(true);
     oldBtn.replaceWith(newBtn);
+
+    // ✅ Nascondi il bottone inizialmente
+    newBtn.style.opacity = "0";
+
+    // ✅ Mostra il bottone dopo 3 secondi
+    setTimeout(() => {
+      newBtn.style.opacity = "1";
+    }, 3000);
 
     newBtn.onclick = () => {
       if (selectedSuggestions.size > 0) {
