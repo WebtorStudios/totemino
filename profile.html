@@ -3,7 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Profilo - Totemino</title>
+    <script>
+      (function() {
+        const saved = localStorage.getItem('totemino_theme');
+        const theme = saved || 
+          (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+        document.documentElement.setAttribute('data-theme', theme);
+      })();
+    </script>
+    <title>Totemino - Profilo</title>
     <link rel="icon" type="image/png" href="img/favicon.png">
     <link rel="stylesheet" href="profile-styles.css"/>
 </head>
@@ -120,4 +128,5 @@
     <script src="theme.js"></script>
     <script src="profile-script.js"></script>
 </body>
+
 </html>
