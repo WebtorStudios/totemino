@@ -25,7 +25,6 @@
 	display: flex;
 	gap: 2rem;
 	will-change: transform;
-	touch-action: pan-x;
 }
 
 .review-card {
@@ -91,3 +90,4 @@
 		flex: 0 0 380px;
 	}
 }
+
