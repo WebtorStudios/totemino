@@ -57,23 +57,21 @@ document.addEventListener('DOMContentLoaded', () => {
 	
 	const track = document.querySelector('.carousel-track');
 	const card = track.querySelector('.review-card');
-	const gap = 32; // 2rem gap in px
+	const gap = 32;
 	const cardWidth = card.offsetWidth + gap;
 	const singleSetWidth = cardWidth * reviews.length;
 	
-	let pos = 0;
 	let animating = true;
 	let currentOffset = 0;
 	
 	function updatePosition() {
-		// Normalizza la posizione nel range del primo set
 		const normalized = ((currentOffset % singleSetWidth) + singleSetWidth) % singleSetWidth;
 		track.style.transform = `translateX(-${normalized}px)`;
 	}
 	
 	function animate() {
 		if (animating) {
-			currentOffset += 0.5;
+			currentOffset += 0.6;
 			updatePosition();
 		}
 		requestAnimationFrame(animate);
@@ -84,25 +82,39 @@ document.addEventListener('DOMContentLoaded', () => {
 	track.addEventListener('mouseenter', () => animating = false);
 	track.addEventListener('mouseleave', () => animating = true);
 	
-	// Mobile: scroll manuale con il dito
-	let startX, startOffset;
+	// Mobile: rilevamento direzione swipe
+	let startX, startY, startOffset, isHorizontal = null;
 	
 	track.addEventListener('touchstart', (e) => {
-		animating = false;
 		startX = e.touches[0].clientX;
+		startY = e.touches[0].clientY;
 		startOffset = currentOffset;
+		isHorizontal = null;
 	});
 	
 	track.addEventListener('touchmove', (e) => {
 		const currentX = e.touches[0].clientX;
-		const diff = startX - currentX;
-		currentOffset = startOffset + diff;
-		updatePosition();
-	});
+		const currentY = e.touches[0].clientY;
+		const diffX = Math.abs(currentX - startX);
+		const diffY = Math.abs(currentY - startY);
+		
+		// Determina la direzione al primo movimento significativo
+		if (isHorizontal === null && (diffX > 10 || diffY > 10)) {
+			isHorizontal = diffX > diffY;
+		}
+		
+		// Se lo swipe è orizzontale, gestiscilo; altrimenti lascia scrollare la pagina
+		if (isHorizontal) {
+			e.preventDefault();
+			animating = false;
+			const diff = startX - currentX;
+			currentOffset = startOffset + diff;
+			updatePosition();
+		}
+	}, { passive: false });
 	
 	track.addEventListener('touchend', () => {
 		animating = true;
+		isHorizontal = null;
 	});
 });
-
-
