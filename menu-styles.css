@@ -49,7 +49,7 @@
 [data-theme="dark"] {
   /* Colori principali */
   --bg-primary: #1a1f2e;
-  --bg-secondary: #2a3446;
+  --bg-secondary: rgba(42, 52, 70,0.8);
   --card-bg: #2a3446;
   --bg-overlay: rgba(0,0,0,0.8);
   --text-primary: #fdf8db;
@@ -511,6 +511,87 @@ input[type="number"]::-webkit-outer-spin-button {
   -webkit-backdrop-filter: blur(7px);
 }
 
+/* ===== CART POPUP ===== */
+.cart-popup {
+  position: fixed;
+  bottom: 8rem;
+  left: calc(30% + 1rem);
+  transform: translateX(-50%);
+  width: 60vw;
+  max-width: 400px;
+  background: var(--bg-secondary);
+  border-radius: 1.5rem;
+  padding: 1rem;
+  box-shadow: 0 0 16px var(--shadow-sm);
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  z-index: 999;
+  backdrop-filter: blur(7px);
+  -webkit-backdrop-filter: blur(7px);
+}
+
+.cart-popup.slide-down {
+  animation: slideDown 0.3s ease-out forwards;
+}
+
+.cart-popup.slide-up {
+  animation: slideUp 0.3s ease-in forwards;
+}
+
+.cart-popup.hidden {
+  display: none;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(100px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(-50%) translateY(100px);
+  }
+}
+
+.cart-popup-item {
+  position: relative;
+  aspect-ratio: 1;
+  overflow: hidden;
+}
+
+.cart-popup-item img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.cart-popup-badge {
+  position: absolute;
+  top: 0.3rem;
+  right: 0.3rem;
+  background: var(--badge-red);
+  color: #fff;
+  font-size: 0.8rem;
+  font-weight: 700;
+  border-radius: 50%;
+  width: 1.4rem;
+  height: 1.4rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .order > div {
   display: flex;
   align-items: center;
@@ -755,7 +836,19 @@ input[type="number"]::-webkit-outer-spin-button {
     gap: 1.2rem;
     padding: 0 1.5rem;
   }
-  
+
+  .cart-popup {
+    left: 50%;
+    width: 90vw;
+    max-width: 450px;
+  }
+
+  .cart-popup-badge {
+    font-size: 0.9rem;
+    width: 1.5rem;
+    height: 1.5rem;
+  }
+
   .items img { height: 8rem; }
   .items h3, .items p { font-size: 1.1rem; }
   .logo-space img { height: 4.5rem; width: auto }
@@ -815,7 +908,9 @@ input[type="number"]::-webkit-outer-spin-button {
     width: 60vw;
     max-width: 600px;
   }
-  
+  .cart {
+    cursor: pointer;
+  }
   .popup-content {
     width: 50%;
     max-width: 600px;
