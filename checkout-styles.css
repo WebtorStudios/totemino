@@ -668,8 +668,8 @@
   border-radius: 1.5rem;
   background: var(--card-bg);
   text-align: left;
-  padding-top: 1.5rem;
-  padding-bottom: 1rem;
+  padding-top: 1rem;
+  padding-bottom: 0.75rem;
   transition: all 0.2s;
   cursor: pointer;
 }
