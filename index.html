@@ -4,47 +4,29 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script>
-(function() {
-  const saved = localStorage.getItem('totemino_theme');
-  const theme = saved || 
-    (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
-  document.documentElement.setAttribute('data-theme', theme);
-  
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', resetPinInputs);
-  } else {
-    resetPinInputs();
-  }
-  
-  function resetPinInputs() {
-    const inputs = document.querySelectorAll('.pin-inputs input');
-    
-    inputs.forEach(input => {
-      input.value = '';
-      input.setAttribute('autocomplete', 'off');
-      input.classList.remove('animate', 'success', 'error');
-      input.style.animationDelay = '';
-    });
-    
-    const loginCard = document.querySelector('.login-card');
-    const hero = document.querySelector('.hero');
-    const startBtn = document.querySelector('.start-btn');
-    const logo = document.querySelector('.logo');
-    const title = document.querySelector('.main-title');
-    
-    if (loginCard) loginCard.classList.remove('active');
-    if (hero) hero.classList.remove('active');
-    if (startBtn) startBtn.classList.remove('hidden');
-    if (logo) {
-      logo.style.transform = '';
-      logo.style.width = '';
-    }
-    if (title) {
-      title.style.transform = '';
-      title.style.fontSize = '';
-    }
-  }
-})();
+        (function() {
+          const saved = localStorage.getItem('totemino_theme');
+          const theme = saved || 
+            (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+          document.documentElement.setAttribute('data-theme', theme);
+          
+          if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', resetPinInputs);
+          } else {
+            resetPinInputs();
+          }
+          
+          function resetPinInputs() {
+            const inputs = document.querySelectorAll('.pin-inputs input');
+            
+            inputs.forEach(input => {
+              input.value = '';
+              input.setAttribute('autocomplete', 'off');
+              input.classList.remove('animate', 'success', 'error');
+              input.style.animationDelay = '';
+            });
+          }
+        })();
     </script>
     <title>Totemino - Ordina Senza Parole</title>
     <link rel="icon" type="image/png" href="img/favicon.png">
@@ -372,6 +354,7 @@
 </body>
 
 </html>
+
 
 
 
