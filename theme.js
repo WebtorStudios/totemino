@@ -54,7 +54,7 @@ class ThemeManager {
       });
     }, { 
       threshold: 0,
-      rootMargin: '-40% 0px -80% 0px' // Attiva quando la sezione è al 20% dall'alto dello schermo
+      rootMargin: '0% 0px -80% 0px' // Attiva quando la sezione è al 20% dall'alto dello schermo
     }).observe(this.faqSection);
   }
 }
@@ -89,4 +89,5 @@ function dispatchThemeChange(theme) {
   const event = new CustomEvent('themeChanged', { detail: { theme } });
   document.dispatchEvent(event);
 }
+
 
