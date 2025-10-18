@@ -10,21 +10,12 @@
             (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
           document.documentElement.setAttribute('data-theme', theme);
           
-          if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', resetPinInputs);
-          } else {
-            resetPinInputs();
+          if (performance.navigation.type === 1) {
+            return;
           }
           
-          function resetPinInputs() {
-            const inputs = document.querySelectorAll('.pin-inputs input');
-            
-            inputs.forEach(input => {
-              input.value = '';
-              input.setAttribute('autocomplete', 'off');
-              input.classList.remove('animate', 'success', 'error');
-              input.style.animationDelay = '';
-            });
+          if (performance.getEntriesByType('navigation')[0]?.type !== 'reload') {
+            location.reload();
           }
         })();
     </script>
@@ -354,6 +345,7 @@
 </body>
 
 </html>
+
 
 
 
