@@ -1,6 +1,23 @@
-// Get restaurant ID
+// Get restaurant ID from URL or session
 const urlParams = new URLSearchParams(window.location.search);
-const restaurantId = urlParams.get('id') || localStorage.getItem('restaurantId') || '1001';
+const restaurantId = urlParams.get('id');
+
+// Se non c'è ID nell'URL, verifica la sessione
+if (!restaurantId) {
+    fetch('/api/auth/me')
+        .then(res => res.json())
+        .then(data => {
+            if (!data.success || data.requireLogin) {
+                window.location.href = 'index.html';
+            } else {
+                // Aggiorna URL con l'ID dalla sessione
+                window.location.href = `profile.html?id=${data.user.restaurantId}`;
+            }
+        })
+        .catch(() => {
+            window.location.href = 'index.html';
+        });
+}
 
 // Display code digits
 function displayCode() {
@@ -12,19 +29,20 @@ function displayCode() {
         .join('');
 }
 
-// Load and display user plan
+// Load and display user plan from session
 async function loadUserPlan() {
     try {
-        const response = await fetch('userdata/users.json');
-        const users = await response.json();
-        const user = users[restaurantId];
+        const response = await fetch('/api/auth/me');
+        const data = await response.json();
         
-        if (user) {
-            const userPlan = user.status || user.planType || 'free';
-            updatePlanDisplay(userPlan);
-        } else {
-            updatePlanDisplay('free');
+        if (!data.success || data.requireLogin) {
+            window.location.href = 'index.html';
+            return;
         }
+        
+        const userPlan = data.user.status || 'free';
+        updatePlanDisplay(userPlan);
+        
     } catch (error) {
         console.error('Error loading user plan:', error);
         updatePlanDisplay('free');
@@ -83,9 +101,40 @@ cancelDelete.addEventListener('click', () => {
     logoutPopup.classList.remove('show');
 });
 
-deleteBtn.addEventListener('click', () => {
-    localStorage.removeItem('restaurantId');
-    window.location.href = 'index.html';
+// ✅ LOGOUT CORRETTO: chiamata al server
+deleteBtn.addEventListener('click', async () => {
+    try {
+        // Disabilita il pulsante durante il logout
+        deleteBtn.disabled = true;
+        deleteBtn.textContent = 'Disconnessione...';
+        
+        const response = await fetch('/api/auth/logout', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            // Rimuovi anche localStorage per compatibilità
+            localStorage.removeItem('restaurantId');
+            
+            // Redirect a index.html
+            window.location.href = 'index.html';
+        } else {
+            throw new Error('Logout fallito');
+        }
+        
+    } catch (error) {
+        console.error('Errore durante il logout:', error);
+        alert('Errore durante la disconnessione. Riprova.');
+        
+        // Riabilita il pulsante in caso di errore
+        deleteBtn.disabled = false;
+        deleteBtn.textContent = 'Disconnetti';
+    }
 });
 
 // Close popup on overlay click
@@ -96,6 +145,8 @@ logoutPopup.addEventListener('click', (e) => {
 });
 
 // Initialize
-displayCode();
-loadUserPlan();
-setMenuLinks();
+if (restaurantId) {
+    displayCode();
+    loadUserPlan();
+    setMenuLinks();
+}
