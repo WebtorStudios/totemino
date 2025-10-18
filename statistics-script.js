@@ -12,6 +12,39 @@ let state = {
     usersData: null
 };
 
+async function checkProAccess() {
+    try {
+        const response = await fetch('/api/auth/me', { credentials: 'include' });
+        const data = await response.json();
+        
+        if (!data.success || !data.user) {
+            window.location.href = 'login.html';
+            return false;
+        }
+        
+        // ✅ Permetti accesso se: pro, paid, o trial attivo
+        const hasAccess = data.user.status === 'pro' || 
+                         data.user.status === 'paid' || 
+                         data.user.isTrialActive;
+        
+        if (!hasAccess) {
+            // Mostra messaggio che serve upgrade
+            showError('Le statistiche sono disponibili solo nel piano Pro. Effettua l\'upgrade!');
+            setTimeout(() => {
+                window.location.href = `gestione.html?id=${state.restaurantId}`;
+            }, 3000);
+            return false;
+        }
+        
+        return true;
+        
+    } catch (error) {
+        console.error('Errore verifica accesso:', error);
+        window.location.href = 'login.html';
+        return false;
+    }
+}
+
 const monthNames = [
     'Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno',
     'Luglio', 'Agosto', 'Settembre', 'Ottobre', 'Novembre', 'Dicembre'
@@ -526,6 +559,10 @@ async function init() {
     if (!state.restaurantId) {
         return showError('ID ristorante non specificato. Aggiungi ?id=XXXX');
     }
+    
+    // ✅ Controlla accesso prima di caricare le statistiche
+    const hasAccess = await checkProAccess();
+    if (!hasAccess) return;
     
     try {
         await Promise.all([loadMenu(), loadAvailableMonths()]);

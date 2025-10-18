@@ -52,21 +52,38 @@ async function loadUserPlan() {
 function updatePlanDisplay(plan) {
     const planCard = document.getElementById('planCard');
     const planName = document.getElementById('planName');
-    const normalizedPlan = plan.toLowerCase();
     
     // Remove all plan classes
-    planCard.classList.remove('free', 'premium', 'paid', 'pro');
-    planCard.classList.add(normalizedPlan);
+    planCard.classList.remove('free', 'premium', 'paid', 'pro', 'trial');
     
-    // Set plan name
+    // ✅ Gestisci il trial
+    let displayPlan = plan.toLowerCase();
+    let displayName = 'Free';
+    
+    if (displayPlan === 'free') {
+        // Controlla se ha trial attivo
+        fetch('/api/auth/me')
+            .then(res => res.json())
+            .then(data => {
+                if (data.success && data.user.isTrialActive) {
+                    planCard.classList.add('trial');
+                    planName.textContent = `Prova gratuita Pro (${data.user.trialDaysLeft}g)`;
+                } else {
+                    planCard.classList.add('free');
+                    planName.textContent = 'Free';
+                }
+            });
+        return;
+    }
+    
     const planNames = {
-        'free': 'Free',
         'premium': 'Premium',
         'paid': 'Premium',
         'pro': 'Pro'
     };
     
-    planName.textContent = planNames[normalizedPlan] || 'Free';
+    planCard.classList.add(displayPlan);
+    planName.textContent = planNames[displayPlan] || 'Free';
 }
 
 // Set menu links

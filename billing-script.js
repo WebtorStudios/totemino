@@ -199,21 +199,23 @@ async function checkUserStatus() {
 
       const data = await response.json();
       
-      // ✅ Controlla se l'utente è loggato
       if (!data.success || !data.user) {
           console.log('⚠️ Utente non autenticato');
           return;
       }
       
-      const status = data.user.status;  // ✅ Accesso corretto
-      console.log('👤 Status utente:', status);
+      const user = data.user;
+      const status = user.status;
+      const isTrialActive = user.isTrialActive;
+      
+      console.log('👤 Status:', status, '| Trial:', isTrialActive, '| Giorni:', user.trialDaysLeft);
 
       const cards = {
           'premium': { normal: 'p-base', paid: 'p-base-paid' },
           'pro': { normal: 'p-pro', paid: 'p-pro-paid' }
       };
 
-      // Nascondi tutte le card inizialmente
+      // Nascondi tutte le card
       Object.values(cards).forEach(c => {
           const normalCard = document.getElementById(c.normal);
           const paidCard = document.getElementById(c.paid);
@@ -221,16 +223,15 @@ async function checkUserStatus() {
           if (paidCard) paidCard.style.display = 'none';
       });
 
+      // Logica normale per utenti non-trial
       if (status === 'paid') {
-          // Mostra solo Premium paid e card Pro normale per upgrade
           document.getElementById(cards.premium.paid).style.display = 'block';
           document.getElementById(cards.pro.normal).style.display = 'block';
       } else if (status === 'pro') {
-          // Mostra solo card paid
           document.getElementById(cards.premium.paid).style.display = 'block';
           document.getElementById(cards.pro.paid).style.display = 'block';
       } else {
-          // Utente standard: mostra tutte le card normali
+          // Utente free (trial scaduto)
           Object.values(cards).forEach(c => {
               const normalCard = document.getElementById(c.normal);
               if (normalCard) normalCard.style.display = 'block';
@@ -238,14 +239,11 @@ async function checkUserStatus() {
       }
   } catch (err) {
       console.error('Errore verifica utente:', err);
-      // In caso di errore, mostra tutte le card normali
-      const normalCards = ['p-base', 'p-pro'];
-      normalCards.forEach(id => {
+      ['p-base', 'p-pro'].forEach(id => {
           const card = document.getElementById(id);
           if (card) card.style.display = 'block';
       });
   }
-
 }
 
 
