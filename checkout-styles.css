@@ -704,7 +704,9 @@
 }
 
 #suggestions-action-btn {
-  align-self: flex-end;
+  position: fixed;
+  bottom: 2rem;
+  right: 2rem;
   background: var(--accent-gold);
   color: var(--text-primary);
   border: none;
