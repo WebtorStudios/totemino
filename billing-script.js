@@ -10,8 +10,8 @@ document.addEventListener("DOMContentLoaded", function() {
 
     <div class="billing-toggle-container">
       <div class="billing-toggle">
-        <button class="billing-toggle-btn billing-active" data-period="annual">Annuale</button>
-        <button class="billing-toggle-btn" data-period="semiannual">Semestrale</button>
+        <button class="billing-toggle-btn billing-active" data-period="annual">Semestrale</button>
+        <button class="billing-toggle-btn" data-period="semiannual">Mensile</button>
       </div>
     </div>
 
@@ -22,17 +22,17 @@ document.addEventListener("DOMContentLoaded", function() {
         <h3 class="package-title">Premium</h3>
         <p class="package-description">Per gestire tutto con semplicità</p>
         <div class="package-price">
-          <span class="billing-original-price">€49</span>
-          <h4 class="billing-price" data-annual="19" data-semiannual="25">€19</h4>
+          <span class="billing-original-price">€59</span>
+          <h4 class="billing-price" data-annual="29" data-semiannual="35">€29</h4>
           <div>
             <p>al mese</p>
-            <p class="billing-period-text">per un anno</p>
+            <p class="billing-period-text">per 6 mesi</p>
           </div>
         </div>
         <button class="package-btn billing-upgrade-btn" 
                 data-plan="premium"
-                data-annual="price_1S3joh7dAnRE04PkAvL3Eko4"
-                data-semiannual="price_1S3jp47dAnRE04PkZGVDqPCs">
+                data-annual="price_1SJYkZ7dAnRE04Pk5XWRMP9P"
+                data-semiannual="price_1SJYqB7dAnRE04PkdSEthpfp">
           Upgrade
         </button>
         <ul class="package-features">
@@ -56,17 +56,17 @@ document.addEventListener("DOMContentLoaded", function() {
         </div>
         <p class="package-description">Per crescere e aumentare i profitti</p>
         <div class="package-price">
-          <span class="billing-original-price">€79</span>
-          <h4 class="billing-price" data-annual="29" data-semiannual="35">€29</h4>
+          <span class="billing-original-price">€129</span>
+          <h4 class="billing-price" data-annual="89" data-semiannual="95">€89</h4>
           <div>
             <p>al mese</p>
-            <p class="billing-period-text">per un anno</p>
+            <p class="billing-period-text">per 6 mesi</p>
           </div>
         </div>
         <button class="package-btn billing-upgrade-btn"
                 data-plan="pro"
-                data-annual="price_1S3iS97dAnRE04PkFnZ0jIau"
-                data-semiannual="price_1S3iVC7dAnRE04PkpODLwhOV">
+                data-annual="price_1SJYsX7dAnRE04Pk5WDSg0Wb"
+                data-semiannual="price_1SJYtg7dAnRE04PkWFhmgd71">
           Passa a Pro
         </button>
         <ul class="package-features">
@@ -245,4 +245,5 @@ async function checkUserStatus() {
           if (card) card.style.display = 'block';
       });
   }
+
 }
