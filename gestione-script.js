@@ -25,6 +25,39 @@ document.getElementById("stats").onclick = () => {
   window.location.href = `statistics.html?id=${CONFIG.restaurantId}`;
 };
 
+async function checkPremiumAccess() {
+  try {
+      const response = await fetch('/api/auth/me', { credentials: 'include' });
+      const data = await response.json();
+      
+      if (!data.success || !data.user) {
+          window.location.href = 'login.html';
+          return false;
+      }
+      
+      // ✅ Permetti accesso se: premium, paid, pro, o trial attivo
+      const hasAccess = data.user.status === 'premium' || 
+                       data.user.status === 'paid' || 
+                       data.user.status === 'pro' ||
+                       data.user.isTrialActive;
+      
+      if (!hasAccess) {
+          alert('La gestione ordini richiede un piano Premium o superiore');
+          setTimeout(() => {
+              window.location.href = 'index.html';
+          }, 2000);
+          return false;
+      }
+      
+      return true;
+      
+  } catch (error) {
+      console.error('Errore verifica accesso:', error);
+      window.location.href = 'login.html';
+      return false;
+  }
+}
+
 // Elementi DOM
 const elements = {
   refreshBtn: document.getElementById('table-refresh-btn'),
@@ -50,12 +83,17 @@ const elements = {
 };
 
 // Inizializzazione
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+  // ✅ Controlla accesso prima di inizializzare
+  const hasAccess = await checkPremiumAccess();
+  if (!hasAccess) return;
+  
   initEventListeners();
   switchSection('table');
   loadOrders();
   setInterval(loadOrders, CONFIG.refreshInterval);
 });
+
 
 function rotateRefresh() {
   if (isRotating) return;

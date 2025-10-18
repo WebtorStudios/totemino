@@ -3,9 +3,9 @@ const express = require('express');
 const fs = require('fs').promises;
 const fsSync = require('fs');
 const path = require('path');
-const session = require('express-session');
 const bcrypt = require('bcrypt');
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+const cron = require('node-cron');
 
 const app = express();
 
@@ -36,7 +36,16 @@ app.use((req, res, next) => {
 });
 
 // 2️⃣ Configurazione sessione
+const session = require('express-session');
+const FileStore = require('session-file-store')(session);
+
 app.use(session({
+  store: new FileStore({
+    path: './sessions',           // Cartella dove salvare le sessioni
+    ttl: 14*86400,                   // Time to live: 24 ore
+    retries: 0,                   // Non ritentare se fallisce
+    reapInterval: 86400,           // Pulisce sessioni scadute ogni giorno
+  }),
   secret: process.env.SESSION_SECRET || 'fallback-secret-key',
   resave: false,
   saveUninitialized: false,
@@ -159,6 +168,57 @@ function initializeDirectories() {
 
 // === GESTIONE UTENTI CENTRALIZZATA ===
 const USERS_FILE = path.join(__dirname, 'userdata', 'users.json');
+
+async function checkAndExpireTrials() {
+  console.log('🔍 Controllo trial scaduti...');
+  
+  try {
+    const users = await loadAllUsers();
+    let expiredCount = 0;
+    const now = new Date();
+    
+    for (const [userCode, userData] of Object.entries(users)) {
+      // Controlla solo utenti free con trial attivo
+      if (userData.status === 'free' && userData.trialEndsAt) {
+        const trialEnd = new Date(userData.trialEndsAt);
+        
+        // Se il trial è scaduto
+        if (now >= trialEnd) {
+          // Rimuovi la data di scadenza trial
+          delete users[userCode].trialEndsAt;
+          expiredCount++;
+          console.log(`⏰ Trial scaduto per utente ${userCode}`);
+        }
+      }
+    }
+    
+    if (expiredCount > 0) {
+      await saveAllUsers(users);
+      console.log(`✅ ${expiredCount} trial scaduti e aggiornati`);
+    } else {
+      console.log('✅ Nessun trial da scadere');
+    }
+    
+  } catch (error) {
+    console.error('❌ Errore controllo trial:', error);
+  }
+}
+
+// ========================================
+// 4️⃣ CRON JOB - Esegue ogni giorno a mezzanotte
+// ========================================
+
+// Esegue alle 00:00 ogni giorno
+cron.schedule('0 0 * * *', () => {
+  console.log('⏰ Esecuzione controllo trial automatico...');
+  checkAndExpireTrials();
+});
+
+// Esegui anche all'avvio del server (per recuperare eventuali giorni persi)
+setTimeout(() => {
+  console.log('🚀 Controllo trial all\'avvio del server...');
+  checkAndExpireTrials();
+}, 5000); // Aspetta 5 secondi dopo l'avvio
 
 async function loadAllUsers() {
   try {
@@ -526,10 +586,16 @@ app.post('/api/auth/register', async (req, res) => {
       });
     }
 
+    const now = new Date();
+    const trialEnd = new Date(now);
+    trialEnd.setDate(trialEnd.getDate() + 14); // Aggiungi 14 giorni
+
     const hashedPassword = await bcrypt.hash(password, 10);
     users[userCode] = {
       password: hashedPassword,
-      status: 'free'
+      status: 'free',
+      createdAt: now.toISOString(),
+      trialEndsAt: trialEnd.toISOString() // ✅ Scade tra 14 giorni
     };
 
     const saved = await saveAllUsers(users);
@@ -546,7 +612,12 @@ app.post('/api/auth/register', async (req, res) => {
     res.json({
       success: true,
       message: 'Registrazione completata con successo',
-      user: { userCode, restaurantId: userCode, status: 'free' }
+      user: { 
+        userCode, 
+        restaurantId: userCode, 
+        status: 'free',
+        trialEndsAt: trialEnd.toISOString()
+      }
     });
 
   } catch (error) {
@@ -571,11 +642,30 @@ app.get('/api/auth/me', async (req, res) => {
     return res.json({ success: false, requireLogin: true });
   }
 
-  // aggiorno la sessione con lo status attuale del file
+  // ✅ Calcola lo stato del trial
+  let isTrialActive = false;
+  let trialDaysLeft = 0;
+
+  if (freshUser.status === 'free' && freshUser.trialEndsAt) {
+    const now = new Date();
+    const trialEnd = new Date(freshUser.trialEndsAt);
+    
+    if (now < trialEnd) {
+      isTrialActive = true;
+      trialDaysLeft = Math.ceil((trialEnd - now) / (1000 * 60 * 60 * 24));
+    }
+  }
+
+  // Aggiorna sessione
   req.session.user.status = freshUser.status;
+  req.session.user.isTrialActive = isTrialActive;
+  req.session.user.trialDaysLeft = trialDaysLeft;
   req.session.user.planType = freshUser.planType;
 
-  return res.json({ success: true, user: req.session.user });
+  return res.json({ 
+    success: true, 
+    user: req.session.user 
+  });
 });
 
 app.post('/api/auth/logout', (req, res) => {

@@ -17,11 +17,50 @@ const allergenNames = {
   "13": "Anidride solforosa", "14": "Crostacei"
 };
 
+async function checkPremiumAccess() {
+  try {
+      const response = await fetch('/api/auth/me', { credentials: 'include' });
+      const data = await response.json();
+      
+      if (!data.success || !data.user) {
+          window.location.href = 'login.html';
+          return false;
+      }
+      
+      // ✅ Permetti accesso se: premium, paid, pro, o trial attivo
+      const hasAccess = data.user.status === 'premium' || 
+                       data.user.status === 'paid' || 
+                       data.user.status === 'pro' ||
+                       data.user.isTrialActive;
+      
+      if (!hasAccess) {
+          showNotification('La gestione del menu richiede un piano Premium o superiore', 'error');
+          setTimeout(() => {
+              window.location.href = `gestione.html?id=${restaurantId}`;
+          }, 3000);
+          return false;
+      }
+      
+      return true;
+      
+  } catch (error) {
+      console.error('Errore verifica accesso:', error);
+      window.location.href = 'login.html';
+      return false;
+  }
+}
+
+
 // ===== INIZIALIZZAZIONE =====
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+  // ✅ Controlla accesso prima di inizializzare
+  const hasAccess = await checkPremiumAccess();
+  if (!hasAccess) return;
+  
   setupEventListeners();
   loadMenu();
 });
+
 
 function setupEventListeners() {  
   // Back to menu

@@ -85,30 +85,56 @@ async function validateAccess() {
 }
 
 function applyUIControls(user) {
-    const isPremium = user.status === 'premium';
+    // ✅ Considera il trial come Pro
+    const isPremium = user.isTrialActive || 
+                     user.status === 'paid' || 
+                     user.status === 'premium' || 
+                     user.status === 'pro';
 
     // Elementi premium
     document.querySelectorAll('.paywall-premium').forEach(el => {
-    if (isPremium) {
-        el.style.display = el.dataset.originalDisplay || 'block';
-        el.classList.remove('paywall-blocked');
-    } else {
-        el.dataset.originalDisplay = el.style.display || 'block';
-        el.style.display = 'none';
-        el.classList.add('paywall-blocked');
-    }
+        if (isPremium) {
+            el.style.display = el.dataset.originalDisplay || 'block';
+            el.classList.remove('paywall-blocked');
+        } else {
+            el.dataset.originalDisplay = el.style.display || 'block';
+            el.style.display = 'none';
+            el.classList.add('paywall-blocked');
+        }
     });
 
     // Messaggi free
     document.querySelectorAll('.paywall-free-only').forEach(el => {
-    el.style.display = isPremium ? 'none' : (el.dataset.originalDisplay || 'block');
+        el.style.display = isPremium ? 'none' : (el.dataset.originalDisplay || 'block');
     });
+
+    // ✅ Mostra badge trial se attivo
+    if (user.isTrialActive) {
+        document.querySelectorAll('[data-trial-badge]').forEach(el => {
+            el.style.display = 'block';
+            el.textContent = `🎁 Trial Pro: ${user.trialDaysLeft} giorni rimasti`;
+        });
+    } else {
+        document.querySelectorAll('[data-trial-badge]').forEach(el => {
+            el.style.display = 'none';
+        });
+    }
 
     // Aggiorna info utente
     document.querySelectorAll('[data-user-code]').forEach(el => el.textContent = user.userCode);
     document.querySelectorAll('[data-user-status]').forEach(el => {
-    el.textContent = isPremium ? 'Premium' : 'Free';
-    el.className = `status-${user.status}`;
+        let statusText = 'Free';
+        
+        if (user.isTrialActive) {
+            statusText = `Trial Pro (${user.trialDaysLeft}g)`;
+        } else if (user.status === 'pro') {
+            statusText = 'Pro';
+        } else if (user.status === 'paid' || user.status === 'premium') {
+            statusText = 'Premium';
+        }
+        
+        el.textContent = statusText;
+        el.className = `status-${user.isTrialActive ? 'trial' : user.status}`;
     });
 }
 
@@ -251,17 +277,25 @@ function initialize() {
 // === API PUBBLICHE ===
 window.SecureAuth = {
     getCurrentUser: () => currentUser,
-    isPremiumUser: () => currentUser && currentUser.status === 'premium',
+    isPremiumUser: () => {
+        if (!currentUser) return false;
+        return currentUser.isTrialActive ||
+               currentUser.status === 'paid' ||
+               currentUser.status === 'premium' ||
+               currentUser.status === 'pro';
+    },
+    isTrialActive: () => currentUser && currentUser.isTrialActive,
+    getTrialDaysLeft: () => currentUser ? currentUser.trialDaysLeft : 0,
     logout: handleLogout,
     refreshSession: () => checkSession().then(user => {
-    if (user) {
-        currentUser = user;
-        applyUIControls(user);
-        return user;
-    } else {
-        redirectToLogin('Sessione scaduta');
-        return null;
-    }
+        if (user) {
+            currentUser = user;
+            applyUIControls(user);
+            return user;
+        } else {
+            redirectToLogin('Sessione scaduta');
+            return null;
+        }
     })
 };
 
