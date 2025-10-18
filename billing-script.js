@@ -118,7 +118,7 @@ document.addEventListener("DOMContentLoaded", function() {
                 price.textContent = `€${newPrice}`;
             });
             
-            const periodText = period === 'annual' ? 'per un anno' : '';
+            const periodText = period === 'annual' ? 'per 6 mesi' : '.';
             periodTexts.forEach(text => {
                 text.textContent = periodText;
             });
@@ -247,4 +247,5 @@ async function checkUserStatus() {
   }
 
 }
+
 
