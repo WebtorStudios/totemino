@@ -54,7 +54,7 @@ class ThemeManager {
       });
     }, { 
       threshold: 0,
-      rootMargin: '0 0 -100% 0' 
+      rootMargin: '0 0 -50% 0' 
     }).observe(this.faqSection);
   }
 }
@@ -89,6 +89,7 @@ function dispatchThemeChange(theme) {
   const event = new CustomEvent('themeChanged', { detail: { theme } });
   document.dispatchEvent(event);
 }
+
 
 
 
