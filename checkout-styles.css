@@ -630,7 +630,7 @@
 }
 
 .popup-suggestions-content {
-  width: 100%;
+  width: 100dvh;
   max-width: 550px;
   margin: 0 auto;
   display: flex;
@@ -719,5 +719,6 @@
   color: var(--text-primary);
   background: var(--btn-secondary);
 }
+
 
 
