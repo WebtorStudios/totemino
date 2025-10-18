@@ -256,7 +256,7 @@ async function handleLogin(e) {
         
         // Redirect dopo breve delay
         setTimeout(() => {
-            window.location.href = `gestione.html?id=${userCode}`;
+            window.location.href = `profile.html?id=${userCode}`;
         }, 500);
         
     } catch (error) {
@@ -308,7 +308,7 @@ async function handleRegister(e) {
         setTimeout(async () => {
             try {
                 await AuthAPI.login(userCode, password);
-                window.location.href = `gestione.html?id=${userCode}`;
+                window.location.href = `profile.html?id=${userCode}`;
             } catch (error) {
                 UIManager.showMessage('Registrazione completata. Effettua il login.', 'success');
                 // Switch to login tab
@@ -343,7 +343,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const authData = await AuthAPI.checkAuth();
     if (authData && authData.success) {
         console.log('Utente già autenticato, redirect...');
-        window.location.href = `gestione.html?id=${authData.user.userCode}`;
+        window.location.href = `profile.html?id=${authData.user.userCode}`;
     }
     
     console.log('Sistema di login sicuro caricato ✓');
@@ -353,4 +353,5 @@ document.addEventListener('DOMContentLoaded', async () => {
 // Prevent context menu in production
 if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
     document.addEventListener('contextmenu', (e) => e.preventDefault());
+
 }
