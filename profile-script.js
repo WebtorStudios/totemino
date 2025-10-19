@@ -201,11 +201,11 @@ if (restaurantId) {
     displayCode();
     loadUserPlan();
     setMenuLinks();
-    
-    // Inizializza QR Code dopo che il DOM è pronto
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', initQRCode);
-    } else {
+}
+
+// Inizializza QR Code quando tutto è caricato
+window.addEventListener('load', () => {
+    if (restaurantId && typeof QRCode !== 'undefined') {
         initQRCode();
     }
-}
+});
