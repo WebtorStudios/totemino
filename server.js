@@ -9,12 +9,6 @@ const cron = require('node-cron');
 
 const app = express();
 
-// === DEBUG: Log tutte le richieste ===
-app.use((req, res, next) => {
-  console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
-  next();
-});
-
 app.set('trust proxy', 1);
 
 // === LIVE RELOAD (SOLO IN SVILUPPO) ===
@@ -47,16 +41,10 @@ const FileStore = require('session-file-store')(session);
 
 app.use(session({
   store: new FileStore({
-    path: './sessions',
-    ttl: 14*86400,
-    retries: 0,                // ✅ Non ritentare se fallisce
-    reapInterval: 86400,
-    reapAsync: true,           // ✅ NUOVO: Pulizia asincrona
-    reapSyncFallback: false,   // ✅ NUOVO: Non usare sync come fallback
-    fallbackSessionFn: (sess) => {  // ✅ NUOVO: Gestione errori
-      console.warn('Sessione fallback creata');
-      return sess;
-    }
+    path: './sessions',           // Cartella dove salvare le sessioni
+    ttl: 14*86400,                   // Time to live: 24 ore
+    retries: 0,                   // Non ritentare se fallisce
+    reapInterval: 86400,           // Pulisce sessioni scadute ogni giorno
   }),
   secret: process.env.SESSION_SECRET || 'fallback-secret-key',
   resave: false,
@@ -1138,23 +1126,19 @@ app.get('/health', (req, res) => {
 
 // Error handling middleware
 app.use((err, req, res, next) => {
-  console.error('❌ ERRORE DETTAGLIATO:');
-  console.error('URL:', req.url);
-  console.error('Metodo:', req.method);
-  console.error('Errore:', err);
+  console.error('❌ ERRORE:', err.message);
   console.error('Stack:', err.stack);
   
+  // ✅ IMPORTANTE: Non inviare risposta se già inviata
   if (res.headersSent) {
     return next(err);
   }
   
   res.status(500).json({
     success: false,
-    message: 'Errore interno del server',
-    error: process.env.NODE_ENV !== 'production' ? err.message : undefined
+    message: 'Errore interno del server'
   });
 });
-
 // === STARTUP ===
 initializeDirectories();
 
@@ -1214,4 +1198,3 @@ app.get('/IDs/:restaurantId/settings.json', async (req, res) => {
     res.status(500).json({ error: 'Errore nel caricamento delle impostazioni' });
   }
 });
-
