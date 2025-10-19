@@ -40,6 +40,31 @@
 
   <!-- Contenuto principale -->
   <div class="management-container">
+    <div class="coperto-settings-section">
+      <div class="coperto-header">
+        <h2>Impostazioni base</h2>
+      </div>
+      
+      <div class="coperto-content">
+        <div class="coperto-field">
+          <label for="coperto-price">Prezzo del Coperto (€):</label>
+          <div class="coperto-input-group">
+            <input 
+              type="number" 
+              id="coperto-price" 
+              step="0.10" 
+              min="0" 
+              placeholder="0.00"
+            >
+            <button class="coperto-save-btn" id="save-coperto">Salva</button>
+          </div>
+          <p class="coperto-description">
+            Il coperto verrà aggiunto automaticamente agli ordini una volta per ciascun utente. 
+            <br>Imposta 0 per disabilitare il coperto.
+          </p>
+        </div>
+      </div>
+    </div>
     <div class="menu-sections" id="menu-sections">
       <!-- Le sezioni verranno caricate dinamicamente -->
     </div>

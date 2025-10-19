@@ -652,3 +652,131 @@
 .empty-state button {
   width: 90%;
 }
+
+/* ===== SEZIONE IMPOSTAZIONI RISTORANTE ===== */
+.coperto-settings-section {
+  background: var(--bg-primary);
+  border-radius: 2rem;
+  padding: 1.5rem;
+  margin-bottom: 2rem;
+  box-shadow: 0 4px 12px var(--shadow-sm);
+  border: 3px solid var(--card-border);
+  transition: all 0.3s;
+}
+
+.coperto-header {
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 2px solid var(--btn-secondary);
+  transition: all 0.3s;
+}
+
+.coperto-header h2 {
+  font-family: 'Klein-Bold';
+  font-size: 1.8rem;
+  color: var(--text-accent);
+  margin: 0;
+}
+
+.coperto-content {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.coperto-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.coperto-field label {
+  font-weight: 600;
+  color: var(--text-primary);
+  font-size: 0.95rem;
+  margin-bottom: 0.3rem;
+}
+
+.coperto-input-group {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+}
+
+.coperto-input-group input[type="number"] {
+  flex: 0 0 150px;
+  padding: 0.7rem 1rem;
+  border: 2px solid var(--btn-secondary);
+  border-radius: 1rem;
+  background: var(--pill-bg);
+  color: var(--text-primary);
+  font-size: 0.95rem;
+  font-weight: 600;
+  transition: all 0.2s ease;
+  box-sizing: border-box;
+}
+
+.coperto-input-group input[type="number"]:focus {
+  border-color: var(--accent-gold);
+  box-shadow: 0 0 10px var(--selected-glow);
+  outline: none;
+}
+
+.coperto-save-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: var(--accent-gold);
+  color: var(--text-primary);
+  border: none;
+  border-radius: 1.5rem;
+  padding: 0.8rem 1.5rem;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.coperto-save-btn:hover {
+  filter: brightness(90%);
+}
+
+.coperto-save-btn:active {
+  transform: scale(1.05);
+}
+
+.coperto-save-btn img {
+  width: 1.2rem;
+  height: 1.2rem;
+  opacity: var(--icon-opacity);
+}
+
+[data-theme="dark"] .coperto-save-btn img {
+  filter: invert(1);
+}
+
+.coperto-description {
+  font-size: 0.9rem;
+  color: var(--text-primary);
+  opacity: 0.8;
+  margin: 0.5rem 0 0 0;
+  line-height: 1.4;
+}
+
+/* ===== RESPONSIVE ===== */
+@media (max-width: 768px) {
+  .coperto-input-group {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .coperto-input-group input[type="number"] {
+    flex: 1;
+    width: 100%;
+  }
+  
+  .coperto-save-btn {
+    width: 100%;
+    justify-content: center;
+  }
+}

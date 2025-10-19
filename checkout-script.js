@@ -47,7 +47,7 @@ const Utils = {
   loadFromStorage(key, defaultValue = []) {
     return JSON.parse(localStorage.getItem(key) || JSON.stringify(defaultValue));
   },
-
+   
   saveToStorage(key, value) {
     localStorage.setItem(key, JSON.stringify(value));
   },
@@ -56,12 +56,14 @@ const Utils = {
     const theme = localStorage.getItem(CONFIG.storageKeys.theme);
     const userId = localStorage.getItem(CONFIG.storageKeys.userId);
     const cookieConsent = localStorage.getItem('totemino_cookie_consent');
+    const lastCoperto = localStorage.getItem('totemino_last_coperto'); // ✅ MANTIENI
     
     localStorage.clear();
     
     if (userId) localStorage.setItem(CONFIG.storageKeys.userId, userId);
     if (theme) localStorage.setItem(CONFIG.storageKeys.theme, theme);
     if (cookieConsent) localStorage.setItem('totemino_cookie_consent', cookieConsent);
+    if (lastCoperto) localStorage.setItem('totemino_last_coperto', lastCoperto); // ✅ RIPRISTINA
   },
 
   getImagePath(item) {
@@ -91,7 +93,6 @@ const DataManager = {
     const menuJson = await res.json();
     const selectedMap = this.loadSelectedItems();
     
-    // ✅ Carica item suggeriti
     const suggestedItems = Utils.loadFromStorage(CONFIG.storageKeys.suggestedItems, []);
 
     menuJson.categories.forEach(category => {
@@ -115,12 +116,16 @@ const DataManager = {
             restaurantId: CONFIG.restaurantId,
             quantity: selectedMap.get(item.name),
             category: category.name,
-            isSuggested: suggestedItems.includes(item.name) // ✅ RIPRISTINA FLAG
+            isSuggested: suggestedItems.includes(item.name)
           });
           STATE.selectedCategories.add(category.name);
         }
       });
     });
+
+    // ✅ CARICA E AGGIUNGI IL COPERTO
+    await CopertoManager.loadCopertoPrice();
+    CopertoManager.addCopertoIfNeeded();
 
     UI.renderItems();
     UI.updateTotal();
@@ -215,6 +220,11 @@ const UI = {
   createItemRow(item, index) {
     const row = document.createElement("div");
     row.className = "checkout-item";
+    
+    // ✅ Aggiungi classe speciale per il coperto
+    if (item.isCoperto) {
+      row.classList.add('coperto-item');
+    }
 
     const img = document.createElement("img");
     img.src = Utils.getImagePath(item);
@@ -228,15 +238,21 @@ const UI = {
       <p>€${(item.price * item.quantity).toFixed(2)}</p>
     `;
 
-    const infoBtn = document.createElement("div");
-    infoBtn.className = "info-btn";
-    infoBtn.innerHTML = '<img src="img/edit.png" alt="Edit">';
-    infoBtn.onclick = (e) => {
-      e.stopPropagation();
-      Popup.openItemPopup(item, index);
-    };
+    // ✅ NON mostrare il pulsante edit per il coperto
+    if (!item.isCoperto) {
+      const infoBtn = document.createElement("div");
+      infoBtn.className = "info-btn";
+      infoBtn.innerHTML = '<img src="img/edit.png" alt="Edit">';
+      infoBtn.onclick = (e) => {
+        e.stopPropagation();
+        Popup.openItemPopup(item, index);
+      };
+      row.append(img, info, infoBtn);
+    } else {
+      // Per il coperto, mostra solo immagine e info
+      row.append(img, info);
+    }
 
-    row.append(img, info, infoBtn);
     return row;
   },
 
@@ -467,6 +483,92 @@ const Popup = {
   }
 };
 
+// ==================== GESTIONE COPERTO ====================
+const CopertoManager = {
+  COPERTO_KEY: 'totemino_last_coperto',
+  COOLDOWN_HOURS: 4,
+  copertoPrice: 0, // Verrà caricato dalle impostazioni del ristorante
+
+  /**
+   * Carica il prezzo del coperto dalle impostazioni del ristorante
+   */
+  async loadCopertoPrice() {
+    try {
+      const response = await fetch(`IDs/${CONFIG.restaurantId}/settings.json`);
+      if (response.ok) {
+        const settings = await response.json();
+        this.copertoPrice = parseFloat(settings.copertoPrice) || 0;
+        console.log('✅ Coperto caricato:', this.copertoPrice);
+      } else {
+        this.copertoPrice = 0;
+        console.log('ℹ️ Nessun coperto impostato');
+      }
+    } catch (error) {
+      console.log('ℹ️ Errore caricamento coperto, disabilitato');
+      this.copertoPrice = 0;
+    }
+  },
+
+  /**
+   * Verifica se l'utente può ricevere il coperto
+   */
+  canAddCoperto() {
+    if (this.copertoPrice <= 0) return false; // Coperto disabilitato
+    
+    const lastCoperto = localStorage.getItem(this.COPERTO_KEY);
+    if (!lastCoperto) return true;
+    
+    const lastTime = parseInt(lastCoperto, 10);
+    const now = Date.now();
+    const hoursPassed = (now - lastTime) / (1000 * 60 * 60);
+    
+    return hoursPassed >= this.COOLDOWN_HOURS;
+  },
+
+  /**
+   * Aggiunge il coperto all'ordine se necessario
+   */
+  addCopertoIfNeeded() {
+    // Controlla se il coperto è già presente
+    const hasCoperto = STATE.items.some(item => item.isCoperto);
+    if (hasCoperto) {
+      console.log('✓ Coperto già presente nell\'ordine');
+      return;
+    }
+
+    // Controlla se può aggiungere il coperto
+    if (!this.canAddCoperto()) {
+      console.log('⏳ Coperto non disponibile (prezzo: €' + this.copertoPrice + ', cooldown attivo)');
+      return;
+    }
+
+    // Aggiungi il coperto
+    const copertoItem = {
+      name: 'Coperto',
+      price: this.copertoPrice,
+      img: '../../img/coperto.png',
+      ingredients: ['Servizio al tavolo'],
+      restaurantId: CONFIG.restaurantId,
+      quantity: 1,
+      category: 'Servizi',
+      isSuggested: false,
+      isCoperto: true
+    };
+
+    STATE.items.push(copertoItem);
+    STATE.orderNotes.push('');
+    
+    console.log('✓ Coperto aggiunto automaticamente (€' + this.copertoPrice + ')');
+  },
+
+  /**
+   * Salva il timestamp dell'ultimo coperto
+   */
+  markCopertoAdded() {
+    localStorage.setItem(this.COPERTO_KEY, Date.now().toString());
+  }
+};
+
 // ==================== NAVIGAZIONE ====================
 const Navigation = {
   init() {
@@ -616,6 +718,13 @@ const Orders = {
 
   async submitOrder(type, extra = {}) {
     const userId = Utils.getUserId();
+    
+    // ✅ Se c'è il coperto nell'ordine, salva il timestamp
+    const hasCoperto = STATE.items.some(item => item.isCoperto);
+    if (hasCoperto) {
+      CopertoManager.markCopertoAdded();
+    }
+
     const orderDetails = {
       userId,
       ...extra,
@@ -625,7 +734,8 @@ const Orders = {
         quantity: item.quantity,
         category: item.category,
         ingredients: item.ingredients,
-        isSuggested: item.isSuggested || false // ✅ INCLUDI IL FLAG
+        isSuggested: item.isSuggested || false,
+        isCoperto: item.isCoperto || false // ✅ Includi flag
       })),
       orderNotes: STATE.orderNotes,
       total: STATE.items.reduce((sum, i) => sum + i.price * i.quantity, 0),

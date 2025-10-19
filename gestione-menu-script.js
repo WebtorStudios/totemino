@@ -8,6 +8,9 @@ let currentEditingIndex = null;
 let isAddingNew = false;
 let uploadedImageName = null;
 let hasUnsavedChanges = false;
+let restaurantSettings = {
+  copertoPrice: 0
+};
 
 // Nomi degli allergeni
 const allergenNames = {
@@ -68,6 +71,8 @@ function setupEventListeners() {
     window.location.href = `gestione.html?id=${restaurantId}`;
   });
   
+  document.getElementById('save-coperto').addEventListener('click', saveCopertoSettings);
+
   // Popup eventi
   document.getElementById('close-edit-popup').addEventListener('click', handlePopupClose);
   document.getElementById('cancel-edit').addEventListener('click', closeEditPopup);
@@ -117,6 +122,7 @@ async function loadMenu() {
   restaurantId = params.get("id") || "default";
 
   try {
+    // Carica il menu
     const response = await fetch(`IDs/${restaurantId}/menu.json`);
     const menuJson = await response.json();
     
@@ -132,9 +138,13 @@ async function loadMenu() {
         description: item.description,
         allergens: item.allergens,
         isNew: item.featured,
-        isSuggested: false
+        isSuggested: false,
+        visible: item.visible !== false
       }));
     });
+    
+    // ✅ CARICA LE IMPOSTAZIONI DEL RISTORANTE (incluso coperto)
+    await loadRestaurantSettings();
     
     renderMenuSections();
   } catch (error) {
@@ -843,3 +853,74 @@ function showNotification(message, type = 'success') {
     }, 300); // tempo per la transizione CSS
   }, 3000);
 }
+
+// ===== NUOVE FUNZIONI PER GESTIRE IL COPERTO =====
+
+/**
+ * Carica le impostazioni del ristorante (coperto, ecc.)
+ */
+async function loadRestaurantSettings() {
+  try {
+    const response = await fetch(`IDs/${restaurantId}/settings.json`);
+    if (response.ok) {
+      restaurantSettings = await response.json();
+      console.log('✅ Impostazioni caricate:', restaurantSettings);
+    } else {
+      // File non esiste, usa valori di default
+      restaurantSettings = { copertoPrice: 0 };
+      console.log('ℹ️ File settings.json non trovato, uso valori default');
+    }
+  } catch (error) {
+    console.log('ℹ️ Nessun file settings.json, uso valori default');
+    restaurantSettings = { copertoPrice: 0 };
+  }
+  
+  // Aggiorna l'input nel DOM
+  const copertoInput = document.getElementById('coperto-price');
+  if (copertoInput) {
+    copertoInput.value = restaurantSettings.copertoPrice || 0;
+  }
+}
+
+/**
+ * Salva le impostazioni del coperto
+ */
+async function saveCopertoSettings() {
+  const copertoInput = document.getElementById('coperto-price');
+  const copertoPrice = parseFloat(copertoInput.value) || 0;
+  
+  if (copertoPrice < 0) {
+    showNotification('Il prezzo del coperto non può essere negativo', 'error');
+    return;
+  }
+  
+  restaurantSettings.copertoPrice = copertoPrice;
+  
+  try {
+    const response = await fetch(`/save-settings/${restaurantId}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ settings: restaurantSettings })
+    });
+    
+    const result = await response.json();
+    
+    if (result.success) {
+      showNotification(
+        copertoPrice > 0 
+          ? `Coperto impostato a €${copertoPrice.toFixed(2)}` 
+          : 'Coperto disabilitato', 
+        'success'
+      );
+    } else {
+      throw new Error(result.message || 'Errore durante il salvataggio');
+    }
+  } catch (error) {
+    console.error('Errore salvataggio coperto:', error);
+    showNotification('Errore nel salvataggio delle impostazioni', 'error');
+  }
+}
+
+window.getRestaurantSettings = () => restaurantSettings;
