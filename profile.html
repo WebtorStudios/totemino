@@ -132,13 +132,32 @@
             </div>
         </div>
     </div>
-
+    
+    <!-- QR Code Popup -->
+    <div class="delete-popup-overlay" id="qrPopup">
+        <div class="delete-popup qr-popup">
+            <div class="delete-popup-header">
+                <h1>Il tuo QR Code</h1>
+                <p>Scansiona per accedere al menù</p>
+            </div>
+            <div class="qr-container">
+                <div id="qrCanvas"></div>
+            </div>
+            <div class="delete-popup-actions">
+                <button id="qrClose">Chiudi</button>
+                <button id="downloadQR" class="btn-primary">Scarica QR</button>
+            </div>
+        </div>
+    </div>
+    
     <script src="auth-protection.js"></script>
     <script src="theme.js"></script>
     <script src="profile-script.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 </body>
 
 </html>
+
 
 
 
