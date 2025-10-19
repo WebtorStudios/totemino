@@ -1,4 +1,4 @@
-@import url("gestione-styles.css");
+s@import url("gestione-styles.css");
 
 /* ======================
   CONTAINER
@@ -299,7 +299,7 @@
   place-items: center;
   width: 304px;
   height: 304px;
-  margin: 1.5rem 0;
+  margin: 1.5rem auto;
 }
 
 .qr-actions {
@@ -385,6 +385,7 @@
     animation: pulse 2s infinite;
 
 }
+
 
 
 
