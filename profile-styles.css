@@ -1,4 +1,4 @@
-s@import url("gestione-styles.css");
+@import url("gestione-styles.css");
 
 /* ======================
   CONTAINER
@@ -385,6 +385,7 @@ s@import url("gestione-styles.css");
     animation: pulse 2s infinite;
 
 }
+
 
 
 
