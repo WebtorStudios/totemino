@@ -51,10 +51,10 @@ app.use(session({
   saveUninitialized: false,
   proxy: true,
   cookie: {
-    secure: true,
+    secure: false,
     httpOnly: true,
     maxAge: 24 * 60 * 60 * 1000,
-    sameSite: 'none'
+    sameSite: 'lax'
   }
 }));
 
@@ -1102,7 +1102,56 @@ app.listen(PORT, () => {
   console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
 });
 
+// ===== AGGIUNGI QUESTI ENDPOINT AL server.js =====
 
+// Salva impostazioni ristorante (PROTETTO - solo admin)
+app.post('/save-settings/:restaurantId', requireAuth, async (req, res) => {
+  const { restaurantId } = req.params;
+  const { settings } = req.body;
+
+  if (req.session.user.restaurantId !== restaurantId) {
+    return res.status(403).json({ success: false, message: 'Accesso non autorizzato' });
+  }
+
+  if (!settings) {
+    return res.status(400).json({ success: false, message: 'Impostazioni mancanti' });
+  }
+
+  const settingsPath = path.join(__dirname, 'IDs', restaurantId, 'settings.json');
+
+  try {
+    ensureDirectoryExists(path.dirname(settingsPath));
+    await fs.writeFile(settingsPath, JSON.stringify(settings, null, 2), 'utf8');
+    
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Errore salvataggio impostazioni:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Errore nel salvataggio delle impostazioni',
+      details: error.message
+    });
+  }
+});
+
+// Carica impostazioni ristorante (PUBBLICO - necessario per checkout)
+app.get('/IDs/:restaurantId/settings.json', async (req, res) => {
+  const { restaurantId } = req.params;
+  const settingsPath = path.join(__dirname, 'IDs', restaurantId, 'settings.json');
+
+  try {
+    if (fsSync.existsSync(settingsPath)) {
+      const settings = JSON.parse(await fs.readFile(settingsPath, 'utf8'));
+      res.json(settings);
+    } else {
+      // Restituisci impostazioni di default se il file non esiste
+      res.json({ copertoPrice: 0 });
+    }
+  } catch (error) {
+    console.error('Errore caricamento impostazioni:', error);
+    res.status(500).json({ error: 'Errore nel caricamento delle impostazioni' });
+  }
+});
 
 
 
