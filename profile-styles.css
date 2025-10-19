@@ -270,7 +270,6 @@
 .qr-popup {
   background: var(--card-bg);
   border-radius: 1.5rem;
-  padding: 2rem;
   width: min(400px, 90%);
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
 }
@@ -384,4 +383,5 @@
     animation: pulse 2s infinite;
 
 }
+
 
