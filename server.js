@@ -35,62 +35,28 @@ app.use((req, res, next) => {
   next();
 });
 
-// 2️⃣ Configurazione sessione MIGLIORATA
+// 2️⃣ Configurazione sessione
 const session = require('express-session');
 const FileStore = require('session-file-store')(session);
 
-// Assicurati che la cartella esista
-function ensureDirectoryExists(dirPath) {
-  if (!fsSync.existsSync(dirPath)) {
-    fsSync.mkdirSync(dirPath, { recursive: true });
-  }
-}
-
-ensureDirectoryExists('./sessions');
-
 app.use(session({
   store: new FileStore({
-    path: './sessions',
-    ttl: 14 * 86400,
-    retries: 0,
-    reapInterval: 3600,
-    fileExtension: '.json',
-    encoding: 'utf8',
-    logFn: function() {},
-    fallbackSessionFn: function(req) {
-      return {};
-    }
+    path: './sessions',           // Cartella dove salvare le sessioni
+    ttl: 14*86400,                   // Time to live: 24 ore
+    retries: 0,                   // Non ritentare se fallisce
+    reapInterval: 86400,           // Pulisce sessioni scadute ogni giorno
   }),
   secret: process.env.SESSION_SECRET || 'fallback-secret-key',
   resave: false,
   saveUninitialized: false,
   proxy: true,
   cookie: {
-    secure: process.env.NODE_ENV === 'production',
+    secure: false,
     httpOnly: true,
-    maxAge: 14 * 24 * 60 * 60 * 1000,
+    maxAge: 24 * 60 * 60 * 1000,
     sameSite: 'lax'
-  },
-  genid: function(req) {
-    return require('crypto').randomBytes(16).toString('hex');
   }
 }));
-
-// Middleware per gestire errori sessione (escludi logout)
-app.use((req, res, next) => {
-  // Skip controllo sessione per logout e route pubbliche
-  if (req.path === '/api/auth/logout' || req.path.startsWith('/IDs/') && req.method === 'POST') {
-    return next();
-  }
-  
-  if (!req.session) {
-    return res.status(500).json({
-      success: false,
-      message: 'Errore sessione. Riprova.'
-    });
-  }
-  next();
-});
 
 // ⚠️ WEBHOOK DEVE essere PRIMA di express.json()
 app.post('/webhook/stripe', 
@@ -104,33 +70,45 @@ app.post('/webhook/stripe',
     try {
       event = stripe.webhooks.constructEvent(req.body, sig, webhookSecret);
     } catch (err) {
+      console.error('Webhook signature verification failed:', err.message);
       return res.status(400).send(`Webhook Error: ${err.message}`);
     }
     
+    console.log('Webhook ricevuto:', event.type);
+    
+    // Gestisci checkout.session.completed
     if (event.type === 'checkout.session.completed') {
       const session = event.data.object;
+      
+      console.log('Pagamento completato:', session.id);
+      console.log('Metadata:', session.metadata);
       
       try {
         const userCode = session.metadata?.userCode;
         const planType = session.metadata?.planType || 'premium';
         
         if (!userCode) {
+          console.error('UserCode mancante nei metadata');
           return res.status(400).json({ error: 'UserCode mancante' });
         }
         
+        // Carica e aggiorna utente
         const users = await loadAllUsers();
         
         if (!users[userCode]) {
+          console.error(`Utente ${userCode} non trovato`);
           return res.status(404).json({ error: 'Utente non trovato' });
         }
         
+        // Determina lo status in base al piano
         let newStatus;
         if (planType === 'pro') {
           newStatus = 'pro';
         } else {
-          newStatus = 'paid';
+          newStatus = 'paid'; // per premium
         }
         
+        // Aggiorna lo status
         users[userCode].status = newStatus;
         users[userCode].planType = planType;
         users[userCode].paymentDate = new Date().toISOString();
@@ -140,16 +118,21 @@ app.post('/webhook/stripe',
         const saved = await saveAllUsers(users);
         
         if (saved) {
+          console.log(`Utente ${userCode} aggiornato a status: ${newStatus} (${planType})`);
           return res.json({ received: true, userCode, status: newStatus });
         } else {
+          console.error('Errore salvataggio users.json');
           return res.status(500).json({ error: 'Errore salvataggio' });
         }
         
       } catch (error) {
+        console.error('Errore elaborazione pagamento:', error);
         return res.status(500).json({ error: error.message });
       }
     }
     
+    // Altri eventi webhook
+    console.log(`Evento ${event.type} ricevuto ma non gestito`);
     res.json({ received: true });
   }
 );
@@ -158,15 +141,8 @@ app.post('/webhook/stripe',
 app.use(express.static(__dirname));
 app.use(express.json({ limit: '50mb' }));
 
-// Auth middleware MIGLIORATO
+// Auth middleware
 const requireAuth = (req, res, next) => {
-  if (!req.session) {
-    return res.status(500).json({
-      success: false,
-      message: 'Errore di sessione'
-    });
-  }
-  
   if (!req.session.user) {
     return res.status(401).json({
       success: false,
@@ -178,93 +154,71 @@ const requireAuth = (req, res, next) => {
 };
 
 // === UTILITIES ===
+function ensureDirectoryExists(dirPath) {
+  if (!fsSync.existsSync(dirPath)) {
+    fsSync.mkdirSync(dirPath, { recursive: true });
+  }
+}
+
 function initializeDirectories() {
   ensureDirectoryExists(path.join(__dirname, 'IDs'));
   ensureDirectoryExists(path.join(__dirname, 'userdata'));
+  console.log('Struttura directories inizializzata');
 }
 
 // === GESTIONE UTENTI CENTRALIZZATA ===
 const USERS_FILE = path.join(__dirname, 'userdata', 'users.json');
 
 async function checkAndExpireTrials() {
+  console.log('🔍 Controllo trial scaduti...');
+  
   try {
     const users = await loadAllUsers();
     let expiredCount = 0;
     const now = new Date();
     
     for (const [userCode, userData] of Object.entries(users)) {
+      // Controlla solo utenti free con trial attivo
       if (userData.status === 'free' && userData.trialEndsAt) {
         const trialEnd = new Date(userData.trialEndsAt);
         
+        // Se il trial è scaduto
         if (now >= trialEnd) {
+          // Rimuovi la data di scadenza trial
           delete users[userCode].trialEndsAt;
           expiredCount++;
+          console.log(`⏰ Trial scaduto per utente ${userCode}`);
         }
       }
     }
     
     if (expiredCount > 0) {
       await saveAllUsers(users);
+      console.log(`✅ ${expiredCount} trial scaduti e aggiornati`);
+    } else {
+      console.log('✅ Nessun trial da scadere');
     }
     
   } catch (error) {
-    // Errore gestito silenziosamente
+    console.error('❌ Errore controllo trial:', error);
   }
 }
 
-// CRON JOB - Esegue ogni giorno a mezzanotte
+// ========================================
+// 4️⃣ CRON JOB - Esegue ogni giorno a mezzanotte
+// ========================================
+
+// Esegue alle 00:00 ogni giorno
 cron.schedule('0 0 * * *', () => {
+  console.log('⏰ Esecuzione controllo trial automatico...');
   checkAndExpireTrials();
 });
 
-// Esegui anche all'avvio del server
+// Esegui anche all'avvio del server (per recuperare eventuali giorni persi)
 setTimeout(() => {
+  console.log('🚀 Controllo trial all\'avvio del server...');
   checkAndExpireTrials();
-}, 5000);
-
-// Pulizia sessioni scadute ogni 6 ore
-cron.schedule('0 */6 * * *', () => {
-  const sessionsDir = path.join(__dirname, 'sessions');
-  if (!fsSync.existsSync(sessionsDir)) return;
-  
-  fs.readdir(sessionsDir)
-    .then(files => {
-      const now = Date.now();
-      const maxAge = 14 * 24 * 60 * 60 * 1000;
-      
-      files.forEach(file => {
-        const filePath = path.join(sessionsDir, file);
-        const stats = fsSync.statSync(filePath);
-        
-        if (now - stats.mtime.getTime() > maxAge) {
-          fs.unlink(filePath).catch(() => {});
-        }
-      });
-    })
-    .catch(() => {});
-});
-
-// Backup sessions ogni giorno alle 3 AM
-cron.schedule('0 3 * * *', async () => {
-  const sessionsDir = path.join(__dirname, 'sessions');
-  const backupDir = path.join(__dirname, 'sessions-backup');
-  
-  try {
-    ensureDirectoryExists(backupDir);
-    
-    const files = await fs.readdir(sessionsDir);
-    
-    for (const file of files) {
-      if (file.endsWith('.json')) {
-        const source = path.join(sessionsDir, file);
-        const dest = path.join(backupDir, file);
-        await fs.copyFile(source, dest);
-      }
-    }
-  } catch (error) {
-    // Errore gestito silenziosamente
-  }
-});
+}, 5000); // Aspetta 5 secondi dopo l'avvio
 
 async function loadAllUsers() {
   try {
@@ -277,6 +231,7 @@ async function loadAllUsers() {
     const data = await fs.readFile(USERS_FILE, 'utf8');
     return JSON.parse(data);
   } catch (error) {
+    console.error('Errore caricamento utenti:', error);
     return {};
   }
 }
@@ -287,6 +242,7 @@ async function saveAllUsers(users) {
     await fs.writeFile(USERS_FILE, JSON.stringify(users, null, 2));
     return true;
   } catch (error) {
+    console.error('Errore salvataggio utenti:', error);
     return false;
   }
 }
@@ -325,6 +281,7 @@ async function updateStats(restaurantId, orderData) {
   const usersPath = path.join(__dirname, 'IDs', restaurantId, 'statistics', 'users', 'general.json');
   
   try {
+    // === CARICA O INIZIALIZZA STATISTICHE ===
     ensureDirectoryExists(path.dirname(statsPath));
     let stats = {
       totale_ordini: 0,
@@ -344,6 +301,7 @@ async function updateStats(restaurantId, orderData) {
       const existing = JSON.parse(await fs.readFile(statsPath, 'utf8'));
       stats = { ...stats, ...existing };
       
+      // Assicura che suggerimenti esista
       if (!stats.suggerimenti) {
         stats.suggerimenti = {
           totale_items_suggeriti: 0,
@@ -354,6 +312,7 @@ async function updateStats(restaurantId, orderData) {
       }
     }
     
+    // === AGGIORNA TOTALI ===
     stats.totale_ordini += 1;
     if (orderData.total && typeof orderData.total === 'number') {
       stats.totale_incasso = parseFloat((stats.totale_incasso + orderData.total).toFixed(2));
@@ -361,17 +320,21 @@ async function updateStats(restaurantId, orderData) {
     stats.scontrino_medio = stats.totale_ordini > 0 ? 
       Math.round((stats.totale_incasso / stats.totale_ordini) * 100) / 100 : 0;
     
+    // === TRACCIA PIATTI VENDUTI ===
     if (orderData.items && Array.isArray(orderData.items)) {
       orderData.items.forEach(item => {
         const itemName = item.name;
         const quantity = item.quantity || 1;
         
+        // Conta piatti venduti
         stats.numero_piatti_venduti[itemName] = (stats.numero_piatti_venduti[itemName] || 0) + quantity;
         
+        // Conta categorie vendute
         if (item.category) {
           stats.numero_categorie_venduti[item.category] = (stats.numero_categorie_venduti[item.category] || 0) + quantity;
         }
         
+        // Traccia suggerimenti
         if (item.isSuggested) {
           stats.suggerimenti.totale_items_suggeriti += quantity;
           stats.suggerimenti.totale_valore_suggeriti = parseFloat(
@@ -389,8 +352,10 @@ async function updateStats(restaurantId, orderData) {
       });
     }
     
+    // Salva statistiche
     await fs.writeFile(statsPath, JSON.stringify(stats, null, 2));
     
+    // === AGGIORNA VENDITE GIORNALIERE ===
     ensureDirectoryExists(path.dirname(salesPath));
     let salesData = [];
     if (fsSync.existsSync(salesPath)) {
@@ -413,6 +378,7 @@ async function updateStats(restaurantId, orderData) {
     const jsonString = '[\n' + salesData.map(d => `  { "day": ${d.day}, "sales": ${d.sales.toFixed(2)} }`).join(',\n') + '\n]';
     await fs.writeFile(salesPath, jsonString, 'utf8');
     
+    // === TRACCIA UTENTI ===
     if (orderData.userId) {
       ensureDirectoryExists(path.dirname(usersPath));
       let usersData = {};
@@ -437,6 +403,7 @@ async function updateStats(restaurantId, orderData) {
         (usersData[userId].totalSpent + orderTotal).toFixed(2)
       );
       
+      // Formato: dd-MM-yyyy_hh-mm
       const dateStr = `${now.getDate().toString().padStart(2, '0')}-${(now.getMonth() + 1).toString().padStart(2, '0')}-${now.getFullYear()}_${now.getHours().toString().padStart(2, '0')}-${now.getMinutes().toString().padStart(2, '0')}`;
       usersData[userId].lastOrderDate = dateStr;
       
@@ -444,7 +411,7 @@ async function updateStats(restaurantId, orderData) {
     }
     
   } catch (error) {
-    // Errore gestito silenziosamente
+    console.error('Errore aggiornamento statistiche:', error);
   }
 }
 
@@ -456,6 +423,7 @@ async function loadUserPreferences() {
     ensureDirectoryExists(path.dirname(PREFERENCES_FILE));
     
     if (!fsSync.existsSync(PREFERENCES_FILE)) {
+      // Crea file vuoto se non esiste
       await fs.writeFile(PREFERENCES_FILE, '{}');
       return {};
     }
@@ -463,6 +431,7 @@ async function loadUserPreferences() {
     const data = await fs.readFile(PREFERENCES_FILE, 'utf8');
     return JSON.parse(data);
   } catch (error) {
+    console.error('Errore caricamento preferenze:', error);
     return {};
   }
 }
@@ -473,6 +442,7 @@ async function saveUserPreferences(preferences) {
     await fs.writeFile(PREFERENCES_FILE, JSON.stringify(preferences, null, 2));
     return true;
   } catch (error) {
+    console.error('Errore salvataggio preferenze:', error);
     return false;
   }
 }
@@ -481,16 +451,19 @@ async function updateUserPreferences(userId, items) {
   try {
     const preferences = await loadUserPreferences();
     
+    // Inizializza utente se non esiste
     if (!preferences[userId]) {
       preferences[userId] = {};
     }
     
+    // Processa ogni item
     items.forEach(item => {
       const quantity = item.quantity || 1;
       const ingredients = item.ingredients || [];
       
+      // Incrementa contatore per ogni ingrediente
       ingredients.forEach(ingredient => {
-        const cleanIngredient = ingredient.trim().toLowerCase();
+        const cleanIngredient = ingredient.trim().toLowerCase(); // ✅ Normalizza in lowercase
         if (cleanIngredient) {
           preferences[userId][cleanIngredient] = 
             (preferences[userId][cleanIngredient] || 0) + quantity;
@@ -501,11 +474,12 @@ async function updateUserPreferences(userId, items) {
     await saveUserPreferences(preferences);
     return true;
   } catch (error) {
+    console.error('Errore aggiornamento preferenze:', error);
     return false;
   }
 }
 
-// PUBLIC endpoint per aggiornare preferenze
+// PUBLIC endpoint per aggiornare preferenze (chiamato dal client)
 app.post('/api/update-preferences', async (req, res) => {
   const { userId, items } = req.body;
   
@@ -528,6 +502,7 @@ app.post('/api/update-preferences', async (req, res) => {
       });
     }
   } catch (error) {
+    console.error('Errore endpoint preferenze:', error);
     res.status(500).json({ 
       success: false, 
       message: error.message 
@@ -569,6 +544,7 @@ app.post('/api/auth/login', async (req, res) => {
     });
 
   } catch (error) {
+    console.error('Errore login:', error);
     res.status(500).json({
       success: false,
       message: 'Errore interno del server'
@@ -612,14 +588,14 @@ app.post('/api/auth/register', async (req, res) => {
 
     const now = new Date();
     const trialEnd = new Date(now);
-    trialEnd.setDate(trialEnd.getDate() + 14);
+    trialEnd.setDate(trialEnd.getDate() + 14); // Aggiungi 14 giorni
 
     const hashedPassword = await bcrypt.hash(password, 10);
     users[userCode] = {
       password: hashedPassword,
       status: 'free',
       createdAt: now.toISOString(),
-      trialEndsAt: trialEnd.toISOString()
+      trialEndsAt: trialEnd.toISOString() // ✅ Scade tra 14 giorni
     };
 
     const saved = await saveAllUsers(users);
@@ -645,6 +621,7 @@ app.post('/api/auth/register', async (req, res) => {
     });
 
   } catch (error) {
+    console.error('Errore registrazione:', error);
     res.status(500).json({
       success: false,
       message: 'Errore interno del server'
@@ -665,6 +642,7 @@ app.get('/api/auth/me', async (req, res) => {
     return res.json({ success: false, requireLogin: true });
   }
 
+  // ✅ Calcola lo stato del trial
   let isTrialActive = false;
   let trialDaysLeft = 0;
 
@@ -678,6 +656,7 @@ app.get('/api/auth/me', async (req, res) => {
     }
   }
 
+  // Aggiorna sessione
   req.session.user.status = freshUser.status;
   req.session.user.isTrialActive = isTrialActive;
   req.session.user.trialDaysLeft = trialDaysLeft;
@@ -692,6 +671,7 @@ app.get('/api/auth/me', async (req, res) => {
 app.post('/api/auth/logout', (req, res) => {
   req.session.destroy((err) => {
     if (err) {
+      console.error('Errore logout:', err);
       return res.status(500).json({
         success: false,
         message: 'Errore durante il logout'
@@ -711,6 +691,7 @@ app.post('/api/create-checkout', requireAuth, async (req, res) => {
   }
   
   try {
+    // Determina l'origin corretto
     const origin = process.env.NODE_ENV === 'production' 
       ? process.env.PRODUCTION_URL 
       : `http://localhost:${process.env.PORT || 3000}`;
@@ -734,11 +715,12 @@ app.post('/api/create-checkout', requireAuth, async (req, res) => {
     res.json({ url: session.url, sessionId: session.id });
     
   } catch (error) {
+    console.error('Errore creazione checkout:', error);
     res.status(500).json({ error: error.message });
   }
 });
 
-// === VERIFICA PAGAMENTO ===
+// === VERIFICA PAGAMENTO (per success page) ===
 app.get('/api/verify-payment/:sessionId', requireAuth, async (req, res) => {
   const { sessionId } = req.params;
   const userCode = req.session.user.userCode;
@@ -751,6 +733,7 @@ app.get('/api/verify-payment/:sessionId', requireAuth, async (req, res) => {
     }
     
     if (session.payment_status === 'paid') {
+      // ✅ AGGIORNA ANCHE IL FILE users.json QUI
       const users = await loadAllUsers();
       
       if (users[userCode]) {
@@ -765,6 +748,7 @@ app.get('/api/verify-payment/:sessionId', requireAuth, async (req, res) => {
         
         await saveAllUsers(users);
         
+        // Aggiorna anche la sessione
         req.session.user.status = newStatus;
         req.session.user.planType = planType;
       }
@@ -786,11 +770,12 @@ app.get('/api/verify-payment/:sessionId', requireAuth, async (req, res) => {
     }
     
   } catch (error) {
+    console.error('Errore verifica pagamento:', error);
     res.status(500).json({ error: error.message });
   }
 });
 
-// === PROTECTED ROUTES ===
+// === PROTECTED ROUTES (solo admin) ===
 app.post('/upload-image', requireAuth, async (req, res) => {
   const { fileName, fileData, restaurantId } = req.body;
   
@@ -813,6 +798,7 @@ app.post('/upload-image', requireAuth, async (req, res) => {
     res.json({ success: true, fileName });
     
   } catch (error) {
+    console.error('Errore upload immagine:', error);
     res.status(500).json({ success: false, message: 'Errore nel salvataggio dell\'immagine' });
   }
 });
@@ -876,6 +862,7 @@ app.post('/save-menu/:restaurantId', requireAuth, async (req, res) => {
     });
 
   } catch (error) {
+    console.error('Errore salvataggio menu:', error);
     res.status(500).json({ 
       success: false, 
       message: 'Errore nel salvataggio del menu',
@@ -916,11 +903,12 @@ app.post('/IDs/:restaurantId/orders/:section', async (req, res) => {
     res.json({ success: true, fileName, [section === 'pickup' ? 'orderNumber' : 'tableNumber']: identifier });
     
   } catch (error) {
+    console.error(`Errore salvataggio ordine ${section}:`, error);
     res.status(500).json({ success: false, message: error.message });
   }
 });
 
-// === PROTECTED ORDER MANAGEMENT ===
+// === PROTECTED ORDER MANAGEMENT (solo admin) ===
 app.get('/IDs/:restaurantId/orders/:section', requireAuth, async (req, res) => {
   const { restaurantId, section } = req.params;
 
@@ -949,7 +937,7 @@ app.get('/IDs/:restaurantId/orders/:section', requireAuth, async (req, res) => {
         orders.push(orderData);
         
       } catch (fileError) {
-        // Errore lettura file singolo, continua con gli altri
+        console.error(`Errore lettura ${file}:`, fileError.message);
       }
     }
     
@@ -957,6 +945,7 @@ app.get('/IDs/:restaurantId/orders/:section', requireAuth, async (req, res) => {
     res.json(orders);
     
   } catch (error) {
+    console.error('Errore lettura ordini:', error);
     res.status(500).json({ error: 'Errore nel caricamento degli ordini' });
   }
 });
@@ -987,6 +976,7 @@ app.patch('/IDs/:restaurantId/orders/:section/:orderId', requireAuth, async (req
     res.json({ success: true, orderId, status });
     
   } catch (error) {
+    console.error('Errore aggiornamento ordine:', error);
     res.status(500).json({ error: 'Errore nell\'aggiornamento dello stato' });
   }
 });
@@ -1016,11 +1006,12 @@ app.delete('/IDs/:restaurantId/orders/:section/:orderId', requireAuth, async (re
     res.json({ success: true, orderId, deletedFile: newFileName });
 
   } catch (error) {
+    console.error('Errore eliminazione ordine:', error);
     res.status(500).json({ error: 'Errore nell\'eliminazione dell\'ordine' });
   }
 });
 
-// === STATISTICS ROUTES ===
+// === STATISTICS ROUTES (PROTETTO) ===
 app.get('/api/months/:restaurantId', requireAuth, async (req, res) => {
   const { restaurantId } = req.params;
 
@@ -1046,6 +1037,7 @@ app.get('/api/months/:restaurantId', requireAuth, async (req, res) => {
 
     res.json(months);
   } catch (err) {
+    console.error(err);
     res.status(500).json({ error: 'Errore interno server' });
   }
 });
@@ -1075,6 +1067,7 @@ app.get('/IDs/:restaurantId/statistics/:monthYear', requireAuth, async (req, res
     res.json({ month: monthYear, stats });
     
   } catch (error) {
+    console.error('Errore lettura statistiche:', error);
     res.status(500).json({ error: 'Errore nel caricamento delle statistiche' });
   }
 });
@@ -1086,7 +1079,32 @@ app.get('/IDs/:restaurantId/statistics', requireAuth, async (req, res) => {
   res.redirect(`/IDs/${restaurantId}/statistics/${currentMonth}`);
 });
 
-// === SETTINGS ROUTES ===
+// Health check endpoint per Render
+app.get('/health', (req, res) => {
+  res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+// Error handling middleware
+app.use((err, req, res, next) => {
+  console.error('Errore non gestito:', err);
+  res.status(500).json({
+    success: false,
+    message: 'Errore interno del server'
+  });
+});
+
+// === STARTUP ===
+initializeDirectories();
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+  console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+});
+
+// ===== AGGIUNGI QUESTI ENDPOINT AL server.js =====
+
+// Salva impostazioni ristorante (PROTETTO - solo admin)
 app.post('/save-settings/:restaurantId', requireAuth, async (req, res) => {
   const { restaurantId } = req.params;
   const { settings } = req.body;
@@ -1107,6 +1125,7 @@ app.post('/save-settings/:restaurantId', requireAuth, async (req, res) => {
     
     res.json({ success: true });
   } catch (error) {
+    console.error('Errore salvataggio impostazioni:', error);
     res.status(500).json({ 
       success: false, 
       message: 'Errore nel salvataggio delle impostazioni',
@@ -1115,6 +1134,7 @@ app.post('/save-settings/:restaurantId', requireAuth, async (req, res) => {
   }
 });
 
+// Carica impostazioni ristorante (PUBBLICO - necessario per checkout)
 app.get('/IDs/:restaurantId/settings.json', async (req, res) => {
   const { restaurantId } = req.params;
   const settingsPath = path.join(__dirname, 'IDs', restaurantId, 'settings.json');
@@ -1124,57 +1144,11 @@ app.get('/IDs/:restaurantId/settings.json', async (req, res) => {
       const settings = JSON.parse(await fs.readFile(settingsPath, 'utf8'));
       res.json(settings);
     } else {
+      // Restituisci impostazioni di default se il file non esiste
       res.json({ copertoPrice: 0 });
     }
   } catch (error) {
+    console.error('Errore caricamento impostazioni:', error);
     res.status(500).json({ error: 'Errore nel caricamento delle impostazioni' });
-  }
-});
-
-// === ADMIN MONITORING ===
-app.get('/api/admin/sessions-count', requireAuth, async (req, res) => {
-  if (req.session.user.userCode !== process.env.ADMIN_USER_CODE) {
-    return res.status(403).json({ error: 'Non autorizzato' });
-  }
-  
-  try {
-    const sessionsDir = path.join(__dirname, 'sessions');
-    const files = await fs.readdir(sessionsDir);
-    const sessionFiles = files.filter(f => f.endsWith('.json'));
-    
-    res.json({
-      totalSessions: sessionFiles.length,
-      shouldMigrate: sessionFiles.length > 50
-    });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// Health check endpoint per AWS
-app.get('/health', (req, res) => {
-  res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
-});
-
-// Error handling middleware - DEVE ESSERE L'ULTIMO
-app.use((err, req, res, next) => {
-  if (res.headersSent) {
-    return next(err);
-  }
-  
-  res.status(500).json({
-    success: false,
-    message: 'Errore interno del server'
-  });
-});
-
-// === STARTUP ===
-initializeDirectories();
-
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  if (process.env.NODE_ENV !== 'production') {
-    console.log(`Server running on port ${PORT}`);
-    console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
   }
 });
