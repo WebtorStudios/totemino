@@ -9,6 +9,12 @@ const cron = require('node-cron');
 
 const app = express();
 
+// === DEBUG: Log tutte le richieste ===
+app.use((req, res, next) => {
+  console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
+  next();
+});
+
 app.set('trust proxy', 1);
 
 // === LIVE RELOAD (SOLO IN SVILUPPO) ===
@@ -1132,16 +1138,20 @@ app.get('/health', (req, res) => {
 
 // Error handling middleware
 app.use((err, req, res, next) => {
-  console.error('Errore non gestito:', err);
+  console.error('❌ ERRORE DETTAGLIATO:');
+  console.error('URL:', req.url);
+  console.error('Metodo:', req.method);
+  console.error('Errore:', err);
+  console.error('Stack:', err.stack);
   
-  // ✅ Evita di inviare risposta se già inviata
   if (res.headersSent) {
     return next(err);
   }
   
   res.status(500).json({
     success: false,
-    message: 'Errore interno del server'
+    message: 'Errore interno del server',
+    error: process.env.NODE_ENV !== 'production' ? err.message : undefined
   });
 });
 
@@ -1204,3 +1214,4 @@ app.get('/IDs/:restaurantId/settings.json', async (req, res) => {
     res.status(500).json({ error: 'Errore nel caricamento delle impostazioni' });
   }
 });
+
