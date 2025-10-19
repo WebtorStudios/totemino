@@ -36,10 +36,10 @@ document.addEventListener("DOMContentLoaded", function() {
           Upgrade
         </button>
         <ul class="package-features">
-          <li>Menu digitale completo</li>
-          <li>Tutte le ordinazioni in una sola pagina</li>
-          <li>Servizio multilingua</li>
+          <li>Menù digitale completo</li>
+          <li>Ordini attivi in un'unica dashboard</li>
           <li>Strumenti di Gestione</li>
+          <li>Interfaccia amichevole e intuitiva</li>
         </ul>
       </div>
 
@@ -72,7 +72,7 @@ document.addEventListener("DOMContentLoaded", function() {
         <ul class="package-features">
           <li>Tutti i servizi Premium</li>
           <li>Suggerimenti in fase di checkout con IA</li>
-          <li>Statistiche e report settimanali</li>
+          <li>Statistiche e report mensili</li>
           <li>Servizio di supporto prioritario</li>
         </ul>
       </div>
@@ -245,6 +245,7 @@ async function checkUserStatus() {
       });
   }
 }
+
 
 
 
