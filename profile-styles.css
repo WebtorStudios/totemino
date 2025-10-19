@@ -299,8 +299,7 @@
   place-items: center;
   width: 304px;
   height: 304px;
-  margin:0 auto;
-  margin-bottom: 1.5rem;
+  margin: 1.5rem 0;
 }
 
 .qr-actions {
@@ -386,6 +385,7 @@
     animation: pulse 2s infinite;
 
 }
+
 
 
 
