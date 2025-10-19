@@ -252,18 +252,14 @@
   ====================== */
 .qr-popup-overlay {
   position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
+  inset: 0;
   background: rgba(0, 0, 0, 0.7);
-  display: flex;
-  justify-content: center;
-  align-items: center;
+  display: grid;
+  place-items: center;
   z-index: 10000;
   opacity: 0;
   pointer-events: none;
-  transition: opacity 0.3s ease;
+  transition: opacity 0.3s;
 }
 
 .qr-popup-overlay.show {
@@ -275,39 +271,8 @@
   background: var(--card-bg);
   border-radius: 1.5rem;
   padding: 2rem;
-  max-width: 400px;
-  width: 90%;
-  position: relative;
-  transform: scale(0.9);
-  transition: transform 0.3s ease;
+  width: min(400px, 90%);
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
-}
-
-.qr-popup-overlay.show .qr-popup {
-  transform: scale(1);
-}
-
-.qr-close {
-  position: absolute;
-  top: 1rem;
-  right: 1rem;
-  background: var(--input-bg);
-  border: none;
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  font-size: 1.5rem;
-  color: var(--text-primary);
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: background 0.2s;
-}
-
-.qr-close:hover {
-  background: var(--text-accent);
-  color: white;
 }
 
 .qr-popup-header {
@@ -331,16 +296,9 @@
   background: white;
   padding: 1.5rem;
   border-radius: 1rem;
-  display: flex;
-  justify-content: center;
-  align-items: center;
+  display: grid;
+  place-items: center;
   margin-bottom: 1.5rem;
-}
-
-.qr-container canvas {
-  display: block;
-  max-width: 100%;
-  height: auto;
 }
 
 .qr-actions {
@@ -348,21 +306,29 @@
   gap: 0.75rem;
 }
 
-.btn-download {
-  width: 100%;
-  background: var(--index-btn);
-  color: white;
-  border: none;
+.qr-actions button {
+  flex: 1;
   padding: 0.85rem;
+  border: none;
   border-radius: 0.75rem;
   font-size: 1rem;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: opacity 0.2s;
 }
 
-.btn-download:hover {
+.qr-actions button:hover {
   opacity: 0.9;
+}
+
+#qrClose {
+  background: var(--input-bg);
+  color: var(--text-primary);
+}
+
+#downloadQR {
+  background: var(--index-btn);
+  color: white;
 }
 
 
@@ -418,3 +384,4 @@
     animation: pulse 2s infinite;
 
 }
+
