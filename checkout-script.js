@@ -19,7 +19,7 @@ const CONFIG = {
     theme: "totemino_theme",
     showRiepilogo: "totemino_show_riepilogo",
     suggestionStats: "totemino_suggestion_stats",
-    suggestedItems: "totemino_suggested_items" 
+    suggestedItems: "totemino_suggested_items"
   }
 };
 
@@ -30,7 +30,9 @@ const STATE = {
   menuData: {},
   selectedCategories: new Set(),
   suggestionsShown: false,
-  selectedPaymentMethod: null
+  selectedPaymentMethod: null,
+  restaurantStatus: null, // ✅ NUOVO: status del ristorante
+  isTrialActive: false    // ✅ NUOVO: se il trial è attivo
 };
 
 // ==================== UTILITY ====================
@@ -56,14 +58,14 @@ const Utils = {
     const theme = localStorage.getItem(CONFIG.storageKeys.theme);
     const userId = localStorage.getItem(CONFIG.storageKeys.userId);
     const cookieConsent = localStorage.getItem('totemino_cookie_consent');
-    const lastCoperto = localStorage.getItem('totemino_last_coperto'); // ✅ MANTIENI
+    const lastCoperto = localStorage.getItem('totemino_last_coperto');
     
     localStorage.clear();
     
     if (userId) localStorage.setItem(CONFIG.storageKeys.userId, userId);
     if (theme) localStorage.setItem(CONFIG.storageKeys.theme, theme);
     if (cookieConsent) localStorage.setItem('totemino_cookie_consent', cookieConsent);
-    if (lastCoperto) localStorage.setItem('totemino_last_coperto', lastCoperto); // ✅ RIPRISTINA
+    if (lastCoperto) localStorage.setItem('totemino_last_coperto', lastCoperto);
   },
 
   getImagePath(item) {
@@ -77,6 +79,46 @@ const Utils = {
 
 // ==================== GESTIONE DATI ====================
 const DataManager = {
+  // ✅ NUOVO: Carica lo status del ristorante
+  async loadRestaurantStatus() {
+    try {
+      const response = await fetch('/api/restaurant-status/' + CONFIG.restaurantId);
+      if (response.ok) {
+        const data = await response.json();
+        STATE.restaurantStatus = data.status;
+        STATE.isTrialActive = data.isTrialActive || false;
+        console.log('✅ Status ristorante:', STATE.restaurantStatus, 'Trial:', STATE.isTrialActive);
+      
+        // ✅ NUOVO: Nascondi suggestions-wrapper se non disponibili
+        if (!this.canShowSuggestions()) {
+          const wrapper = document.querySelector('.suggestions-wrapper');
+          if (wrapper) {
+            wrapper.style.cssText = 'opacity: 0';
+          }
+        }
+        
+        return true;
+      }
+    } catch (error) {
+    console.error('❌ Errore caricamento status:', error);
+    }
+    STATE.restaurantStatus = 'free';
+    STATE.isTrialActive = false;
+  
+    // ✅ Nascondi anche in caso di errore
+    const wrapper = document.querySelector('.suggestions-wrapper');
+    if (wrapper) {
+      wrapper.style.cssText = 'opacity: 0 !important; pointer-events: none; display: none !important;';
+    }
+  
+    return false;
+  },
+
+  // ✅ NUOVO: Verifica se i suggerimenti sono disponibili
+  canShowSuggestions() {
+    return STATE.restaurantStatus === 'pro' || STATE.isTrialActive;
+  },
+
   loadSelectedItems() {
     const saved = Utils.loadFromStorage(CONFIG.storageKeys.selected);
     STATE.orderNotes = Utils.loadFromStorage(CONFIG.storageKeys.notes);
@@ -89,6 +131,9 @@ const DataManager = {
   },
 
   async fetchMenu() {
+    // ✅ CARICA STATUS PRIMA DI TUTTO
+    await this.loadRestaurantStatus();
+
     const res = await fetch(`IDs/${CONFIG.restaurantId}/menu.json`);
     const menuJson = await res.json();
     const selectedMap = this.loadSelectedItems();
@@ -123,14 +168,14 @@ const DataManager = {
       });
     });
 
-    // ✅ CARICA E AGGIUNGI IL COPERTO
     await CopertoManager.loadCopertoPrice();
     CopertoManager.addCopertoIfNeeded();
 
     UI.renderItems();
     UI.updateTotal();
 
-    if (typeof initializeSuggestions !== 'undefined') {
+    // ✅ INIZIALIZZA SUGGERIMENTI SOLO SE DISPONIBILI
+    if (this.canShowSuggestions() && typeof initializeSuggestions !== 'undefined') {
       initializeSuggestions(STATE.menuData, CONFIG.restaurantId).catch(console.error);
     }
   },
@@ -140,7 +185,6 @@ const DataManager = {
     Utils.saveToStorage(CONFIG.storageKeys.selected, arr);
     Utils.saveToStorage(CONFIG.storageKeys.notes, STATE.orderNotes);
     
-    // ✅ Salva anche gli item suggeriti
     const suggestedItems = STATE.items
       .filter(item => item.isSuggested)
       .map(item => item.name);
@@ -221,7 +265,6 @@ const UI = {
     const row = document.createElement("div");
     row.className = "checkout-item";
     
-    // ✅ Aggiungi classe speciale per il coperto
     if (item.isCoperto) {
       row.classList.add('coperto-item');
     }
@@ -238,7 +281,6 @@ const UI = {
       <p>€${(item.price * item.quantity).toFixed(2)}</p>
     `;
 
-    // ✅ NON mostrare il pulsante edit per il coperto
     if (!item.isCoperto) {
       const infoBtn = document.createElement("div");
       infoBtn.className = "info-btn";
@@ -249,7 +291,6 @@ const UI = {
       };
       row.append(img, info, infoBtn);
     } else {
-      // Per il coperto, mostra solo immagine e info
       row.append(img, info);
     }
 
@@ -359,8 +400,16 @@ const Popup = {
     document.body.classList.remove("noscroll");
   },
 
+  // ✅ MODIFICATO: Mostra popup solo se status = pro o trial attivo
   async showSuggestionsPopup() {
     if (STATE.suggestionsShown) return;
+
+    // ✅ CONTROLLA SE I SUGGERIMENTI SONO DISPONIBILI
+    if (!DataManager.canShowSuggestions()) {
+      console.log('⚠️ Suggerimenti non disponibili per questo account');
+      this.skipSuggestions();
+      return;
+    }
 
     const popup = document.querySelector(".popup-suggestions");
     const grid = popup.querySelector(".suggestions-grid");
@@ -426,48 +475,39 @@ const Popup = {
     const newBtn = oldBtn.cloneNode(true);
     oldBtn.replaceWith(newBtn);
 
-    // ✅ Nascondi il bottone inizialmente
     newBtn.style.opacity = "0";
 
-    // ✅ Mostra il bottone dopo 3 secondi
     setTimeout(() => {
       newBtn.style.opacity = "1";
     }, 3000);
 
     newBtn.onclick = () => {
       if (selectedSuggestions.size > 0) {
-        // ✅ Trova e marca gli item come suggeriti PRIMA di aggiungerli
         selectedSuggestions.forEach(itemName => {
-          // Cerca l'item nel menuData
           for (const category in STATE.menuData) {
             const menuItem = STATE.menuData[category].find(i => i.name === itemName);
             if (menuItem) {
-              // Cerca se l'item è già nel carrello
               const existingItem = STATE.items.find(i => i.name === itemName);
               
               if (existingItem) {
-                // Item già presente: incrementa quantità e marca come suggerito
                 existingItem.quantity += 1;
-                existingItem.isSuggested = true; // ✅ MARCA COME SUGGERITO
+                existingItem.isSuggested = true;
               } else {
-                // Nuovo item: aggiungilo al carrello marcato come suggerito
                 STATE.items.push({
                   ...menuItem,
                   restaurantId: CONFIG.restaurantId,
                   quantity: 1,
                   category: category,
-                  isSuggested: true // ✅ MARCA COME SUGGERITO
+                  isSuggested: true
                 });
-                STATE.orderNotes.push(""); // Aggiungi nota vuota
+                STATE.orderNotes.push("");
               }
               break;
             }
           }
         });
 
-        // ✅ Salva tutto (inclusi i flag isSuggested)
         DataManager.saveSelected();
-        
         localStorage.setItem(CONFIG.storageKeys.showRiepilogo, "true");
         window.location.reload();
       } else {
@@ -487,11 +527,8 @@ const Popup = {
 const CopertoManager = {
   COPERTO_KEY: 'totemino_last_coperto',
   COOLDOWN_HOURS: 4,
-  copertoPrice: 0, // Verrà caricato dalle impostazioni del ristorante
+  copertoPrice: 0,
 
-  /**
-   * Carica il prezzo del coperto dalle impostazioni del ristorante
-   */
   async loadCopertoPrice() {
     try {
       const response = await fetch(`IDs/${CONFIG.restaurantId}/settings.json`);
@@ -509,11 +546,8 @@ const CopertoManager = {
     }
   },
 
-  /**
-   * Verifica se l'utente può ricevere il coperto
-   */
   canAddCoperto() {
-    if (this.copertoPrice <= 0) return false; // Coperto disabilitato
+    if (this.copertoPrice <= 0) return false;
     
     const lastCoperto = localStorage.getItem(this.COPERTO_KEY);
     if (!lastCoperto) return true;
@@ -525,24 +559,18 @@ const CopertoManager = {
     return hoursPassed >= this.COOLDOWN_HOURS;
   },
 
-  /**
-   * Aggiunge il coperto all'ordine se necessario
-   */
   addCopertoIfNeeded() {
-    // Controlla se il coperto è già presente
     const hasCoperto = STATE.items.some(item => item.isCoperto);
     if (hasCoperto) {
-      console.log('✓ Coperto già presente nell\'ordine');
+      console.log('✔ Coperto già presente nell\'ordine');
       return;
     }
 
-    // Controlla se può aggiungere il coperto
     if (!this.canAddCoperto()) {
       console.log('⏳ Coperto non disponibile (prezzo: €' + this.copertoPrice + ', cooldown attivo)');
       return;
     }
 
-    // Aggiungi il coperto
     const copertoItem = {
       name: 'Coperto',
       price: this.copertoPrice,
@@ -558,12 +586,9 @@ const CopertoManager = {
     STATE.items.push(copertoItem);
     STATE.orderNotes.push('');
     
-    console.log('✓ Coperto aggiunto automaticamente (€' + this.copertoPrice + ')');
+    console.log('✔ Coperto aggiunto automaticamente (€' + this.copertoPrice + ')');
   },
 
-  /**
-   * Salva il timestamp dell'ultimo coperto
-   */
   markCopertoAdded() {
     localStorage.setItem(this.COPERTO_KEY, Date.now().toString());
   }
@@ -583,8 +608,12 @@ const Navigation = {
     };
 
     CONFIG.elements.nextBtn?.addEventListener("click", () => {
-      Popup.showSuggestionsPopup();
-      this.switchToStep(1);
+      // ✅ MOSTRA SUGGERIMENTI SOLO SE DISPONIBILI
+      if (DataManager.canShowSuggestions()) {
+        Popup.showSuggestionsPopup();
+      } else {
+        this.switchToStep(1);
+      }
     });
 
     if (localStorage.getItem(CONFIG.storageKeys.showRiepilogo) === "true") {
@@ -604,7 +633,8 @@ const Navigation = {
   },
 
   switchToStep(index) {
-    if (index === 1 && STATE.items.length > 0 && !STATE.suggestionsShown) {
+    // ✅ CONTROLLA SE MOSTRARE SUGGERIMENTI
+    if (index === 1 && STATE.items.length > 0 && !STATE.suggestionsShown && DataManager.canShowSuggestions()) {
       Popup.showSuggestionsPopup();
       return;
     }
@@ -719,7 +749,6 @@ const Orders = {
   async submitOrder(type, extra = {}) {
     const userId = Utils.getUserId();
     
-    // ✅ Se c'è il coperto nell'ordine, salva il timestamp
     const hasCoperto = STATE.items.some(item => item.isCoperto);
     if (hasCoperto) {
       CopertoManager.markCopertoAdded();
@@ -735,7 +764,7 @@ const Orders = {
         category: item.category,
         ingredients: item.ingredients,
         isSuggested: item.isSuggested || false,
-        isCoperto: item.isCoperto || false // ✅ Includi flag
+        isCoperto: item.isCoperto || false
       })),
       orderNotes: STATE.orderNotes,
       total: STATE.items.reduce((sum, i) => sum + i.price * i.quantity, 0),
