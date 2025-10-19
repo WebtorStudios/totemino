@@ -94,6 +94,57 @@ function setMenuLinks() {
     document.getElementById('previewCard').href = `menu.html?id=${restaurantId}`;
 }
 
+// QR Code functionality
+const qrCard = document.getElementById('qrCard');
+const qrPopup = document.getElementById('qrPopup');
+const qrClose = document.getElementById('qrClose');
+const downloadQR = document.getElementById('downloadQR');
+let qrCode = null;
+
+qrCard.addEventListener('click', (e) => {
+    e.preventDefault();
+    generateQRCode();
+    qrPopup.classList.add('show');
+});
+
+qrClose.addEventListener('click', () => {
+    qrPopup.classList.remove('show');
+});
+
+qrPopup.addEventListener('click', (e) => {
+    if (e.target === qrPopup) {
+        qrPopup.classList.remove('show');
+    }
+});
+
+function generateQRCode() {
+    const canvas = document.getElementById('qrCanvas');
+    const menuUrl = `https://totemino.it/menu.html?id=${restaurantId}`;
+    
+    // Clear previous QR code
+    canvas.innerHTML = '';
+    
+    // Generate new QR code
+    qrCode = new QRCode(canvas, {
+        text: menuUrl,
+        width: 256,
+        height: 256,
+        colorDark: "#000000",
+        colorLight: "#ffffff",
+        correctLevel: QRCode.CorrectLevel.H
+    });
+}
+
+downloadQR.addEventListener('click', () => {
+    const canvas = document.querySelector('#qrCanvas canvas');
+    if (canvas) {
+        const link = document.createElement('a');
+        link.download = `totemino-qr-${restaurantId}.png`;
+        link.href = canvas.toDataURL();
+        link.click();
+    }
+});
+
 // Back button - va a index.html
 document.getElementById('back-btn').addEventListener('click', () => {
     window.location.href = 'index.html';
@@ -167,3 +218,4 @@ if (restaurantId) {
     loadUserPlan();
     setMenuLinks();
 }
+
