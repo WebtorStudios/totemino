@@ -35,14 +35,15 @@
 
 /* Griglia pacchetti - FIXED */
 .packages-grid {
-  display: grid;
+  display: flex;
+  flex-wrap: wrap;
   max-width: 762px;
-  grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
-  grid-auto-rows: 1fr;
-  min-height: 380px;
   margin: 0 auto;
-  justify-items: center;
+  justify-content: center;
+  align-items: stretch; /* Le card si estendono alla stessa altezza */
+  gap: 1.5rem;
 }
+
 /* Card pacchetto */
 .package-card {
   width: 355px;
@@ -52,7 +53,8 @@
   padding: 2rem 1.5rem 1.5rem;
   transition: all 0.3s ease;
   box-sizing: border-box;
-  margin-bottom: 1.5rem;
+  display: flex; /* Aggiungi questo */
+  flex-direction: column; /* Aggiungi questo */
 }
 
 [data-theme="light"] .package-card:first-child {
@@ -103,7 +105,7 @@
 
 .package-price h4 {
   font-family: 'CalSans', sans-serif;
-  font-size: clamp(2rem, 5vw, 2.5rem);
+  font-size: clamp(2.2rem, 5vw, 2.5rem);
   color: var(--text-accent);
 }
 
@@ -293,7 +295,6 @@
   padding: 3rem 0;
   transition: all 0.3s ease;
   box-sizing: border-box;
-  margin-bottom: 1.5rem;
   text-align: center;
 }
 
@@ -332,4 +333,3 @@
 #p-base-paid:hover, #p-pro-paid:hover {
   transform: translateY(-5px);
 }
-
