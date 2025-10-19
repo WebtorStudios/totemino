@@ -41,10 +41,16 @@ const FileStore = require('session-file-store')(session);
 
 app.use(session({
   store: new FileStore({
-    path: './sessions',           // Cartella dove salvare le sessioni
-    ttl: 14*86400,                   // Time to live: 24 ore
-    retries: 0,                   // Non ritentare se fallisce
-    reapInterval: 86400,           // Pulisce sessioni scadute ogni giorno
+    path: './sessions',
+    ttl: 14*86400,
+    retries: 0,                // ✅ Non ritentare se fallisce
+    reapInterval: 86400,
+    reapAsync: true,           // ✅ NUOVO: Pulizia asincrona
+    reapSyncFallback: false,   // ✅ NUOVO: Non usare sync come fallback
+    fallbackSessionFn: (sess) => {  // ✅ NUOVO: Gestione errori
+      console.warn('Sessione fallback creata');
+      return sess;
+    }
   }),
   secret: process.env.SESSION_SECRET || 'fallback-secret-key',
   resave: false,
@@ -1079,6 +1085,46 @@ app.get('/IDs/:restaurantId/statistics', requireAuth, async (req, res) => {
   res.redirect(`/IDs/${restaurantId}/statistics/${currentMonth}`);
 });
 
+app.get('/api/restaurant-status/:restaurantId', async (req, res) => {
+  const { restaurantId } = req.params;
+  
+  try {
+    const users = await loadAllUsers();
+    const user = users[restaurantId];
+    
+    if (!user) {
+      return res.json({ 
+        status: 'free', 
+        isTrialActive: false 
+      });
+    }
+    
+    // Controlla se il trial è attivo
+    let isTrialActive = false;
+    if (user.status === 'free' && user.trialEndsAt) {
+      const now = new Date();
+      const trialEnd = new Date(user.trialEndsAt);
+      
+      if (now < trialEnd) {
+        isTrialActive = true;
+      }
+    }
+    
+    res.json({
+      status: user.status,
+      isTrialActive: isTrialActive,
+      planType: user.planType || null
+    });
+    
+  } catch (error) {
+    console.error('Errore caricamento status ristorante:', error);
+    res.status(500).json({ 
+      status: 'free', 
+      isTrialActive: false 
+    });
+  }
+});
+
 // Health check endpoint per Render
 app.get('/health', (req, res) => {
   res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
@@ -1087,6 +1133,12 @@ app.get('/health', (req, res) => {
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error('Errore non gestito:', err);
+  
+  // ✅ Evita di inviare risposta se già inviata
+  if (res.headersSent) {
+    return next(err);
+  }
+  
   res.status(500).json({
     success: false,
     message: 'Errore interno del server'
