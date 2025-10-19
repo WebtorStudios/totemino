@@ -11,6 +11,7 @@
 }
 
 .packages-container {
+border: 1px solid red;
   width: 90%;
   max-width: 1200px;
   margin: 0 auto;
@@ -34,14 +35,14 @@
 }
 
 /* Griglia pacchetti - FIXED */
-.packages-grid {
+css.packages-grid {
   display: flex;
   flex-wrap: wrap;
   max-width: 762px;
   margin: 0 auto;
-  justify-content: center;
-  align-items: stretch; /* Le card si estendono alla stessa altezza */
-  gap: 1.5rem;
+  justify-content: center; /* Centra le card */
+  gap: 1.5rem; /* Spaziatura tra le card */
+  border: 1px solid blue;
 }
 
 /* Card pacchetto */
@@ -53,8 +54,7 @@
   padding: 2rem 1.5rem 1.5rem;
   transition: all 0.3s ease;
   box-sizing: border-box;
-  display: flex; /* Aggiungi questo */
-  flex-direction: column; /* Aggiungi questo */
+  /* Rimuovi margin-bottom, ora usi gap */
 }
 
 [data-theme="light"] .package-card:first-child {
@@ -295,6 +295,7 @@
   padding: 3rem 0;
   transition: all 0.3s ease;
   box-sizing: border-box;
+  margin-bottom: 1.5rem;
   text-align: center;
 }
 
