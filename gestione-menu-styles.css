@@ -795,7 +795,6 @@
   font-family: 'Klein-Bold';
   font-size: 1.8rem;
   color: var(--text-accent);
-  margin-bottom: 1.5rem;
 }
 
 .checkout-methods-grid {
@@ -892,8 +891,13 @@
   opacity: 0.5;
 }
 
+#save-checkout-methods {
+  width: 100%;
+}
+
 @media (max-width: 768px) {
   .checkout-methods-grid {
     grid-template-columns: 1fr;
   }
 }
+
