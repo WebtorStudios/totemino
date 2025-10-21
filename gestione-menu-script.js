@@ -9,7 +9,12 @@ let isAddingNew = false;
 let uploadedImageName = null;
 let hasUnsavedChanges = false;
 let restaurantSettings = {
-  copertoPrice: 0
+  copertoPrice: 0,
+  checkoutMethods: {
+    table: true,
+    pickup: true,
+    showOrder: true
+  }
 };
 
 // Nomi degli allergeni
@@ -72,7 +77,8 @@ function setupEventListeners() {
   });
   
   document.getElementById('save-coperto').addEventListener('click', saveCopertoSettings);
-
+  document.getElementById('save-checkout-methods').addEventListener('click', saveCheckoutMethods);
+  
   // Popup eventi
   document.getElementById('close-edit-popup').addEventListener('click', handlePopupClose);
   document.getElementById('cancel-edit').addEventListener('click', closeEditPopup);
@@ -865,22 +871,95 @@ async function loadRestaurantSettings() {
     if (response.ok) {
       restaurantSettings = await response.json();
       console.log('✅ Impostazioni caricate:', restaurantSettings);
+      
+      // Assicura che checkoutMethods esista
+      if (!restaurantSettings.checkoutMethods) {
+        restaurantSettings.checkoutMethods = {
+          table: true,
+          pickup: true,
+          showOrder: true
+        };
+      }
     } else {
-      // File non esiste, usa valori di default
-      restaurantSettings = { copertoPrice: 0 };
+      restaurantSettings = { 
+        copertoPrice: 0,
+        checkoutMethods: {
+          table: true,
+          pickup: true,
+          showOrder: true
+        }
+      };
       console.log('ℹ️ File settings.json non trovato, uso valori default');
     }
   } catch (error) {
     console.log('ℹ️ Nessun file settings.json, uso valori default');
-    restaurantSettings = { copertoPrice: 0 };
+    restaurantSettings = { 
+      copertoPrice: 0,
+      checkoutMethods: {
+        table: true,
+        pickup: true,
+        showOrder: true
+      }
+    };
   }
   
-  // Aggiorna l'input nel DOM
+  // Aggiorna i checkbox nel DOM
   const copertoInput = document.getElementById('coperto-price');
   if (copertoInput) {
     copertoInput.value = restaurantSettings.copertoPrice || 0;
   }
+  
+  // Aggiorna checkbox metodi checkout
+  if (restaurantSettings.checkoutMethods) {
+    const methodTable = document.getElementById('method-table');
+    const methodPickup = document.getElementById('method-pickup');
+    const methodShowOrder = document.getElementById('method-show-order');
+    
+    if (methodTable) methodTable.checked = restaurantSettings.checkoutMethods.table !== false;
+    if (methodPickup) methodPickup.checked = restaurantSettings.checkoutMethods.pickup !== false;
+    if (methodShowOrder) methodShowOrder.checked = restaurantSettings.checkoutMethods.showOrder !== false;
+  }
 }
+
+async function saveCheckoutMethods() {
+  const methodTable = document.getElementById('method-table');
+  const methodPickup = document.getElementById('method-pickup');
+  const methodShowOrder = document.getElementById('method-show-order');
+  
+  // Verifica che almeno un metodo sia selezionato
+  if (!methodTable.checked && !methodPickup.checked && !methodShowOrder.checked) {
+    showNotification('Devi selezionare almeno un metodo di checkout', 'error');
+    return;
+  }
+  
+  restaurantSettings.checkoutMethods = {
+    table: methodTable.checked,
+    pickup: methodPickup.checked,
+    showOrder: methodShowOrder.checked
+  };
+  
+  try {
+    const response = await fetch(`/save-settings/${restaurantId}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ settings: restaurantSettings })
+    });
+    
+    const result = await response.json();
+    
+    if (result.success) {
+      showNotification('Metodi di checkout salvati con successo!', 'success');
+    } else {
+      throw new Error(result.message || 'Errore durante il salvataggio');
+    }
+  } catch (error) {
+    console.error('Errore salvataggio metodi checkout:', error);
+    showNotification('Errore nel salvataggio dei metodi', 'error');
+  }
+}
+
 
 /**
  * Salva le impostazioni del coperto
@@ -922,5 +1001,6 @@ async function saveCopertoSettings() {
     showNotification('Errore nel salvataggio delle impostazioni', 'error');
   }
 }
+
 
 window.getRestaurantSettings = () => restaurantSettings;
