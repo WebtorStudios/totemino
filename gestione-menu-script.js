@@ -903,7 +903,12 @@ async function loadRestaurantSettings() {
     };
   }
   
-  // Aggiorna i checkbox nel DOM
+  // ✅ Aggiorna i campi nel DOM
+  updateSettingsUI();
+}
+
+function updateSettingsUI() {
+  // Aggiorna campo coperto
   const copertoInput = document.getElementById('coperto-price');
   if (copertoInput) {
     copertoInput.value = restaurantSettings.copertoPrice || 0;
@@ -915,9 +920,17 @@ async function loadRestaurantSettings() {
     const methodPickup = document.getElementById('method-pickup');
     const methodShowOrder = document.getElementById('method-show-order');
     
-    if (methodTable) methodTable.checked = restaurantSettings.checkoutMethods.table !== false;
-    if (methodPickup) methodPickup.checked = restaurantSettings.checkoutMethods.pickup !== false;
-    if (methodShowOrder) methodShowOrder.checked = restaurantSettings.checkoutMethods.showOrder !== false;
+    if (methodTable) {
+      methodTable.checked = restaurantSettings.checkoutMethods.table !== false;
+    }
+    if (methodPickup) {
+      methodPickup.checked = restaurantSettings.checkoutMethods.pickup !== false;
+    }
+    if (methodShowOrder) {
+      methodShowOrder.checked = restaurantSettings.checkoutMethods.showOrder !== false;
+    }
+    
+    console.log('✅ UI aggiornata con valori:', restaurantSettings.checkoutMethods);
   }
 }
 
@@ -932,6 +945,7 @@ async function saveCheckoutMethods() {
     return;
   }
   
+  // Aggiorna l'oggetto restaurantSettings
   restaurantSettings.checkoutMethods = {
     table: methodTable.checked,
     pickup: methodPickup.checked,
@@ -1004,3 +1018,4 @@ async function saveCopertoSettings() {
 
 
 window.getRestaurantSettings = () => restaurantSettings;
+
