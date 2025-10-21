@@ -859,11 +859,11 @@
   height: 26px;
   border: 2px solid var(--btn-secondary);
   border-radius: 50%;
+  background: var(--pill-bg);
   display: flex;
   align-items: center;
   justify-content: center;
   transition: all 0.3s ease;
-  background: var(--pill-bg);
 }
 
 .checkmark-circle::after {
@@ -874,14 +874,16 @@
   font-size: 0.9rem;
 }
 
-.checkout-method-card input[type="checkbox"]:checked + .checkmark-circle {
+/* Correzione qui */
+.checkout-method-card input[type="checkbox"]:checked ~ .checkmark-circle {
   background: var(--accent-gold);
   border-color: var(--accent-gold);
 }
 
-.checkout-method-card input[type="checkbox"]:checked + .checkmark-circle::after {
+.checkout-method-card input[type="checkbox"]:checked ~ .checkmark-circle::after {
   display: block;
 }
+
 
 .checkout-method-card input[type="checkbox"]:checked ~ .method-card-content {
   opacity: 1;
@@ -900,5 +902,6 @@
     grid-template-columns: 1fr;
   }
 }
+
 
 
