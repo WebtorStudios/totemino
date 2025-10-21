@@ -33,7 +33,7 @@ const STATE = {
   selectedPaymentMethod: null,
   restaurantStatus: null,
   isTrialActive: false,
-  checkoutMethods: {  
+  checkoutMethods: {
     table: true,
     pickup: true,
     showOrder: true
@@ -84,113 +84,38 @@ const Utils = {
 
 // ==================== GESTIONE DATI ====================
 const DataManager = {
-  async fetchMenu() {
-    await this.loadRestaurantStatus();
-
-    const res = await fetch(`IDs/${CONFIG.restaurantId}/menu.json`);
-    const menuJson = await res.json();
-    const selectedMap = this.loadSelectedItems();
-    
-    const suggestedItems = Utils.loadFromStorage(CONFIG.storageKeys.suggestedItems, []);
-
-    menuJson.categories.forEach(category => {
-      STATE.menuData[category.name] = [];
-
-      category.items.forEach(item => {
-        if (!item.visible) return;
-
-        const itemData = {
-          name: item.name,
-          price: item.price,
-          img: item.imagePath,
-          ingredients: item.description.split(",").map(s => s.trim()).filter(Boolean)
-        };
-
-        STATE.menuData[category.name].push(itemData);
-
-        if (selectedMap.has(item.name)) {
-          STATE.items.push({
-            ...itemData,
-            restaurantId: CONFIG.restaurantId,
-            quantity: selectedMap.get(item.name),
-            category: category.name,
-            isSuggested: suggestedItems.includes(item.name)
-          });
-          STATE.selectedCategories.add(category.name);
-        }
-      });
-    });
-
-    await CopertoManager.loadCopertoPrice();
-    await this.loadCheckoutMethods(); // ✅ NUOVO
-    CopertoManager.addCopertoIfNeeded();
-
-    UI.renderItems();
-    UI.updateTotal();
-
-    if (this.canShowSuggestions() && typeof initializeSuggestions !== 'undefined') {
-      initializeSuggestions(STATE.menuData, CONFIG.restaurantId).catch(console.error);
-    }
-  },
-  
-   async loadCheckoutMethods() {
-     try {
-      const response = await fetch(`IDs/${CONFIG.restaurantId}/settings.json`);
+  // ✅ Carica lo status del ristorante
+  async loadRestaurantStatus() {
+    try {
+      const response = await fetch('/api/restaurant-status/' + CONFIG.restaurantId);
       if (response.ok) {
-        const settings = await response.json();
-        if (settings.checkoutMethods) {
-          STATE.checkoutMethods = settings.checkoutMethods;
-          console.log('✅ Metodi checkout caricati:', STATE.checkoutMethods);
-          this.applyCheckoutMethods();
+        const data = await response.json();
+        STATE.restaurantStatus = data.status;
+        STATE.isTrialActive = data.isTrialActive || false;
+        console.log('✅ Status ristorante:', STATE.restaurantStatus, 'Trial:', STATE.isTrialActive);
+      
+        if (!this.canShowSuggestions()) {
+          const wrapper = document.querySelector('.suggestions-wrapper');
+          if (wrapper) {
+            wrapper.style.cssText = 'opacity: 0';
+          }
         }
+        return true;
       }
     } catch (error) {
-      console.log('ℹ️ Errore caricamento metodi checkout, uso default');
+      console.error('❌ Errore caricamento status:', error);
     }
+    STATE.restaurantStatus = 'free';
+    STATE.isTrialActive = false;
+  
+    const wrapper = document.querySelector('.suggestions-wrapper');
+    if (wrapper) {
+      wrapper.style.cssText = 'opacity: 0 !important; pointer-events: none; display: none !important;';
+    }
+    return false;
   },
 
-  applyCheckoutMethods() {
-    const tableMethod = document.getElementById('service-table');
-    const pickupMethod = document.getElementById('service-pickup');
-    
-    if (tableMethod) {
-      tableMethod.style.display = STATE.checkoutMethods.table ? '' : 'none';
-    }
-    
-    if (pickupMethod) {
-      pickupMethod.style.display = STATE.checkoutMethods.pickup ? '' : 'none';
-    }
-    
-    // Se è abilitato "Mostra Ordine", aggiungi il pulsante
-    if (STATE.checkoutMethods.showOrder) {
-      this.addShowOrderButton();
-    }
-  },
-  addShowOrderButton() {
-    const serviceMethods = document.querySelector('.service-methods');
-    if (!serviceMethods || document.getElementById('service-show-order')) return;
-    
-    const showOrderBtn = document.createElement('div');
-    showOrderBtn.className = 'service-option';
-    showOrderBtn.id = 'service-show-order';
-    showOrderBtn.tabIndex = 0;
-    showOrderBtn.role = 'button';
-    showOrderBtn.setAttribute('aria-pressed', 'false');
-    
-    showOrderBtn.innerHTML = `
-      <img class="theme-img" data-light="img/logo_light.png" data-dark="img/logo_dark.png" alt="Mostra Ordine">
-      <h3>Mostra Ordine</h3>
-    `;
-    
-    serviceMethods.appendChild(showOrderBtn);
-    
-    // Aggiungi event listener
-    showOrderBtn.addEventListener('click', () => {
-      window.location.href = `your-order.html?id=${CONFIG.restaurantId}`;
-    });
-  },
-  
-  // ✅ NUOVO: Verifica se i suggerimenti sono disponibili
+  // ✅ Verifica se i suggerimenti sono disponibili
   canShowSuggestions() {
     return STATE.restaurantStatus === 'pro' || STATE.isTrialActive;
   },
@@ -245,6 +170,7 @@ const DataManager = {
     });
 
     await CopertoManager.loadCopertoPrice();
+    await this.loadCheckoutMethods();
     CopertoManager.addCopertoIfNeeded();
 
     UI.renderItems();
@@ -254,6 +180,62 @@ const DataManager = {
     if (this.canShowSuggestions() && typeof initializeSuggestions !== 'undefined') {
       initializeSuggestions(STATE.menuData, CONFIG.restaurantId).catch(console.error);
     }
+  },
+  
+  async loadCheckoutMethods() {
+    try {
+      const response = await fetch(`IDs/${CONFIG.restaurantId}/settings.json`);
+      if (response.ok) {
+        const settings = await response.json();
+        if (settings.checkoutMethods) {
+          STATE.checkoutMethods = settings.checkoutMethods;
+          console.log('✅ Metodi checkout caricati:', STATE.checkoutMethods);
+          this.applyCheckoutMethods();
+        }
+      }
+    } catch (error) {
+      console.log('ℹ️ Errore caricamento metodi checkout, uso default');
+    }
+  },
+
+  applyCheckoutMethods() {
+    const tableMethod = document.getElementById('service-table');
+    const pickupMethod = document.getElementById('service-pickup');
+    
+    if (tableMethod) {
+      tableMethod.style.display = STATE.checkoutMethods.table ? '' : 'none';
+    }
+    
+    if (pickupMethod) {
+      pickupMethod.style.display = STATE.checkoutMethods.pickup ? '' : 'none';
+    }
+    
+    if (STATE.checkoutMethods.showOrder) {
+      this.addShowOrderButton();
+    }
+  },
+
+  addShowOrderButton() {
+    const serviceMethods = document.querySelector('.service-methods');
+    if (!serviceMethods || document.getElementById('service-show-order')) return;
+    
+    const showOrderBtn = document.createElement('div');
+    showOrderBtn.className = 'service-option';
+    showOrderBtn.id = 'service-show-order';
+    showOrderBtn.tabIndex = 0;
+    showOrderBtn.role = 'button';
+    showOrderBtn.setAttribute('aria-pressed', 'false');
+    
+    showOrderBtn.innerHTML = `
+      <img class="theme-img" data-light="img/logo_light.png" data-dark="img/logo_dark.png" alt="Mostra Ordine">
+      <h3>Mostra Ordine</h3>
+    `;
+    
+    serviceMethods.appendChild(showOrderBtn);
+    
+    showOrderBtn.addEventListener('click', () => {
+      window.location.href = `your-order.html?id=${CONFIG.restaurantId}`;
+    });
   },
 
   saveSelected() {
@@ -638,7 +620,7 @@ const CopertoManager = {
   addCopertoIfNeeded() {
     const hasCoperto = STATE.items.some(item => item.isCoperto);
     if (hasCoperto) {
-      console.log('✔ Coperto già presente nell\'ordine');
+      console.log('✓ Coperto già presente nell\'ordine');
       return;
     }
 
@@ -662,7 +644,7 @@ const CopertoManager = {
     STATE.items.push(copertoItem);
     STATE.orderNotes.push('');
     
-    console.log('✔ Coperto aggiunto automaticamente (€' + this.copertoPrice + ')');
+    console.log('✓ Coperto aggiunto automaticamente (€' + this.copertoPrice + ')');
   },
 
   markCopertoAdded() {
@@ -709,6 +691,7 @@ const Navigation = {
   },
 
   switchToStep(index) {
+    // ✅ CONTROLLA SE MOSTRARE SUGGERIMENTI
     if (index === 1 && STATE.items.length > 0 && !STATE.suggestionsShown && DataManager.canShowSuggestions()) {
       Popup.showSuggestionsPopup();
       return;
@@ -722,7 +705,7 @@ const Navigation = {
     document.getElementById("section-ordine").style.display = index === 0 ? "" : "none";
     document.getElementById("section-pagamento").style.display = index === 1 ? "" : "none";
     
-    // ✅ NUOVO - Riapplica visibilità metodi quando si passa alla pagina pagamento
+    // ✅ Riapplica visibilità metodi quando si passa alla pagina pagamento
     if (index === 1) {
       DataManager.applyCheckoutMethods();
     }
@@ -880,4 +863,5 @@ DataManager.fetchMenu();
 Navigation.init();
 Payment.init();
 Orders.init();
+
 
