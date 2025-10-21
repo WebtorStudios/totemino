@@ -65,6 +65,53 @@
         </div>
       </div>
     </div>
+
+    <div class="checkout-methods-section">
+  <div class="coperto-header">
+    <h2>Metodi di Checkout</h2>
+  </div>
+  
+  <div class="coperto-content">
+    <p class="coperto-description" style="margin-bottom: 1.5rem;">
+      Seleziona quali metodi di completamento ordine mostrare ai clienti nella pagina checkout.
+    </p>
+    
+    <div class="checkout-methods-grid">
+      <label class="checkout-method-card">
+        <input type="checkbox" id="method-table" checked>
+        <div class="method-card-content">
+          <img class="theme-img" data-light="img/service-table_light.png" data-dark="img/service-table_dark.png" alt="Servizio al Tavolo">
+          <h3>Servizio al Tavolo</h3>
+          <p>Il cliente inserisce il numero del tavolo</p>
+        </div>
+        <span class="checkmark-circle"></span>
+      </label>
+      
+      <label class="checkout-method-card">
+        <input type="checkbox" id="method-pickup" checked>
+        <div class="method-card-content">
+          <img class="theme-img" data-light="img/service-pickup_light.png" data-dark="img/service-pickup_dark.png" alt="Ritiro al Banco">
+          <h3>Ritiro al Banco</h3>
+          <p>Ordine con numero di ritiro automatico</p>
+        </div>
+        <span class="checkmark-circle"></span>
+      </label>
+      
+      <label class="checkout-method-card">
+        <input type="checkbox" id="method-show-order" checked>
+        <div class="method-card-content">
+          <img class="theme-img" data-light="img/logo_light.png" data-dark="img/logo_dark.png" alt="Mostra Ordine">
+          <h3>Mostra Ordine</h3>
+          <p>Visualizza un riepilogo dell'ordine senza completarlo</p>
+        </div>
+        <span class="checkmark-circle"></span>
+      </label>
+    </div>
+    
+    <button class="coperto-save-btn" id="save-checkout-methods" style="margin-top: 1rem;">Salva Metodi</button>
+  </div>
+</div>
+    
     <div class="menu-sections" id="menu-sections">
       <!-- Le sezioni verranno caricate dinamicamente -->
     </div>
@@ -170,3 +217,4 @@
   <script src="gestione-menu-script.js"></script>
 </body>
 </html>
+
