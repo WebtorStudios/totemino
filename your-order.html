@@ -3,109 +3,69 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Il Tuo Ordine</title>
+    <title>Totemino - Il tuo ordine</title>
+    <link rel="icon" type="image/png" href="img/favicon.png">
     <style>
         @import url("menu-styles.css");
 
-        body {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            padding: 2rem;
-        }
-
         .receipt-container {
-            background: white;
+            background: var(--card-bg);
             max-width: 500px;
-            width: 100%;
-            border: 8px solid black;
-            border-radius: 0;
-            box-shadow: 12px 12px 0 rgba(0, 0, 0, 0.2);
+            width: calc(100% - 2rem);
+            border: 8px solid var(--text-accent);
             position: relative;
             z-index: 1;
+            margin: 1rem auto;
+            transition: background-color 0.4s, border-color 0.4s;
         }
 
         .receipt-header {
             text-align: center;
             padding: 2rem 2rem 1rem;
-            border-bottom: 3px dashed black;
+            border-bottom: 3px dashed var(--text-accent);
+            transition: border-color 0.4s;
         }
 
         .receipt-header h1 {
             font-family: 'CalSans', sans-serif;
             font-size: 2.5rem;
-            color: black;
+            color: var(--text-accent);
             margin: 0;
         }
 
-        .receipt-body {
-            padding: 2rem;
-        }
+        .receipt-body { padding: 2rem; }
 
         .order-item {
             display: flex;
             align-items: center;
-            gap: 1rem;
-            padding: 1rem;
+            justify-content: space-between;
             margin-bottom: 1rem;
-            border: 3px solid black;
-            border-radius: 0;
-            background: white;
+            margin-right: 0.5rem;
+        }
+
+        .item-details {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
         }
 
         .item-image {
             width: 70px;
             height: 70px;
             object-fit: cover;
-            border: 3px solid black;
-        }
-
-        .item-details {
-            flex: 1;
         }
 
         .item-name {
             font-size: 1.2rem;
             font-weight: 700;
-            color: black;
-            margin-bottom: 0.3rem;
-        }
-
-        .item-quantity {
-            font-size: 0.9rem;
-            color: #666;
-            font-weight: 600;
+            color: var(--text-primary);
         }
 
         .item-price {
-            font-size: 1.3rem;
-            font-weight: 700;
-            color: black;
-            white-space: nowrap;
-        }
-
-        .totals {
-            border-top: 3px dashed black;
-            padding-top: 1.5rem;
-            margin-top: 1rem;
-        }
-
-        .total-row {
-            display: flex;
-            justify-content: space-between;
-            margin: 0.8rem 0;
-            font-size: 1.1rem;
-            color: black;
+            font-size: 1rem;
             font-weight: 600;
-        }
-
-        .total-row.final {
-            font-size: 2rem;
-            font-weight: 700;
-            margin-top: 1.5rem;
-            padding-top: 1rem;
-            border-top: 3px solid black;
+            color: var(--text-primary);
+            white-space: nowrap;
         }
 
         .empty-order {
@@ -116,208 +76,120 @@
         .empty-order h2 {
             font-family: 'CalSans', sans-serif;
             font-size: 2rem;
-            color: black;
+            color: var(--text-accent);
             margin-bottom: 1rem;
         }
 
         .empty-order p {
             font-size: 1.1rem;
-            color: #666;
+            color: var(--text-primary);
         }
 
-        .loading {
+        .loading, .error-message {
             text-align: center;
-            padding: 3rem;
             font-size: 1.2rem;
-            color: #666;
+            color: var(--text-primary);
         }
 
         .error-message {
-            background: black;
-            color: white;
+            background: var(--text-primary);
+            color: var(--bg-primary);
             padding: 1rem;
             margin: 1rem 0;
-            font-size: 1rem;
             font-weight: 600;
-            text-align: center;
         }
 
-        /* Responsive */
         @media (max-width: 600px) {
-            body {
-                padding: 1rem;
-            }
-
             .receipt-container {
                 border-width: 5px;
-                box-shadow: 8px 8px 0 rgba(0, 0, 0, 0.2);
+                margin-left: 1rem;
             }
-
-            .receipt-header h1 {
-                font-size: 2rem;
-            }
-
-            .receipt-body {
-                padding: 1.5rem;
-            }
-
-            .item-image {
-                width: 60px;
-                height: 60px;
-            }
-
-            .item-name {
-                font-size: 1rem;
-            }
-
-            .total-row.final {
-                font-size: 1.6rem;
-            }
+            .receipt-header h1 { font-size: 2rem; }
+            .receipt-body { padding: 1.5rem; }
+            .item-image { width: 60px; height: 60px; }
+            .item-name { font-size: 1rem; }
         }
     </style>
 </head>
 <body>
-    <!-- Luci di sottofondo -->
     <div class="bg-light light1"></div>
     <div class="bg-light light2"></div>
     <div class="bg-light light3"></div>
+
+    <div class="title">
+		<div class="logo_space">
+			<img class="theme-img" data-light="img/logo_light.png" data-dark="img/logo_dark.png" alt="Logo">
+			<a href="index.html"><h1>Totemino</h1></a>
+		</div>
+		<div>
+			<button id="back-to-checkout" class="header-btn" type="button"><img class="theme-img" data-light="img/exit_light.png" data-dark="img/exit_dark.png" alt="Torna al menu"></button>
+			<button id="theme" class="header-btn" type="button"><img class="theme-img" data-light="img/theme_light.png" data-dark="img/theme_dark.png" alt="Cambia tema"></button>
+		</div>
+	</div>
 
     <div class="receipt-container">
         <div class="receipt-header">
             <h1>Il tuo ordine</h1>
         </div>
-
         <div class="receipt-body">
-            <div id="orderContent" class="loading">
-                Caricamento ordine...
-            </div>
+            <div id="orderContent" class="loading">Caricamento ordine...</div>
         </div>
     </div>
-
+    
+    <script src="theme.js"></script>
     <script>
-        // Funzione per ottenere l'ID dall'URL
-        function getIdFromUrl() {
-            const params = new URLSearchParams(window.location.search);
-            return params.get('id');
-        }
+        const id = new URLSearchParams(window.location.search).get('id');
+        const content = document.getElementById('orderContent');
+		
+		document.getElementById('back-to-checkout').addEventListener('click', () => {
+			window.location.href = `checkout.html?id=${id}`;
+		});
 
-        // Funzione per caricare il menu
-        async function loadMenu(id) {
-            try {
-                const response = await fetch(`IDs/${id}/menu.json`);
-                if (!response.ok) throw new Error('Menu non trovato');
-                return await response.json();
-            } catch (error) {
-                console.error('Errore nel caricamento del menu:', error);
-                return null;
-            }
-        }
+        if (!id) {
+            content.innerHTML = '<div class="error-message">ID mancante nell\'URL</div>';
+        } else {
+            (async () => {
+                try {
+                    const menu = await fetch(`IDs/${id}/menu.json`).then(r => r.ok ? r.json() : null);
+                    if (!menu) throw new Error('Menu non trovato');
 
-        // Funzione per trovare un item nel menu
-        function findItemInMenu(menuData, itemName) {
-            for (const category of menuData.categories) {
-                const item = category.items.find(i => i.name === itemName);
-                if (item) return item;
-            }
-            return null;
-        }
+                    const order = localStorage.getItem('totemino_selected');
+                    if (!order) {
+                        content.innerHTML = '<div class="empty-order"><h2>Ordine Vuoto</h2><p>Non ci sono articoli nel tuo ordine</p></div>';
+                        return;
+                    }
 
-        // Funzione principale per visualizzare l'ordine
-        async function displayOrder() {
-            const id = getIdFromUrl();
-            const orderContent = document.getElementById('orderContent');
+                    const orderArr = JSON.parse(order);
+                    const items = [];
+                    
+                    for (let i = 0; i < orderArr.length; i += 2) {
+                        const item = menu.categories.flatMap(c => c.items).find(it => it.name === orderArr[i]);
+                        if (item) items.push({ ...item, qty: parseInt(orderArr[i + 1]) });
+                    }
 
-            if (!id) {
-                orderContent.innerHTML = '<div class="error-message">ID mancante nell\'URL</div>';
-                return;
-            }
+                    if (!items.length) {
+                        content.innerHTML = '<div class="empty-order"><h2>Ordine Vuoto</h2><p>Nessun articolo valido trovato</p></div>';
+                        return;
+                    }
 
-            // Carica il menu
-            const menuData = await loadMenu(id);
-            if (!menuData) {
-                orderContent.innerHTML = '<div class="error-message">Impossibile caricare il menu</div>';
-                return;
-            }
+                    content.innerHTML = items.map(item => {
+                        const img = item.imagePath.startsWith('IDs/') ? item.imagePath : `IDs/${id}/${item.imagePath}`;
+                        return `
+                            <div class="order-item">
+                                <div class="item-details">
+                                    <img src="${img}" alt="${item.name}" class="item-image" onerror="this.style.display='none'">
+                                    <div class="item-name">${item.name}</div>
+                                </div>
+                                <div class="item-price">€${(item.price * item.qty).toFixed(2)}</div>
+                            </div>
+                        `;
+                    }).join('');
 
-            // Leggi l'ordine da localStorage
-            const orderString = localStorage.getItem('totemino_selected');
-            if (!orderString) {
-                orderContent.innerHTML = `
-                    <div class="empty-order">
-                        <h2>Ordine Vuoto</h2>
-                        <p>Non ci sono articoli nel tuo ordine</p>
-                    </div>
-                `;
-                return;
-            }
-
-            // Parse dell'ordine
-            const orderArray = JSON.parse(orderString);
-            const orderItems = [];
-            
-            for (let i = 0; i < orderArray.length; i += 2) {
-                const itemName = orderArray[i];
-                const quantity = parseInt(orderArray[i + 1]);
-                
-                const menuItem = findItemInMenu(menuData, itemName);
-                if (menuItem) {
-                    orderItems.push({
-                        ...menuItem,
-                        quantity: quantity
-                    });
+                } catch (err) {
+                    content.innerHTML = '<div class="error-message">Errore nel caricamento</div>';
                 }
-            }
-
-            if (orderItems.length === 0) {
-                orderContent.innerHTML = `
-                    <div class="empty-order">
-                        <h2>Ordine Vuoto</h2>
-                        <p>Nessun articolo valido trovato</p>
-                    </div>
-                `;
-                return;
-            }
-
-            // Calcola il totale
-            let subtotal = 0;
-            orderItems.forEach(item => {
-                subtotal += item.price * item.quantity;
-            });
-
-            // Genera l'HTML dell'ordine
-            let html = '';
-            
-            orderItems.forEach(item => {
-                const itemTotal = (item.price * item.quantity).toFixed(2);
-                const imagePath = item.imagePath.startsWith('IDs/') ? item.imagePath : `IDs/${id}/${item.imagePath}`;
-                
-                html += `
-                    <div class="order-item">
-                        <img src="${imagePath}" alt="${item.name}" class="item-image" onerror="this.style.display='none'">
-                        <div class="item-details">
-                            <div class="item-name">${item.name}</div>
-                            <div class="item-quantity">Qtà: ${item.quantity} × €${item.price.toFixed(2)}</div>
-                        </div>
-                        <div class="item-price">€${itemTotal}</div>
-                    </div>
-                `;
-            });
-            
-            // Aggiungi i totali
-            html += `
-                <div class="totals">
-                    <div class="total-row final">
-                        <span>TOTALE</span>
-                        <span>€${subtotal.toFixed(2)}</span>
-                    </div>
-                </div>
-            `;
-            
-            orderContent.innerHTML = html;
+            })();
         }
-
-        // Avvia il caricamento dell'ordine
-        displayOrder();
     </script>
 </body>
 </html>
