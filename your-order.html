@@ -137,19 +137,91 @@
     </div>
     
     <script src="theme.js"></script>
-    <script>
+	<script>
+        // ==================== CONFIGURAZIONE ====================
+        const COPERTO_KEY = 'totemino_last_coperto';
+        const COOLDOWN_HOURS = 4;
+        
         const id = new URLSearchParams(window.location.search).get('id');
         const content = document.getElementById('orderContent');
-		
-		document.getElementById('back-to-checkout').addEventListener('click', () => {
-			window.location.href = `checkout.html?id=${id}`;
-		});
+        
+        let copertoPrice = 0;
+        
+        document.getElementById('back-to-checkout').addEventListener('click', () => {
+            window.location.href = `checkout.html?id=${id}`;
+        });
 
+        // ==================== GESTIONE COPERTO ====================
+        async function loadCopertoPrice() {
+            try {
+                const response = await fetch(`IDs/${id}/settings.json`);
+                if (response.ok) {
+                    const settings = await response.json();
+                    copertoPrice = parseFloat(settings.copertoPrice) || 0;
+                    console.log('✅ Coperto caricato:', copertoPrice);
+                } else {
+                    copertoPrice = 0;
+                    console.log('ℹ️ Nessun coperto impostato');
+                }
+            } catch (error) {
+                console.log('ℹ️ Errore caricamento coperto, disabilitato');
+                copertoPrice = 0;
+            }
+        }
+
+        function canAddCoperto() {
+            if (copertoPrice <= 0) return false;
+            
+            const lastCoperto = localStorage.getItem(COPERTO_KEY);
+            if (!lastCoperto) return true;
+            
+            const lastTime = parseInt(lastCoperto, 10);
+            const now = Date.now();
+            const hoursPassed = (now - lastTime) / (1000 * 60 * 60);
+            
+            return hoursPassed >= COOLDOWN_HOURS;
+        }
+
+        function addCopertoToOrder(items) {
+            const hasCoperto = items.some(item => item.name === 'Coperto');
+            if (hasCoperto) {
+                console.log('✓ Coperto già presente nell\'ordine');
+                return items;
+            }
+
+            if (!canAddCoperto()) {
+                console.log('⏳ Coperto non disponibile (prezzo: €' + copertoPrice + ', cooldown attivo)');
+                return items;
+            }
+
+            const copertoItem = {
+                name: 'Coperto',
+                price: copertoPrice,
+                img: 'img/coperto.png',
+                qty: 1,
+                isCoperto: true
+            };
+
+            items.push(copertoItem);
+            
+            // Salva nel localStorage
+            const orderArr = JSON.parse(localStorage.getItem('totemino_selected') || '[]');
+            orderArr.push('Coperto', '1');
+            localStorage.setItem('totemino_selected', JSON.stringify(orderArr));
+            
+            console.log('✓ Coperto aggiunto automaticamente (€' + copertoPrice + ')');
+            return items;
+        }
+
+        // ==================== CARICAMENTO ORDINE ====================
         if (!id) {
             content.innerHTML = '<div class="error-message">ID mancante nell\'URL</div>';
         } else {
             (async () => {
                 try {
+                    // Carica il prezzo del coperto
+                    await loadCopertoPrice();
+                    
                     const menu = await fetch(`IDs/${id}/menu.json`).then(r => r.ok ? r.json() : null);
                     if (!menu) throw new Error('Menu non trovato');
 
@@ -163,8 +235,18 @@
                     const items = [];
                     
                     for (let i = 0; i < orderArr.length; i += 2) {
-                        const item = menu.categories.flatMap(c => c.items).find(it => it.name === orderArr[i]);
-                        if (item) items.push({ ...item, qty: parseInt(orderArr[i + 1]) });
+                        const itemName = orderArr[i];
+                        const itemQty = parseInt(orderArr[i + 1]);
+                        
+                        // Cerca nel menu
+                        const item = menu.categories.flatMap(c => c.items).find(it => it.name === itemName);
+                        if (item) {
+                            items.push({ 
+                                ...item, 
+                                qty: itemQty,
+                                isCoperto: false
+                            });
+                        }
                     }
 
                     if (!items.length) {
@@ -172,13 +254,22 @@
                         return;
                     }
 
-                    content.innerHTML = items.map(item => {
-                        const img = item.imagePath.startsWith('IDs/') ? item.imagePath : `IDs/${id}/${item.imagePath}`;
+                    // ✅ Aggiungi coperto se necessario
+                    const finalItems = addCopertoToOrder(items);
+
+                    // Renderizza gli items
+                    content.innerHTML = finalItems.map(item => {
+                        const img = item.isCoperto 
+                            ? item.img 
+                            : (item.imagePath.startsWith('IDs/') ? item.imagePath : `IDs/${id}/${item.imagePath}`);
+                        
+                        const itemClass = item.isCoperto ? 'order-item coperto-item' : 'order-item';
+                        
                         return `
-                            <div class="order-item">
+                            <div class="${itemClass}">
                                 <div class="item-details">
                                     <img src="${img}" alt="${item.name}" class="item-image" onerror="this.style.display='none'">
-                                    <div class="item-name">${item.name}</div>
+                                    <div class="item-name">${item.name}${item.qty > 1 ? ` (x${item.qty})` : ''}</div>
                                 </div>
                                 <div class="item-price">€${(item.price * item.qty).toFixed(2)}</div>
                             </div>
@@ -186,6 +277,7 @@
                     }).join('');
 
                 } catch (err) {
+                    console.error('Errore caricamento:', err);
                     content.innerHTML = '<div class="error-message">Errore nel caricamento</div>';
                 }
             })();
@@ -194,3 +286,4 @@
 </body>
 
 </html>
+
