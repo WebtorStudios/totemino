@@ -552,7 +552,24 @@ async function loadMenu() {
   });
 
   loadSelectionFromStorage();
-  setActiveCategory(0);
+  currentCategoryIndex = 0;
+  document.querySelectorAll(".categories button").forEach((b, i) => {
+    b.classList.toggle("active", i === 0);
+  });
+  const activeBtn = document.querySelector(".categories button.active");
+  if (activeBtn) movePillTo(activeBtn);
+  renderItems(categories[0]);
+  itemsContainer.classList.remove("fade-in-left", "fade-in-right", "fade-out-left", "fade-out-right");
+  updateCart();
+  if (count === 0) {
+    nextBtn.classList.remove("paga", "animate-glow");
+    nextBtn.classList.add("locked");
+    nextBtn.disabled = true;
+  } else {
+    nextBtn.classList.remove("locked");
+    nextBtn.classList.add("paga", "animate-glow");
+    nextBtn.disabled = false;
+  }
 }
 
 function movePillTo(button) {
@@ -986,5 +1003,6 @@ function handleSwipe() {
     setActiveCategory(currentCategoryIndex + 1);
   }
 }
+
 
 loadMenu();
