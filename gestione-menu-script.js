@@ -8,6 +8,8 @@ let currentEditingIndex = null;
 let isAddingNew = false;
 let uploadedImageName = null;
 let hasUnsavedChanges = false;
+let availableMenuTypes = [];
+let currentMenuTypeFilter = '';
 let restaurantSettings = {
   copertoPrice: 0,
   checkoutMethods: {
@@ -17,13 +19,167 @@ let restaurantSettings = {
   }
 };
 
-// Nomi degli allergeni
 const allergenNames = {
   "1": "Molluschi", "2": "Lupino", "3": "Soia", "4": "Latte", "5": "Uova",
   "6": "Pesce", "7": "Glutine", "8": "Arachidi", "9": "Frutta a guscio",
   "10": "Semi di sesamo", "11": "Sedano", "12": "Senape",
   "13": "Anidride solforosa", "14": "Crostacei"
 };
+
+// Carica menu types da settings
+async function loadMenuTypes() {
+  if (restaurantSettings.menuTypes && Array.isArray(restaurantSettings.menuTypes)) {
+    availableMenuTypes = restaurantSettings.menuTypes;
+  } else {
+    availableMenuTypes = [];
+  }
+  updateMenuTypeFilterUI();
+  renderMenuSections();
+}
+
+// Aggiorna UI filtro
+function updateMenuTypeFilterUI() {
+  const filterSelect = document.getElementById('menu-type-filter');
+  if (!filterSelect) return;
+  
+  filterSelect.innerHTML = '<option value="">Tutti gli elementi</option>';
+  availableMenuTypes.forEach(type => {
+    const option = document.createElement('option');
+    option.value = type.id;
+    option.textContent = type.name;
+    if (currentMenuTypeFilter === type.id) {
+      option.selected = true;
+    }
+    filterSelect.appendChild(option);
+  });
+  filterSelect.onchange = filterMenuByType;
+}
+
+// Filtra menu per tipo
+function filterMenuByType() {
+  const filterSelect = document.getElementById('menu-type-filter');
+  if (!filterSelect) return; 
+  currentMenuTypeFilter = filterSelect.value;
+  renderMenuSections();
+}
+
+// Apri popup gestione menu types
+function openMenuTypesManager() {
+  const popup = document.getElementById('menu-types-popup');
+  renderMenuTypesList();
+  popup.classList.remove('hidden');
+}
+
+// Chiudi popup
+function closeMenuTypesPopup() {
+  document.getElementById('menu-types-popup').classList.add('hidden');
+}
+
+// Renderizza lista menu types
+function renderMenuTypesList() {
+  const container = document.getElementById('menu-types-list');
+  container.innerHTML = '';
+  
+  if (availableMenuTypes.length === 0) {
+    container.innerHTML = '<p class="no-groups-message">Nessun tipo di menu creato</p>';
+    return;
+  }
+  
+  availableMenuTypes.forEach((type, index) => {
+    const card = document.createElement('div');
+    card.className = 'group-card';
+    card.innerHTML = `
+      <div class="group-card-header">
+        <h3>${type.name}</h3>
+        <div class="group-card-actions">
+          <button class="group-delete-btn" onclick="deleteMenuType(${index})">
+            <img src="img/delete.png" alt="Elimina">
+          </button>
+        </div>
+      </div>
+      <p class="group-sections">ID: ${type.id}</p>
+    `;
+    container.appendChild(card);
+  });
+}
+
+// Aggiungi nuovo menu type
+async function addNewMenuType() {
+  const idInput = document.getElementById('new-menu-type-id');
+  const nameInput = document.getElementById('new-menu-type-name');
+  
+  const id = idInput.value.trim().toLowerCase();
+  const name = nameInput.value.trim();
+  
+  if (!id || !name) {
+    showNotification('Compila entrambi i campi', 'error');
+    return;
+  }
+  
+  // Controlla duplicati
+  if (availableMenuTypes.some(t => t.id === id)) {
+    showNotification('ID già esistente', 'error');
+    return;
+  }
+  
+  availableMenuTypes.push({ id, name });
+  restaurantSettings.menuTypes = availableMenuTypes;
+  
+  await saveMenuTypesToServer();
+  
+  idInput.value = '';
+  nameInput.value = '';
+  renderMenuTypesList();
+  updateMenuTypeFilterUI();
+  showNotification('Tipo menu aggiunto!', 'success');
+}
+
+// Elimina menu type
+async function deleteMenuType(index) {
+  const type = availableMenuTypes[index];
+  
+  // Controlla se è in uso
+  let inUse = false;
+  for (const category in menuData) {
+    menuData[category].forEach(item => {
+      if (item.menuType && item.menuType.includes(type.id)) {
+        inUse = true;
+      }
+    });
+  }
+  
+  if (inUse) {
+    const confirm = window.confirm(`"${type.name}" è usato da alcuni elementi. Eliminarlo comunque?`);
+    if (!confirm) return;
+  }
+  
+  availableMenuTypes.splice(index, 1);
+  restaurantSettings.menuTypes = availableMenuTypes;
+  
+  await saveMenuTypesToServer();
+  
+  renderMenuTypesList();
+  updateMenuTypeFilterUI();
+  showNotification('Tipo menu eliminato', 'success');
+}
+
+// Salva sul server
+async function saveMenuTypesToServer() {
+  try {
+    const response = await fetch(`/save-settings/${restaurantId}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ settings: restaurantSettings })
+    });
+    
+    const result = await response.json();
+    if (!result.success) throw new Error('Errore salvataggio');
+    
+  } catch (error) {
+    console.error('Errore salvataggio menu types:', error);
+    showNotification('Errore nel salvataggio', 'error');
+  }
+}
 
 async function checkPremiumAccess() {
   try {
@@ -137,22 +293,37 @@ async function loadMenu() {
     
     menuJson.categories.forEach(category => {
       categories.push(category.name);
-      menuData[category.name] = category.items.map(item => ({
-        name: item.name,
-        price: item.price,
-        image: item.imagePath,
-        description: item.description,
-        allergens: item.allergens,
-        isNew: item.featured,
-        isSuggested: false,
-        visible: item.visible !== false
-      }));
+      menuData[category.name] = category.items.map(item => {
+        // ✅ FIX: Carica menuType correttamente
+        const loadedItem = {
+          name: item.name,
+          price: item.price,
+          image: item.imagePath,
+          description: item.description,
+          allergens: item.allergens,
+          isNew: item.featured,
+          isSuggested: false,
+          visible: item.visible !== false,
+          customizable: item.customizable || false,
+          customizationGroup: item.customizationGroup || null
+        };
+        
+        // ✅ Aggiungi menuType solo se presente
+        if (item.menuType && Array.isArray(item.menuType) && item.menuType.length > 0) {
+          loadedItem.menuType = item.menuType;
+        }
+        
+        return loadedItem;
+      });
     });
     
-    // ✅ CARICA LE IMPOSTAZIONI DEL RISTORANTE (incluso coperto)
+    // Carica customizzazioni e settings
+    await loadCustomizations();
     await loadRestaurantSettings();
     
-    renderMenuSections();
+    // ✅ Carica menu types PRIMA di renderizzare
+    await loadMenuTypes();
+    
   } catch (error) {
     console.error("Errore nel caricamento del menu:", error);
     menuData = {};
@@ -224,24 +395,45 @@ function renderMenuSections() {
     return;
   }
 
+  // ✅ Conta quante sezioni hanno elementi visibili
+  let visibleSectionsCount = 0;
+
   categories.forEach((category, categoryIndex) => {
     const section = createCategorySection(category, categoryIndex);
-    container.appendChild(section);
+    
+    // ✅ Solo se la sezione ha elementi visibili, aggiungila
+    if (section) {
+      container.appendChild(section);
+      visibleSectionsCount++;
+    }
   });
 
-  // Aggiungi pulsante per nuova categoria
-  const addCategoryBtn = document.createElement('button');
-  addCategoryBtn.className = 'btn-primary';
-  addCategoryBtn.innerHTML = 'Aggiungi nuova categoria';
-  addCategoryBtn.title = 'Aggiungi nuova categoria';
-  addCategoryBtn.onclick = addNewCategory;
-  addCategoryBtn.style.margin = '2rem auto';
-  addCategoryBtn.style.display = 'block';
-  addCategoryBtn.style.boxShadow = '0px 2px 15px rgba(0, 0, 0, 0.3)';
+  // ✅ Se il filtro è attivo ma non ci sono risultati, mostra messaggio
+  if (currentMenuTypeFilter && visibleSectionsCount === 0) {
+    const noResultsState = document.createElement('div');
+    noResultsState.className = 'empty-state';
+    noResultsState.innerHTML = `
+      <h2>Nessun elemento trovato</h2>
+      <p>Non ci sono elementi che corrispondono al filtro selezionato.</p>
+      <button class="btn-secondary" onclick="clearMenuTypeFilter()">Rimuovi Filtro</button>
+    `;
+    container.appendChild(noResultsState);
+  } else {
+    // Aggiungi pulsante per nuova categoria solo se non c'è il messaggio "nessun risultato"
+    const addCategoryBtn = document.createElement('button');
+    addCategoryBtn.className = 'btn-primary';
+    addCategoryBtn.innerHTML = 'Aggiungi nuova categoria';
+    addCategoryBtn.title = 'Aggiungi nuova categoria';
+    addCategoryBtn.onclick = addNewCategory;
+    addCategoryBtn.style.margin = '2rem auto';
+    addCategoryBtn.style.display = 'block';
+    addCategoryBtn.style.boxShadow = '0px 2px 15px rgba(0, 0, 0, 0.3)';
 
-  container.appendChild(addCategoryBtn);
+    container.appendChild(addCategoryBtn);
+  }
 }
 
+// ===== CREA SEZIONE CATEGORIA (SOSTITUISCI) =====
 function createCategorySection(category, categoryIndex) {
   const section = document.createElement('div');
   section.className = 'category-section';
@@ -280,10 +472,25 @@ function createCategorySection(category, categoryIndex) {
   itemsGrid.className = 'menu-items-grid';
 
   const items = menuData[category] || [];
-  items.forEach((item, itemIndex) => {
-    const card = createItemCard(item, category, itemIndex);
+  
+  let visibleItemsCount = 0;
+  
+  items.forEach((item, originalIndex) => {
+    if (currentMenuTypeFilter) {
+      const hasMenuType = item.menuType && item.menuType.includes(currentMenuTypeFilter);
+      if (!hasMenuType) return; // Salta questo item
+    }
+    
+    // ✅ Passa l'indice ORIGINALE, non quello filtrato
+    const card = createItemCard(item, category, originalIndex);
     itemsGrid.appendChild(card);
+    visibleItemsCount++;
   });
+
+  // ✅ Se non ci sono elementi visibili, ritorna null (la sezione non verrà aggiunta)
+  if (visibleItemsCount === 0 && currentMenuTypeFilter) {
+    return null;
+  }
 
   section.appendChild(header);
   section.appendChild(itemsGrid);
@@ -291,12 +498,45 @@ function createCategorySection(category, categoryIndex) {
   return section;
 }
 
+function updateMenuTypesCheckboxes(selectedTypes = []) {
+  const container = document.getElementById('menu-types-checkboxes');
+  if (!container) return;
+  
+  container.innerHTML = '';
+  
+  if (availableMenuTypes.length === 0) {
+    container.innerHTML = '<p style="opacity: 0.7; font-size: 0.9rem;">Nessun tipo di menu disponibile. Creane uno nella sezione "Tipi di Menu".</p>';
+    return;
+  }
+  
+  availableMenuTypes.forEach(type => {
+    const label = document.createElement('label');
+    label.className = 'checkbox-label';
+    
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.value = type.id;
+    checkbox.checked = selectedTypes.includes(type.id);
+    
+    const checkmark = document.createElement('span');
+    checkmark.className = 'checkmark';
+    
+    const text = document.createElement('span');
+    text.className = 'checkbox-text';
+    text.textContent = type.name;
+    
+    label.appendChild(checkbox);
+    label.appendChild(checkmark);
+    label.appendChild(text);
+    container.appendChild(label);
+  });
+}
+
 function createItemCard(item, category, itemIndex) {
   const card = document.createElement('div');
   card.className = 'menu-item-card';
   card.style.cursor = 'pointer';
   
-  // Rendi tutta la card cliccabile
   card.onclick = () => openEditPopup(item, category, itemIndex);
 
   const header = document.createElement('div');
@@ -314,6 +554,21 @@ function createItemCard(item, category, itemIndex) {
     badge.className = 'new-badge';
     badge.textContent = 'Novità';
     name.appendChild(badge);
+  }
+  
+  // ✅ NUOVO: Badge customizzabile
+  if (item.customizable && item.customizationGroup) {
+    const customBadge = document.createElement('span');
+    customBadge.className = 'custom-badge';
+    customBadge.textContent = `${item.customizationGroup}`;
+    customBadge.style.background = 'var(--accent-pink)';
+    customBadge.style.color = 'white';
+    customBadge.style.padding = '0.2rem 0.6rem';
+    customBadge.style.borderRadius = '1rem';
+    customBadge.style.fontSize = '0.7rem';
+    customBadge.style.fontWeight = 'bold';
+    customBadge.style.marginLeft = '0.5rem';
+    name.appendChild(customBadge);
   }
 
   const price = document.createElement('p');
@@ -334,7 +589,7 @@ function createItemCard(item, category, itemIndex) {
     img.src = 'img/placeholder.png';
   };
   
-  // Se l’elemento è nascosto, mostra l’icona eye
+  // Se l'elemento è nascosto, mostra l'icona eye
   if (item.visible === false) {
     const eyeIcon = document.createElement('img');
     eyeIcon.src = 'img/eye.png';
@@ -347,10 +602,9 @@ function createItemCard(item, category, itemIndex) {
     eyeIcon.style.height = '48px';
     eyeIcon.style.borderRadius = '50%';
     eyeIcon.style.border = '2px solid white';
-    card.style.position = 'relative'; // serve per posizionare l’icona
+    card.style.position = 'relative';
     card.appendChild(eyeIcon);
   }
-  
 
   const description = document.createElement('p');
   description.className = 'item-description';
@@ -446,13 +700,28 @@ function openEditPopup(item = null, category = null, itemIndex = null) {
   }
   
   popup.classList.remove('hidden');
-  document.body.classList.add('noscroll');
+  
+  // Salva la posizione e blocca lo scroll
+  const scrollY = window.scrollY;
+  document.body.dataset.scrollY = scrollY;
+  document.body.style.position = 'fixed';
+  document.body.style.top = `-${scrollY}px`;
+  document.body.style.width = '100%';
+  document.body.style.overflow = 'hidden';
 }
 
 function closeEditPopup() {
   const popup = document.getElementById('edit-popup');
   popup.classList.add('hidden');
-  document.body.classList.remove('noscroll');
+  
+  // Ripristina completamente lo scroll
+  const scrollY = parseInt(document.body.dataset.scrollY || '0');
+  document.body.style.removeProperty('position');
+  document.body.style.removeProperty('top');
+  document.body.style.removeProperty('width');
+  document.body.style.removeProperty('overflow');
+  delete document.body.dataset.scrollY;
+  window.scrollTo(0, scrollY);
   
   currentEditingItem = null;
   currentEditingCategory = null;
@@ -497,7 +766,12 @@ function resetEditForm() {
   document.getElementById('item-price').value = '';
   document.getElementById('item-description').value = '';
   document.getElementById('item-new').checked = false;
-  document.getElementById('hide-item').checked = false; 
+  document.getElementById('hide-item').checked = false;
+  
+  // ✅ NUOVO: Reset customizzazione
+  document.getElementById('item-customizable').checked = false;
+  document.getElementById('customization-group-id').value = '';
+  updateCustomizationVisibility();
 
   // Reset immagine
   const preview = document.getElementById('product-preview');
@@ -511,6 +785,19 @@ function resetEditForm() {
   document.querySelectorAll('.allergen-item').forEach(item => {
     item.classList.remove('selected');
   });
+
+  updateMenuTypesCheckboxes([]);
+}
+
+function updateCustomizationVisibility() {
+  const checkbox = document.getElementById('item-customizable');
+  const controls = document.getElementById('customization-controls');
+  
+  if (checkbox.checked) {
+    controls.style.display = 'flex';
+  } else {
+    controls.style.display = 'none';
+  }
 }
 
 function fillEditForm(item) {
@@ -519,7 +806,15 @@ function fillEditForm(item) {
   document.getElementById('item-description').value = item.description || '';
   document.getElementById('item-new').checked = item.isNew;
   document.getElementById('hide-item').checked = item.visible === false;
-
+  
+  // ✅ NUOVO: Customizzazione
+  const customizableCheckbox = document.getElementById('item-customizable');
+  const groupInput = document.getElementById('customization-group-id');
+  
+  customizableCheckbox.checked = item.customizable || false;
+  groupInput.value = item.customizationGroup || '';
+  
+  updateCustomizationVisibility();
 
   // Carica immagine se presente
   if (item.image) {
@@ -529,6 +824,8 @@ function fillEditForm(item) {
     preview.classList.remove('hidden');
     placeholder.classList.add('hidden');
   }
+
+  updateMenuTypesCheckboxes(item.menuType || []);
 }
 
 function generateAllergensGrid() {
@@ -667,6 +964,15 @@ function validateAndSaveItem() {
     selectedAllergens.push(item.dataset.allergenId);
   });
 
+  // Gestione customizzazione
+  const customizable = document.getElementById('item-customizable').checked;
+  const customizationGroup = document.getElementById('customization-group-id').value;
+  
+  if (customizable && !customizationGroup) {
+    showNotification('Seleziona un gruppo di customizzazione', 'error');
+    return false;
+  }
+
   // Gestione immagine
   let imagePath = '';
   const preview = document.getElementById('product-preview');
@@ -679,6 +985,14 @@ function validateAndSaveItem() {
   }
   
   const hideCheckbox = document.getElementById('hide-item');
+  
+  // ✅ FIX: Raccogli menu types selezionati correttamente
+  const selectedMenuTypes = [];
+  document.querySelectorAll('#menu-types-checkboxes input:checked').forEach(cb => {
+    selectedMenuTypes.push(cb.value);
+  });
+
+  // ✅ FIX: Crea l'oggetto item correttamente
   const itemData = {
     name: name,
     price: price,
@@ -687,9 +1001,15 @@ function validateAndSaveItem() {
     allergens: selectedAllergens,
     isNew: isNew,
     isSuggested: false,
-    visible: !hideCheckbox.checked
+    visible: !hideCheckbox.checked,
+    customizable: customizable,
+    customizationGroup: customizable ? customizationGroup : null
   };
   
+  // ✅ FIX: Aggiungi menuType solo se ci sono tipi selezionati
+  if (selectedMenuTypes.length > 0) {
+    itemData.menuType = selectedMenuTypes;
+  }
   
   if (isAddingNew) {
     if (!currentEditingCategory) {
@@ -715,6 +1035,7 @@ function validateAndSaveItem() {
   showNotification('Elemento salvato! Ricorda di salvare il menu.', 'success');
   return true;
 }
+
 
 function showDeleteConfirm() {
   document.getElementById('delete-popup').classList.remove('hidden');
@@ -775,15 +1096,27 @@ async function saveMenuToFile() {
     const menuJson = {
       categories: categories.map(categoryName => ({
         name: categoryName,
-        items: (menuData[categoryName] || []).map(item => ({
-          name: item.name,
-          price: item.price,
-          imagePath: item.image,
-          description: item.description || '',
-          allergens: item.allergens || [],
-          featured: item.isNew || false,
-          visible: item.visible !== false
-        }))
+        items: (menuData[categoryName] || []).map(item => {
+          // ✅ FIX: Salva menuType correttamente
+          const jsonItem = {
+            name: item.name,
+            price: item.price,
+            imagePath: item.image,
+            description: item.description || '',
+            allergens: item.allergens || [],
+            featured: item.isNew || false,
+            visible: item.visible !== false,
+            customizable: item.customizable || false,
+            customizationGroup: item.customizationGroup || null
+          };
+          
+          // ✅ Aggiungi menuType solo se presente
+          if (item.menuType && item.menuType.length > 0) {
+            jsonItem.menuType = item.menuType;
+          }
+          
+          return jsonItem;
+        })
       }))
     };
     
@@ -870,14 +1203,14 @@ async function loadRestaurantSettings() {
     const response = await fetch(`IDs/${restaurantId}/settings.json`);
     if (response.ok) {
       restaurantSettings = await response.json();
-      console.log('✅ Impostazioni caricate:', restaurantSettings);
+      
       
       // Assicura che checkoutMethods esista
       if (!restaurantSettings.checkoutMethods) {
         restaurantSettings.checkoutMethods = {
           table: true,
           pickup: true,
-          showOrder: true
+          show: true // ← CAMBIATO da showOrder
         };
       }
     } else {
@@ -886,24 +1219,23 @@ async function loadRestaurantSettings() {
         checkoutMethods: {
           table: true,
           pickup: true,
-          showOrder: true
+          show: true // ← CAMBIATO da showOrder
         }
       };
-      console.log('ℹ️ File settings.json non trovato, uso valori default');
+      
     }
   } catch (error) {
-    console.log('ℹ️ Nessun file settings.json, uso valori default');
+    
     restaurantSettings = { 
       copertoPrice: 0,
       checkoutMethods: {
         table: true,
         pickup: true,
-        showOrder: true
+        show: true // ← CAMBIATO da showOrder
       }
     };
   }
   
-  // ✅ Aggiorna i campi nel DOM
   updateSettingsUI();
 }
 
@@ -918,7 +1250,7 @@ function updateSettingsUI() {
   if (restaurantSettings.checkoutMethods) {
     const methodTable = document.getElementById('method-table');
     const methodPickup = document.getElementById('method-pickup');
-    const methodShowOrder = document.getElementById('method-show-order');
+    const methodShow = document.getElementById('method-show'); 
     
     if (methodTable) {
       methodTable.checked = restaurantSettings.checkoutMethods.table !== false;
@@ -926,21 +1258,19 @@ function updateSettingsUI() {
     if (methodPickup) {
       methodPickup.checked = restaurantSettings.checkoutMethods.pickup !== false;
     }
-    if (methodShowOrder) {
-      methodShowOrder.checked = restaurantSettings.checkoutMethods.showOrder !== false;
+    if (methodShow) {
+      methodShow.checked = restaurantSettings.checkoutMethods.show !== false; 
     }
-    
-    console.log('✅ UI aggiornata con valori:', restaurantSettings.checkoutMethods);
   }
 }
 
 async function saveCheckoutMethods() {
   const methodTable = document.getElementById('method-table');
   const methodPickup = document.getElementById('method-pickup');
-  const methodShowOrder = document.getElementById('method-show-order');
+  const methodShow = document.getElementById('method-show'); // ← CAMBIATO da method-show-order
   
   // Verifica che almeno un metodo sia selezionato
-  if (!methodTable.checked && !methodPickup.checked && !methodShowOrder.checked) {
+  if (!methodTable.checked && !methodPickup.checked && !methodShow.checked) {
     showNotification('Devi selezionare almeno un metodo di checkout', 'error');
     return;
   }
@@ -949,7 +1279,7 @@ async function saveCheckoutMethods() {
   restaurantSettings.checkoutMethods = {
     table: methodTable.checked,
     pickup: methodPickup.checked,
-    showOrder: methodShowOrder.checked
+    show: methodShow.checked // ← USA .show invece di .showOrder
   };
   
   try {
@@ -973,7 +1303,6 @@ async function saveCheckoutMethods() {
     showNotification('Errore nel salvataggio dei metodi', 'error');
   }
 }
-
 
 /**
  * Salva le impostazioni del coperto
@@ -1016,6 +1345,15 @@ async function saveCopertoSettings() {
   }
 }
 
+// ✅ NUOVA FUNZIONE: Resetta il filtro
+function clearMenuTypeFilter() {
+  currentMenuTypeFilter = '';
+  const filterSelect = document.getElementById('menu-type-filter');
+  if (filterSelect) {
+    filterSelect.value = '';
+  }
+  renderMenuSections();
+}
 
 window.getRestaurantSettings = () => restaurantSettings;
 

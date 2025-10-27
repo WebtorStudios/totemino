@@ -5,19 +5,16 @@ const CONFIG = {
   refreshInterval: 30000
 };
 
-
 document.getElementById("fullscreen").onclick = () =>
-document.fullscreenElement
-  ? document.exitFullscreen()
-  : document.documentElement.requestFullscreen();
+  document.fullscreenElement
+    ? document.exitFullscreen()
+    : document.documentElement.requestFullscreen();
 
 let currentSection = 'table';
 let currentOrders = [];
 let viewingCompleted = false;
 let expandedGroups = new Set();
 let currentDetailOrder = null;
-let touchTimer = null;
-let isLongPress = false;
 let rotation = 0;
 let isRotating = false;
 
@@ -27,34 +24,30 @@ document.getElementById("stats").onclick = () => {
 
 async function checkPremiumAccess() {
   try {
-      const response = await fetch('/api/auth/me', { credentials: 'include' });
-      const data = await response.json();
-      
-      if (!data.success || !data.user) {
-          window.location.href = 'login.html';
-          return false;
-      }
-      
-      // ✅ Permetti accesso se: premium, paid, pro, o trial attivo
-      const hasAccess = data.user.status === 'premium' || 
-                       data.user.status === 'paid' || 
-                       data.user.status === 'pro' ||
-                       data.user.isTrialActive;
-      
-      if (!hasAccess) {
-          alert('La gestione ordini richiede un piano Premium o superiore');
-          setTimeout(() => {
-              window.location.href = 'index.html';
-          }, 2000);
-          return false;
-      }
-      
-      return true;
-      
-  } catch (error) {
-      console.error('Errore verifica accesso:', error);
+    const response = await fetch('/api/auth/me', { credentials: 'include' });
+    const data = await response.json();
+    
+    if (!data.success || !data.user) {
       window.location.href = 'login.html';
       return false;
+    }
+    
+    const hasAccess = data.user.status === 'premium' || 
+                     data.user.status === 'paid' || 
+                     data.user.status === 'pro' ||
+                     data.user.isTrialActive;
+    
+    if (!hasAccess) {
+      alert('La gestione ordini richiede un piano Premium o superiore');
+      setTimeout(() => window.location.href = 'index.html', 2000);
+      return false;
+    }
+    
+    return true;
+  } catch (error) {
+    console.error('Errore verifica accesso:', error);
+    window.location.href = 'login.html';
+    return false;
   }
 }
 
@@ -84,7 +77,6 @@ const elements = {
 
 // Inizializzazione
 document.addEventListener('DOMContentLoaded', async () => {
-  // ✅ Controlla accesso prima di inizializzare
   const hasAccess = await checkPremiumAccess();
   if (!hasAccess) return;
   
@@ -93,7 +85,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   loadOrders();
   setInterval(loadOrders, CONFIG.refreshInterval);
 });
-
 
 function rotateRefresh() {
   if (isRotating) return;
@@ -105,18 +96,14 @@ function rotateRefresh() {
 
 // Event Listeners
 function initEventListeners() {
-  // Navigazione
   document.getElementById('table-orders-tab').addEventListener('click', () => switchSection('table'));
   document.getElementById('table-pickup-tab').addEventListener('click', () => switchSection('pickup'));
-  // Refresh
   document.getElementById('table-refresh-btn').addEventListener('click', loadOrders);
   
-  // Popup
   document.querySelector('.gpopup-close-btn').addEventListener('click', hidePopup);
   elements.popup.addEventListener('click', (e) => e.target === elements.popup && hidePopup());
   elements.popupContent.statusBtn.addEventListener('click', toggleOrderStatus);
   
-  // Delete popup
   if (elements.openDeleteBtn) {
     elements.openDeleteBtn.addEventListener('click', showDeletePopup);
   }
@@ -126,25 +113,18 @@ function initEventListeners() {
   if (elements.cancelDeleteBtn) {
     elements.cancelDeleteBtn.addEventListener('click', hideDeletePopup);
   }
-  // Click esterno per chiudere delete popup
   if (elements.deletePopup) {
     elements.deletePopup.addEventListener('click', (e) => {
-      if (e.target === elements.deletePopup) {
-        hideDeletePopup();
-      }
+      if (e.target === elements.deletePopup) hideDeletePopup();
     });
   }
   
-  // Animazione pillola navbar
   window.addEventListener('resize', animatePill);
-
   document.getElementById('gestione-menu-btn').addEventListener('click', () => {
     window.location.href = `gestione-menu.html?id=${CONFIG.restaurantId}`;
-});
-
+  });
 }
 
-// Gestione delete popup
 function showDeletePopup() {
   elements.deletePopup.classList.add('show');
 }
@@ -153,24 +133,19 @@ function hideDeletePopup() {
   elements.deletePopup.classList.remove('show');
 }
 
-// Cambio sezione
 function switchSection(section) {
   currentSection = section;
   viewingCompleted = false;
   expandedGroups.clear();
   
-  // Aggiorna tab attivi
   document.getElementById('table-orders-tab').classList.toggle('active', section === 'table');
   document.getElementById('table-pickup-tab').classList.toggle('active', section === 'pickup');
   
-  // Mostra/nascondi sezioni - SOLO table e pickup attive, mai le completed
   elements.sections.table.classList.toggle('active', section === 'table');
   elements.sections.table.classList.toggle('hidden', section !== 'table');
-  
   elements.sections.pickup.classList.toggle('active', section === 'pickup');
   elements.sections.pickup.classList.toggle('hidden', section !== 'pickup');
   
-  // Le sezioni completed rimangono sempre nascoste
   elements.sections.tableCompleted.classList.add('hidden');
   elements.sections.tableCompleted.classList.remove('active');
   elements.sections.pickupCompleted.classList.add('hidden');
@@ -180,7 +155,6 @@ function switchSection(section) {
   loadOrders();
 }
 
-// Animazione pillola navbar
 function animatePill() {
   const pill = document.querySelector('.pill');
   const activeTab = document.querySelector(`#table-${currentSection === 'table' ? 'orders' : 'pickup'}-tab`);
@@ -192,7 +166,6 @@ function animatePill() {
   pill.style.width = `${tabRect.width}px`;
 }
 
-// Caricamento ordini - RIMOSSO filtro 24h
 async function loadOrders() {
   rotateRefresh();
   const activeSection = getActiveSection();
@@ -203,7 +176,6 @@ async function loadOrders() {
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     
     currentOrders = await response.json();
-    
     renderOrders();
   } catch (error) {
     console.error('Errore caricamento:', error);
@@ -215,7 +187,6 @@ async function loadOrders() {
   }
 }
 
-// Rendering principale
 function renderOrders() {
   const activeSection = getActiveSection();
   const orders = viewingCompleted ? 
@@ -227,7 +198,6 @@ function renderOrders() {
     return;
   }
   
-  // Vista ordini in corso
   if (orders.length === 0) {
     const completedCount = currentOrders.filter(o => o.status === 'completed').length;
     activeSection.innerHTML = `
@@ -243,7 +213,6 @@ function renderOrders() {
   
   let html = '<div class="orders-grid">';
   
-  // Ordina i gruppi per timestamp del più recente ordine nel gruppo
   const sortedGroups = Object.entries(grouped).sort((a, b) => {
     const timestampA = Math.max(...a[1].map(order => new Date(order.timestamp).getTime()));
     const timestampB = Math.max(...b[1].map(order => new Date(order.timestamp).getTime()));
@@ -256,13 +225,11 @@ function renderOrders() {
     const color = getTableColor(index);
     
     if (isExpanded && hasMultiple) {
-      // Mostra bottone di chiusura e ordini separati
       html += createCollapseButton(identifier, color, false);
       groupOrders.forEach((order, i) => {
         html += createOrderCard(order, color, false, i + 1);
       });
     } else {
-      // Mostra carta raggruppata
       html += createGroupCard(identifier, groupOrders, color, hasMultiple);
     }
   });
@@ -271,7 +238,6 @@ function renderOrders() {
   activeSection.innerHTML = html;
 }
 
-// Vista completati - MODIFICATA per ordinamento cronologico
 function renderCompletedView(section, completedOrders) {
   let html = '<div class="orders-grid">';
   
@@ -280,7 +246,6 @@ function renderCompletedView(section, completedOrders) {
   } else {
     const grouped = groupOrdersByIdentifier(completedOrders);
     
-    // Ordina i gruppi per timestamp del più recente ordine nel gruppo
     const sortedGroups = Object.entries(grouped).sort((a, b) => {
       const timestampA = Math.max(...a[1].map(order => new Date(order.timestamp).getTime()));
       const timestampB = Math.max(...b[1].map(order => new Date(order.timestamp).getTime()));
@@ -308,9 +273,8 @@ function renderCompletedView(section, completedOrders) {
   section.innerHTML = html;
 }
 
-// Creazione elementi HTML
 function createGroupCard(identifier, orders, color, hasMultiple, isCompleted = false) {
-  const order = orders[0]; // Il più recente del gruppo
+  const order = orders[0];
   const total = orders.reduce((sum, o) => sum + o.total, 0);
   const countDisplay = hasMultiple ? `<sup>(${orders.length})</sup>` : '';
   const isNew = !isCompleted && orders.some(o => isNewOrder(o.timestamp));
@@ -363,10 +327,8 @@ function createCollapseButton(identifier, color, isCompleted = false) {
     </div>`;
 }
 
-// MODIFICATA: Funzione unificata per i bottoni di navigazione - SEMPRE VISIBILI
 function createNavigationButtons(completedCount, isCompletedView) {
   if (isCompletedView) {
-    // Vista completati: mostra sempre il bottone "Torna ad attivi"
     return `
       <div class="order-card special" onclick="showActive()">
         <div class="card-number">Torna ad attivi</div>
@@ -375,7 +337,6 @@ function createNavigationButtons(completedCount, isCompletedView) {
         </div>
       </div>`;
   } else {
-    // Vista attivi: mostra sempre il bottone "Vai a terminati" con il conteggio
     return `
       <div class="order-card special" onclick="showCompleted()">
         <div class="card-number">Vai a terminati</div>
@@ -386,7 +347,6 @@ function createNavigationButtons(completedCount, isCompletedView) {
   }
 }
 
-// Gestione gruppi
 function expandGroup(identifier) {
   expandedGroups.add(identifier);
   renderOrders();
@@ -397,18 +357,35 @@ function collapseGroup(identifier) {
   renderOrders();
 }
 
-// NUOVA FUNZIONE: Mostra dettagli del gruppo (somma di tutti gli ordini)
 function showGroupDetails(identifier) {
   const orders = getOrdersByIdentifier(identifier);
   if (orders.length === 0) return;
   
-  // Se è un gruppo non espanso, mostra il popup con la somma
   if (!expandedGroups.has(identifier)) {
     showCombinedOrderDetails(identifier, orders);
   }
 }
 
-// NUOVA FUNZIONE: Mostra popup combinato per gruppo di ordini
+// ✅ MODIFICATO: Formato items con customizzazioni
+function formatItemDisplay(item) {
+  let displayName = item.name;
+  
+  // Aggiungi customizzazioni se presenti
+  if (item.customizationDetails && item.customizationDetails.length > 0) {
+    const customs = item.customizationDetails
+      .map(c => `${c.name}${c.quantity > 1 ? ' x' + c.quantity : ''}`)
+      .join(', ');
+    displayName += ` <span class="item-customizations">(${customs})</span>`;
+  }
+  
+  return displayName;
+}
+
+// ✅ MODIFICATO: Calcola prezzo corretto (usa finalPrice se disponibile)
+function getItemPrice(item) {
+  return item.finalPrice || item.price || 0;
+}
+
 function showCombinedOrderDetails(identifier, orders) {
   if (orders.length === 0) return;
   
@@ -427,25 +404,29 @@ function showCombinedOrderDetails(identifier, orders) {
   elements.popupContent.date.textContent = formatDateTimeFull(earliestOrder.timestamp);
   elements.popupContent.total.textContent = `€${totalAmount.toFixed(2)}`;
   
-  // Combina tutti gli items dei vari ordini
   const combinedItems = {};
   
   orders.forEach((order, orderIndex) => {
     order.items.forEach((item, itemIndex) => {
-      const key = item.name;
+      // ✅ Crea chiave univoca considerando customizzazioni
+      const customKey = item.customizationDetails 
+        ? JSON.stringify(item.customizationDetails)
+        : 'none';
+      const key = `${item.name}|${customKey}`;
+      
       if (!combinedItems[key]) {
         combinedItems[key] = {
           name: item.name,
-          price: item.price,
+          price: getItemPrice(item),
           quantity: 0,
-          notes: []
+          notes: [],
+          customizationDetails: item.customizationDetails || []
         };
       }
       
       combinedItems[key].quantity += item.quantity;
       
-      // Aggiungi nota se presente
-      const note = order.totemino_notes?.[itemIndex]?.trim();
+      const note = order.orderNotes?.[itemIndex]?.trim();
       if (note) {
         combinedItems[key].notes.push(`Ordine ${orderIndex + 1}: ${note}`);
       }
@@ -459,19 +440,18 @@ function showCombinedOrderDetails(identifier, orders) {
     return `
       <div class="gpopup-item">
         <div class="item-info">
-          <h4>${item.name} ${item.quantity > 1 ? `(x${item.quantity})` : ''}</h4>
+          <h4>${formatItemDisplay(item)} ${item.quantity > 1 ? `(x${item.quantity})` : ''}</h4>
           <div class="item-price">€${(item.price * item.quantity).toFixed(2)}</div>
         </div>
         ${notesHtml}
       </div>`;
   }).join('');
   
-  // Per i gruppi, mostra lo stato del primo ordine (o logica personalizzata)
   updateStatusButton(orders[0].status);
   showPopup();
 }
 
-// Popup ordine singolo
+// ✅ MODIFICATO: Popup ordine singolo con customizzazioni
 function showOrderDetails(orderId) {
   const order = currentOrders.find(o => o.id === orderId);
   if (!order) return;
@@ -485,12 +465,14 @@ function showOrderDetails(orderId) {
   elements.popupContent.total.textContent = `€${order.total.toFixed(2)}`;
   
   elements.popupContent.items.innerHTML = order.items.map((item, i) => {
-    const note = order.totemino_notes?.[i]?.trim();
+    const note = order.orderNotes?.[i]?.trim();
+    const price = getItemPrice(item);
+    
     return `
       <div class="gpopup-item">
         <div class="item-info">
-          <h4>${item.name} ${item.quantity > 1 ? `(x${item.quantity})` : ''}</h4>
-          <div class="item-price">€${(item.price * item.quantity).toFixed(2)}</div>
+          <h4>${formatItemDisplay(item)} ${item.quantity > 1 ? `(x${item.quantity})` : ''}</h4>
+          <div class="item-price">€${(price * item.quantity).toFixed(2)}</div>
         </div>
         ${note ? `<div class="item-note">🗒️ ${note}</div>` : ''}
       </div>`;
@@ -500,17 +482,14 @@ function showOrderDetails(orderId) {
   showPopup();
 }
 
-// CORREZIONE: Elimina ordine spostandolo in deleted
 async function deleteOrder() {
   if (!currentDetailOrder) return;
   
-  // Se è un gruppo, elimina tutti gli ordini del gruppo
   if (currentDetailOrder.isGroup) {
     await deleteGroupOrders();
     return;
   }
   
-  // Reset del popup e dei bottoni prima dell'operazione
   elements.popupContent.deleteBtn.disabled = true;
   hideDeletePopup();
   
@@ -519,25 +498,19 @@ async function deleteOrder() {
     const response = await fetch(
       `${CONFIG.apiBase}/${CONFIG.restaurantId}/orders/${currentSection}/${identifier}`, {
       method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ 
-        filename: currentDetailOrder._filename
-      })
+      headers: { 'Content-Type': 'application/json' }
     });
     
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     
-    // Rimuovi dall'array locale
     const orderIndex = currentOrders.findIndex(o => o.id === currentDetailOrder.id);
     if (orderIndex !== -1) {
       currentOrders.splice(orderIndex, 1);
     }
     
-    // Reset completo e chiusura popup
     setTimeout(() => {
       hidePopup();
       renderOrders();
-      // Reset esplicito degli elementi
       elements.popupContent.deleteBtn.disabled = false;
       currentDetailOrder = null;
     }, 500);
@@ -550,7 +523,6 @@ async function deleteOrder() {
   }
 }
 
-// CORREZIONE: Elimina gruppo di ordini
 async function deleteGroupOrders() {
   if (!currentDetailOrder || !currentDetailOrder.isGroup) return;
   
@@ -559,21 +531,16 @@ async function deleteGroupOrders() {
   hideDeletePopup();
   
   try {
-    // Elimina tutti gli ordini del gruppo
     const deletePromises = orders.map(async order => {
       const identifier = order._filename?.replace('.json', '') || order.id;
       const response = await fetch(
         `${CONFIG.apiBase}/${CONFIG.restaurantId}/orders/${currentSection}/${identifier}`, {
         method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          filename: order._filename
-        })
+        headers: { 'Content-Type': 'application/json' }
       });
       
-      if (!response.ok) throw new Error(`HTTP ${response.status} for order ${order.id}`);
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
       
-      // Rimuovi dall'array locale
       const orderIndex = currentOrders.findIndex(o => o.id === order.id);
       if (orderIndex !== -1) {
         currentOrders.splice(orderIndex, 1);
@@ -584,11 +551,9 @@ async function deleteGroupOrders() {
     
     await Promise.all(deletePromises);
     
-    // Reset completo e chiusura popup
     setTimeout(() => {
       hidePopup();
       renderOrders();
-      // Reset esplicito degli elementi
       elements.popupContent.deleteBtn.disabled = false;
       currentDetailOrder = null;
     }, 500);
@@ -601,11 +566,9 @@ async function deleteGroupOrders() {
   }
 }
 
-// Toggle stato ordine - MODIFICATA per gestire i gruppi
 async function toggleOrderStatus() {
   if (!currentDetailOrder) return;
   
-  // Se è un gruppo, aggiorna tutti gli ordini del gruppo
   if (currentDetailOrder.isGroup) {
     await toggleGroupOrderStatus();
     return;
@@ -620,15 +583,11 @@ async function toggleOrderStatus() {
       `${CONFIG.apiBase}/${CONFIG.restaurantId}/orders/${currentSection}/${identifier}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ 
-        status: newStatus,
-        filename: currentDetailOrder._filename
-      })
+      body: JSON.stringify({ status: newStatus })
     });
     
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     
-    // Aggiorna stato locale
     const orderIndex = currentOrders.findIndex(o => o.id === currentDetailOrder.id);
     if (orderIndex !== -1) {
       currentOrders[orderIndex].status = newStatus;
@@ -649,7 +608,6 @@ async function toggleOrderStatus() {
   }
 }
 
-// NUOVA FUNZIONE: Toggle stato per gruppo di ordini
 async function toggleGroupOrderStatus() {
   if (!currentDetailOrder || !currentDetailOrder.isGroup) return;
   
@@ -658,22 +616,17 @@ async function toggleGroupOrderStatus() {
   elements.popupContent.statusBtn.disabled = true;
   
   try {
-    // Aggiorna tutti gli ordini del gruppo
     const updatePromises = orders.map(async order => {
       const identifier = order._filename?.replace('.json', '') || order.id;
       const response = await fetch(
         `${CONFIG.apiBase}/${CONFIG.restaurantId}/orders/${currentSection}/${identifier}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          status: newStatus,
-          filename: order._filename
-        })
+        body: JSON.stringify({ status: newStatus })
       });
       
-      if (!response.ok) throw new Error(`HTTP ${response.status} for order ${order.id}`);
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
       
-      // Aggiorna stato locale
       const orderIndex = currentOrders.findIndex(o => o.id === order.id);
       if (orderIndex !== -1) {
         currentOrders[orderIndex].status = newStatus;
@@ -698,17 +651,14 @@ async function toggleGroupOrderStatus() {
   }
 }
 
-// Controlli popup
 function showPopup() {
   elements.popup.classList.remove('hidden');
-  // Reset del delete popup quando si apre il popup principale
   hideDeletePopup();
 }
 
 function hidePopup() {
   elements.popup.classList.add('hidden');
   hideDeletePopup();
-  // Reset completo
   currentDetailOrder = null;
   elements.popupContent.deleteBtn.disabled = false;
   elements.popupContent.statusBtn.disabled = false;
@@ -732,25 +682,21 @@ function updateStatusButton(status) {
   btn.disabled = false;
 }
 
-// CORRETTA: Navigazione stati - UNA VISTA ALLA VOLTA
 function showCompleted() {
   viewingCompleted = true;
-  renderOrders(); // Ricarica solo i dati, l'interfaccia rimane sulla stessa sezione
+  renderOrders();
 }
 
 function showActive() {
   viewingCompleted = false;
-  renderOrders(); // Ricarica solo i dati, l'interfaccia rimane sulla stessa sezione
+  renderOrders();
 }
 
-// Utility functions
 function getActiveSection() {
-  // Sempre la stessa sezione, cambia solo il contenuto in base a viewingCompleted
   return currentSection === 'table' ? 
     elements.sections.table : elements.sections.pickup;
 }
 
-// MODIFICATA: Ordinamento per timestamp decrescente
 function groupOrdersByIdentifier(orders) {
   const grouped = {};
   orders.forEach(order => {
@@ -759,7 +705,6 @@ function groupOrdersByIdentifier(orders) {
     grouped[key].push(order);
   });
   
-  // Ordina ogni gruppo per timestamp decrescente (più recente prima)
   Object.values(grouped).forEach(group => 
     group.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)));
   
@@ -767,13 +712,12 @@ function groupOrdersByIdentifier(orders) {
 }
 
 function getOrdersByIdentifier(identifier) {
-  // Ottieni gli ordini giusti in base alla vista corrente
   const orders = viewingCompleted ? 
     currentOrders.filter(o => o.status === 'completed') :
     currentOrders.filter(o => o.status !== 'completed');
   
   return orders.filter(o => (o.tableNumber || o.orderNumber) === identifier)
-               .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)); // Ordina per timestamp
+               .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
 }
 
 function getTableColor(index) {
@@ -796,7 +740,7 @@ function formatDateTimeFull(timestamp) {
   return `${date.getDate().toString().padStart(2, '0')}/${(date.getMonth() + 1).toString().padStart(2, '0')} - ${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
 }
 
-// Funzioni globali per HTML onclick
+// Funzioni globali
 window.showOrderDetails = showOrderDetails;
 window.showGroupDetails = showGroupDetails;
 window.collapseGroup = collapseGroup;

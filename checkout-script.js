@@ -37,7 +37,8 @@ const STATE = {
     table: true,
     pickup: true,
     showOrder: true
-  }
+  },
+  customizationData: {} 
 };
 
 // ==================== UTILITY ====================
@@ -79,6 +80,57 @@ const Utils = {
 
   handleImageError(img) {
     img.onerror = () => { img.src = 'img/placeholder.png'; };
+  },
+
+  getCustomizationLabel(customizations) {
+    const labels = [];
+    for (const [key, qty] of Object.entries(customizations)) {
+      if (qty > 0) {
+        // Trova il nome dell'opzione nel customizationData
+        for (const groupId in STATE.customizationData) {
+          const group = STATE.customizationData[groupId];
+          for (const section of group) {
+            const opt = section.options.find(o => o.id === key);
+            if (opt) {
+              labels.push(qty > 1 ? `${opt.name} x${qty}` : opt.name);
+            }
+          }
+        }
+      }
+    }
+    return labels.length > 0 ? ` (${labels.join(', ')})` : '';
+  },
+
+  calculateItemPrice(itemName, customizations = {}) {
+    // Trova l'item base
+    let baseItem = null;
+    for (const category in STATE.menuData) {
+      const found = STATE.menuData[category].find(i => i.name === itemName);
+      if (found) {
+        baseItem = found;
+        break;
+      }
+    }
+    
+    if (!baseItem) return 0;
+    
+    let price = baseItem.price;
+    
+    // Aggiungi i modificatori
+    if (baseItem.customizable && baseItem.customizationGroup) {
+      const group = STATE.customizationData[baseItem.customizationGroup];
+      if (group) {
+        group.forEach(section => {
+          section.options.forEach(opt => {
+            if (customizations[opt.id]) {
+              price += opt.priceModifier * customizations[opt.id];
+            }
+          });
+        });
+      }
+    }
+    
+    return price;
   }
 };
 
@@ -92,7 +144,7 @@ const DataManager = {
         const data = await response.json();
         STATE.restaurantStatus = data.status;
         STATE.isTrialActive = data.isTrialActive || false;
-        console.log('✅ Status ristorante:', STATE.restaurantStatus, 'Trial:', STATE.isTrialActive);
+        
       
         if (!this.canShowSuggestions()) {
           const wrapper = document.querySelector('.suggestions-wrapper');
@@ -125,60 +177,102 @@ const DataManager = {
     STATE.orderNotes = Utils.loadFromStorage(CONFIG.storageKeys.notes);
     
     const selectedMap = new Map();
-    for (let i = 0; i < saved.length; i += 2) {
-      selectedMap.set(saved[i], Math.max(parseInt(saved[i + 1]) || 1, 1));
+    
+    if (saved.length > 0 && saved.length % 3 === 0) {
+      // Nuovo formato: [name, customizations_json, qty, ...]
+      for (let i = 0; i < saved.length; i += 3) {
+        const name = saved[i];
+        const customizations = JSON.parse(saved[i + 1] || '{}');
+        const qty = Math.max(parseInt(saved[i + 2]) || 1, 1);
+        selectedMap.set(name, { qty, customizations });
+      }
+    } else {
+      // Vecchio formato: [name, qty, ...]
+      for (let i = 0; i < saved.length; i += 2) {
+        const name = saved[i];
+        const qty = Math.max(parseInt(saved[i + 1]) || 1, 1);
+        selectedMap.set(name, { qty, customizations: {} });
+      }
     }
+    
     return selectedMap;
   },
 
   async fetchMenu() {
-    // ✅ CARICA STATUS PRIMA DI TUTTO
-    await this.loadRestaurantStatus();
-
-    const res = await fetch(`IDs/${CONFIG.restaurantId}/menu.json`);
-    const menuJson = await res.json();
+    // 1️⃣ CARICAMENTI PARALLELI INIZIALI (possono essere fatti insieme)
+    await Promise.all([
+      this.loadRestaurantStatus(),
+      this.loadCheckoutMethods()
+    ]);
+  
+    // 2️⃣ CARICAMENTI PARALLELI DEI FILE JSON
+    const [menuJson, customizationData] = await Promise.all([
+      fetch(`IDs/${CONFIG.restaurantId}/menu.json`).then(r => r.json()),
+      fetch(`IDs/${CONFIG.restaurantId}/customization.json`)
+        .then(r => r.json())
+        .catch(e => {
+          console.warn("customization.json non trovato:", e);
+          return {};
+        })
+    ]);
+  
+    STATE.customizationData = customizationData;
+  
+    // 3️⃣ PREPARAZIONE DATI LOCALI
     const selectedMap = this.loadSelectedItems();
-    
     const suggestedItems = Utils.loadFromStorage(CONFIG.storageKeys.suggestedItems, []);
-
+  
+    // 4️⃣ PROCESSAMENTO MENU E RICOSTRUZIONE ORDINE
     menuJson.categories.forEach(category => {
       STATE.menuData[category.name] = [];
-
+  
       category.items.forEach(item => {
         if (!item.visible) return;
-
+  
         const itemData = {
           name: item.name,
           price: item.price,
           img: item.imagePath,
-          ingredients: item.description.split(",").map(s => s.trim()).filter(Boolean)
+          ingredients: item.description.split(",").map(s => s.trim()).filter(Boolean),
+          customizable: item.customizable || false,
+          customizationGroup: item.customizationGroup || null
         };
-
+  
         STATE.menuData[category.name].push(itemData);
-
-        if (selectedMap.has(item.name)) {
-          STATE.items.push({
-            ...itemData,
-            restaurantId: CONFIG.restaurantId,
-            quantity: selectedMap.get(item.name),
-            category: category.name,
-            isSuggested: suggestedItems.includes(item.name)
-          });
-          STATE.selectedCategories.add(category.name);
+  
+        /// Controlla se questo item è nel carrello
+        for (const [key, data] of selectedMap) {
+          if (key === item.name) {
+            const effectivePrice = Utils.calculateItemPrice(item.name, data.customizations);
+            
+            STATE.items.push({
+              ...itemData,
+              price: effectivePrice,
+              originalPrice: item.price,
+              restaurantId: CONFIG.restaurantId,
+              quantity: data.qty,
+              category: category.name,
+              isSuggested: suggestedItems.includes(item.name),
+              customizations: data.customizations
+            });
+            STATE.selectedCategories.add(category.name);
+          }
         }
       });
     });
-
+  
+    // 5️⃣ GESTIONE COPERTO
     await CopertoManager.loadCopertoPrice();
-    await this.loadCheckoutMethods();
     CopertoManager.addCopertoIfNeeded();
-
+  
+    // 6️⃣ RENDERING UI
     UI.renderItems();
     UI.updateTotal();
-
-    // ✅ INIZIALIZZA SUGGERIMENTI SOLO SE DISPONIBILI
+    this.applyCheckoutMethods(); // ✅ Applica subito i metodi checkout
+  
+    // 7️⃣ INIZIALIZZAZIONE SUGGERIMENTI (opzionale, quindi alla fine)
     if (this.canShowSuggestions() && typeof initializeSuggestions !== 'undefined') {
-      initializeSuggestions(STATE.menuData, CONFIG.restaurantId).catch(console.error);
+      initializeSuggestions(menuJson, CONFIG.restaurantId).catch(console.error);
     }
   },
   
@@ -189,18 +283,19 @@ const DataManager = {
         const settings = await response.json();
         if (settings.checkoutMethods) {
           STATE.checkoutMethods = settings.checkoutMethods;
-          console.log('✅ Metodi checkout caricati:', STATE.checkoutMethods);
+          
           this.applyCheckoutMethods();
         }
       }
     } catch (error) {
-      console.log('ℹ️ Errore caricamento metodi checkout, uso default');
+      
     }
   },
 
   applyCheckoutMethods() {
     const tableMethod = document.getElementById('service-table');
     const pickupMethod = document.getElementById('service-pickup');
+    const showMethod = document.getElementById('service-show');
     
     if (tableMethod) {
       tableMethod.style.display = STATE.checkoutMethods.table ? '' : 'none';
@@ -210,36 +305,23 @@ const DataManager = {
       pickupMethod.style.display = STATE.checkoutMethods.pickup ? '' : 'none';
     }
     
-    if (STATE.checkoutMethods.showOrder) {
-      this.addShowOrderButton();
+    if (showMethod) {
+      showMethod.style.display = STATE.checkoutMethods.show ? '' : 'none';
     }
   },
 
-  addShowOrderButton() {
-    const serviceMethods = document.querySelector('.service-methods');
-    if (!serviceMethods || document.getElementById('service-show-order')) return;
-    
-    const showOrderBtn = document.createElement('div');
-    showOrderBtn.className = 'service-option';
-    showOrderBtn.id = 'service-show-order';
-    showOrderBtn.tabIndex = 0;
-    showOrderBtn.role = 'button';
-    showOrderBtn.setAttribute('aria-pressed', 'false');
-    
-    showOrderBtn.innerHTML = `
-      <img class="theme-img" data-light="img/logo_light.png" data-dark="img/logo_dark.png" alt="Mostra Ordine">
-      <h3>Mostra Ordine</h3>
-    `;
-    
-    serviceMethods.appendChild(showOrderBtn);
-    
-    showOrderBtn.addEventListener('click', () => {
-      window.location.href = `your-order.html?id=${CONFIG.restaurantId}`;
-    });
-  },
-
   saveSelected() {
-    const arr = STATE.items.flatMap(item => [item.name, item.quantity.toString()]);
+    const arr = [];
+    
+    STATE.items.forEach(item => {
+      // ✅ CORRETTO: solo name, customizations, quantity
+      arr.push(
+        item.name,
+        JSON.stringify(item.customizations || {}),
+        item.quantity.toString()
+      );
+    });
+    
     Utils.saveToStorage(CONFIG.storageKeys.selected, arr);
     Utils.saveToStorage(CONFIG.storageKeys.notes, STATE.orderNotes);
     
@@ -326,19 +408,24 @@ const UI = {
     if (item.isCoperto) {
       row.classList.add('coperto-item');
     }
-
+  
     const img = document.createElement("img");
     img.src = Utils.getImagePath(item);
     img.alt = item.name;
     Utils.handleImageError(img);
-
+  
     const info = document.createElement("div");
     info.className = "checkout-info";
+    
+    // ✅ Mostra customizzazioni se presenti
+    const customLabel = item.customizations ? Utils.getCustomizationLabel(item.customizations) : '';
+    const displayName = `${item.name}${customLabel}`;
+    
     info.innerHTML = `
-      <h3>${item.name}${item.quantity > 1 ? ` (x${item.quantity})` : ''}</h3>
+      <h3>${displayName}${item.quantity > 1 ? ` (x${item.quantity})` : ''}</h3>
       <p>€${(item.price * item.quantity).toFixed(2)}</p>
     `;
-
+  
     if (!item.isCoperto) {
       const infoBtn = document.createElement("div");
       infoBtn.className = "info-btn";
@@ -351,7 +438,7 @@ const UI = {
     } else {
       row.append(img, info);
     }
-
+  
     return row;
   },
 
@@ -404,23 +491,30 @@ const Popup = {
   setupQuantityControls(popup, item, index) {
     const controls = popup.querySelector(".popup-controls");
     let qty = item.quantity;
-
+  
     controls.innerHTML = `
       <button class="popup-minus">−</button>
       <span class="popup-qty">${qty}</span>
       <button class="popup-plus">+</button>
     `;
-
+  
     const updateQty = (newQty) => {
       qty = newQty;
       controls.querySelector(".popup-qty").textContent = qty;
       item.quantity = qty;
       STATE.items[index].quantity = qty;
+      
+      // ✅ Ricalcola il prezzo se ci sono customizzazioni
+      if (item.customizations && Object.keys(item.customizations).length > 0) {
+        item.price = Utils.calculateItemPrice(item.name, item.customizations);
+        STATE.items[index].price = item.price;
+      }
+      
       DataManager.saveSelected();
       UI.renderItems();
       UI.updateTotal();
     };
-
+  
     controls.querySelector(".popup-minus").onclick = () => {
       if (qty > 1) {
         updateQty(qty - 1);
@@ -432,7 +526,7 @@ const Popup = {
         window.location.reload();
       }
     };
-
+  
     controls.querySelector(".popup-plus").onclick = () => updateQty(qty + 1);
   },
 
@@ -464,7 +558,7 @@ const Popup = {
 
     // ✅ CONTROLLA SE I SUGGERIMENTI SONO DISPONIBILI
     if (!DataManager.canShowSuggestions()) {
-      console.log('⚠️ Suggerimenti non disponibili per questo account');
+      
       this.skipSuggestions();
       return;
     }
@@ -532,13 +626,29 @@ const Popup = {
     const oldBtn = document.getElementById("suggestions-action-btn");
     const newBtn = oldBtn.cloneNode(true);
     oldBtn.replaceWith(newBtn);
-
+  
     newBtn.style.opacity = "0";
-
-    setTimeout(() => {
+  
+    let buttonTimeout = setTimeout(() => {
       newBtn.style.opacity = "1";
-    }, 3000);
-
+    }, 2500);
+  
+    // Funzione per mostrare il bottone immediatamente
+    const showButtonNow = () => {
+      clearTimeout(buttonTimeout);
+      newBtn.style.opacity = "1";
+    };
+  
+    // Ascolta i click sulle card per mostrare il bottone
+    const cards = popup.querySelectorAll('.suggestion-card');
+    cards.forEach(card => {
+      const originalOnClick = card.onclick;
+      card.onclick = function(e) {
+        originalOnClick.call(this, e);
+        showButtonNow(); // Mostra il bottone quando si clicca una card
+      };
+    });
+  
     newBtn.onclick = () => {
       if (selectedSuggestions.size > 0) {
         selectedSuggestions.forEach(itemName => {
@@ -564,7 +674,7 @@ const Popup = {
             }
           }
         });
-
+  
         DataManager.saveSelected();
         localStorage.setItem(CONFIG.storageKeys.showRiepilogo, "true");
         window.location.reload();
@@ -593,13 +703,13 @@ const CopertoManager = {
       if (response.ok) {
         const settings = await response.json();
         this.copertoPrice = parseFloat(settings.copertoPrice) || 0;
-        console.log('✅ Coperto caricato:', this.copertoPrice);
+        
       } else {
         this.copertoPrice = 0;
-        console.log('ℹ️ Nessun coperto impostato');
+        
       }
     } catch (error) {
-      console.log('ℹ️ Errore caricamento coperto, disabilitato');
+      
       this.copertoPrice = 0;
     }
   },
@@ -620,12 +730,12 @@ const CopertoManager = {
   addCopertoIfNeeded() {
     const hasCoperto = STATE.items.some(item => item.isCoperto);
     if (hasCoperto) {
-      console.log('✓ Coperto già presente nell\'ordine');
+      
       return;
     }
 
     if (!this.canAddCoperto()) {
-      console.log('⏳ Coperto non disponibile (prezzo: €' + this.copertoPrice + ', cooldown attivo)');
+      
       return;
     }
 
@@ -644,7 +754,7 @@ const CopertoManager = {
     STATE.items.push(copertoItem);
     STATE.orderNotes.push('');
     
-    console.log('✓ Coperto aggiunto automaticamente (€' + this.copertoPrice + ')');
+    
   },
 
   markCopertoAdded() {
@@ -660,17 +770,31 @@ const Navigation = {
     });
 
     CONFIG.elements.backBtn.onclick = () => {
-      window.location.href = CONFIG.restaurantId 
-        ? `menu.html?id=${CONFIG.restaurantId}` 
-        : "menu.html";
+      if (!CONFIG.restaurantId) {
+        window.location.href = "menu.html";
+        return;
+      }
+      
+      // ✅ Costruisci URL mantenendo tutti i parametri
+      const params = new URLSearchParams(window.location.search);
+      const menuUrl = new URL('menu.html', window.location.origin);
+      
+      menuUrl.searchParams.set('id', CONFIG.restaurantId);
+      
+      // ✅ Mantieni il parametro type se presente
+      const menuType = params.get('type');
+      if (menuType) {
+        menuUrl.searchParams.set('type', menuType);
+      }
+      
+      window.location.href = menuUrl.toString();
     };
 
     CONFIG.elements.nextBtn?.addEventListener("click", () => {
-      // ✅ MOSTRA SUGGERIMENTI SOLO SE DISPONIBILI
       if (DataManager.canShowSuggestions()) {
         Popup.showSuggestionsPopup();
       } else {
-        this.switchToStep(1);
+        Navigation.switchToStep(1);
       }
     });
 
@@ -772,6 +896,7 @@ const Orders = {
   init() {
     document.getElementById("service-table")?.addEventListener("click", () => this.handleTable());
     document.getElementById("service-pickup")?.addEventListener("click", () => this.handlePickup());
+    document.getElementById("service-show")?.addEventListener("click", () => this.handleShow());
   },
 
   async handleTable() {
@@ -808,7 +933,11 @@ const Orders = {
     const orderNumber = await DataManager.getNextOrderNumber();
     await this.submitOrder('pickup', { orderNumber });
   },
-
+  
+  handleShow() {
+    window.location.href = `your-order.html?id=${CONFIG.restaurantId}`;
+  },
+  
   async submitOrder(type, extra = {}) {
     const userId = Utils.getUserId();
     
@@ -827,13 +956,11 @@ const Orders = {
         category: item.category,
         ingredients: item.ingredients,
         isSuggested: item.isSuggested || false,
-        isCoperto: item.isCoperto || false
+        isCoperto: item.isCoperto || false,
+        customizations: item.customizations || {}
       })),
       orderNotes: STATE.orderNotes,
       total: STATE.items.reduce((sum, i) => sum + i.price * i.quantity, 0),
-      totemino_selected: Utils.loadFromStorage(CONFIG.storageKeys.selected),
-      totemino_notes: Utils.loadFromStorage(CONFIG.storageKeys.notes),
-      totemino_total: localStorage.getItem(CONFIG.storageKeys.total) || "0",
       suggestion_stats: Utils.loadFromStorage(CONFIG.storageKeys.suggestionStats, {})
     };
 
@@ -850,7 +977,18 @@ const Orders = {
         ...(type === 'table' ? { tableNumber: extra.tableNumber } : { orderNumber: response.orderNumber || extra.orderNumber }),
         total: orderDetails.total.toFixed(2)
       }));
-      window.location.href = `success.html?id=${CONFIG.restaurantId}`;
+      
+      const params = new URLSearchParams(window.location.search);
+      const successUrl = new URL('success.html', window.location.origin);
+      
+      successUrl.searchParams.set('id', CONFIG.restaurantId);
+      
+      const menuType = params.get('type');
+      if (menuType) {
+        successUrl.searchParams.set('type', menuType);
+      }
+      
+      window.location.href = successUrl.toString();
     } else {
       console.error("Errore salvataggio ordine:", response.message);
       window.location.href = "error.html";

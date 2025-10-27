@@ -1,5 +1,5 @@
 // ============================================
-// SISTEMA SUGGERIMENTI - GDPR COMPLIANT
+// SISTEMA SUGGERIMENTI V4 - CON DEBUG ESTESO
 // ============================================
 
 class SuggestionsEngine {
@@ -8,278 +8,342 @@ class SuggestionsEngine {
     this.currentOrder = [];
     this.userPreferences = null;
     this.userId = null;
+    this.restaurantId = null;
   }
 
   // ===== CONTROLLO CONSENSO =====
   canUsePreferences() {
-    if (typeof window.CookieConsent === 'undefined') {
-      console.warn('⚠️ Sistema cookie non caricato');
-      return false;
-    }
-    return window.CookieConsent.canTrackUser();
+    return typeof window.CookieConsent !== 'undefined' && window.CookieConsent.canTrackUser();
   }
 
-  // ===== OTTIENI USER ID (CON CONTROLLO CONSENSO) =====
-  getUserId() {
+  // ===== CARICA PREFERENZE =====
+  async loadUserPreferences() {
     if (!this.canUsePreferences()) {
-      console.log('🚫 Suggerimenti personalizzati disabilitati (consenso negato)');
+      
       return null;
     }
     
-    if (typeof window.getUserId === 'function') {
-      return window.getUserId();
-    }
+    this.userId = typeof window.getUserId === 'function' 
+      ? window.getUserId() 
+      : localStorage.getItem("totemino_user_id");
     
-    return localStorage.getItem("totemino_user_id");
-  }
+    
+    
+    if (!this.userId) return null;
 
-  // ===== CARICA PREFERENZE (CON CONTROLLO CONSENSO) =====
-  async loadUserPreferences() {
     try {
-      if (!this.canUsePreferences()) {
-        console.log('ℹ️ Suggerimenti generici (senza profilazione)');
-        this.userPreferences = null;
-        return null;
-      }
-
-      this.userId = this.getUserId();
-      
-      if (!this.userId) {
-        console.log('ℹ️ Nessun userId, suggerimenti generici');
-        return null;
-      }
-
       const response = await fetch('/userdata/users-preferences.json');
-      
       if (!response.ok) {
-        console.log('ℹ️ File preferenze non trovato');
+        
         return null;
       }
-
+      
       const allPreferences = await response.json();
       this.userPreferences = allPreferences[this.userId] || null;
       
       if (this.userPreferences) {
-        console.log('✅ Preferenze utente caricate:', Object.keys(this.userPreferences).length, 'ingredienti');
+        
       } else {
-        console.log('ℹ️ Nessuna preferenza salvata per questo utente');
+        
       }
       
       return this.userPreferences;
-      
     } catch (error) {
       console.error('❌ Errore caricamento preferenze:', error);
       return null;
     }
   }
 
-  // ===== CARICA DATI MENU =====
-  loadMenuData(menuData) {
-    this.menuData = menuData;
-    console.log('📋 Menu caricato:', Object.keys(menuData).length, 'categorie');
+  // ===== CARICA MENU (CONVERTE STRUTTURA) =====
+  loadMenuData(menuData, restaurantId) {
+    this.restaurantId = restaurantId;
+    
+    
+    
+    
+    // Converti da {categories: [{name, items}]} a {CategoryName: [items]}
+    this.menuData = {};
+    if (menuData && menuData.categories && Array.isArray(menuData.categories)) {
+      menuData.categories.forEach(cat => {
+        if (cat.name && cat.items) {
+          this.menuData[cat.name] = cat.items || [];
+          
+        }
+      });
+    } else {
+      console.error('❌ menuData.categories non è valido!');
+    }
+    
+    
+  }
+
+  // ===== FILTRA MENU IN BASE A TYPE =====
+  getAvailableItemsByCategory() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const typeFilter = urlParams.get('type');
+    
+    
+    
+    if (Object.keys(this.menuData).length === 0) {
+      console.error('❌ menuData è VUOTO! Hai chiamato loadMenuData()?');
+      return {};
+    }
+    
+    const itemsByCategory = {};
+    
+    for (const [category, items] of Object.entries(this.menuData)) {
+      
+      
+      const validItems = items.filter(item => {
+        // 1. Deve essere visibile
+        if (item.visible === false) {
+          
+          return false;
+        }
+        
+        // 2. NON deve essere customizzabile
+        if (item.customizable === true) {
+          
+          return false;
+        }
+        
+        // 3. LOGICA MENUTYPE
+        if (typeFilter) {
+          // Menu secondario: SOLO item con menuType che include il type
+          const hasMenuType = item.menuType && Array.isArray(item.menuType);
+          const includesType = hasMenuType && item.menuType.includes(typeFilter);
+          
+          if (!includesType) {
+            
+          } else {
+            
+          }
+          
+          return includesType;
+        } else {
+          // Menu intero: tutti gli item visibili e non customizzabili
+          
+          return true;
+        }
+      });
+      
+      if (validItems.length > 0) {
+        itemsByCategory[category] = validItems;
+      }
+      
+      
+    }
+    
+    
+    Object.entries(itemsByCategory).forEach(([cat, items]) => {
+      
+    });
+    
+    return itemsByCategory;
   }
 
   // ===== CARICA ORDINE CORRENTE =====
   loadCurrentOrder() {
     const selectedItems = JSON.parse(localStorage.getItem("totemino_selected") || "[]");
+    
+    
+    
+    
     this.currentOrder = [];
     
-    for (let i = 0; i < selectedItems.length; i += 2) {
-      const itemName = selectedItems[i];
-      const quantity = parseInt(selectedItems[i + 1]) || 1;
+    if (selectedItems.length === 0) {
       
-      const itemDetails = this.findItemInMenu(itemName);
-      if (itemDetails) {
-        this.currentOrder.push({
-          name: itemName,
-          quantity: quantity,
-          category: itemDetails.category
-        });
-      }
+      return;
     }
     
-    console.log('🛒 Ordine corrente:', this.currentOrder.length, 'items');
-  }
-
-  // ===== TROVA ITEM NEL MENU =====
-  findItemInMenu(itemName) {
-    for (const [category, items] of Object.entries(this.menuData)) {
-      const found = items.find(item => item.name === itemName);
-      if (found) {
-        return { ...found, category };
-      }
+    if (selectedItems.length % 3 !== 0) {
+      console.error(`  ❌ Formato invalido! Lunghezza ${selectedItems.length} non è multiplo di 3`);
+      return;
     }
-    return null;
-  }
-
-  // ===== ANALISI CATEGORIE ORDINE =====
-  getCategoryAnalysis() {
-    const analysis = {};
     
-    this.currentOrder.forEach(item => {
-      if (!analysis[item.category]) {
-        analysis[item.category] = {
-          count: 0,
-          items: []
-        };
+    for (let i = 0; i < selectedItems.length; i += 3) {
+      const itemName = selectedItems[i];
+      const quantity = parseInt(selectedItems[i + 2]) || 1;
+      
+      // Trova categoria dell'item
+      let category = null;
+      for (const [cat, items] of Object.entries(this.menuData)) {
+        if (items.some(item => item.name === itemName)) {
+          category = cat;
+          break;
+        }
       }
-      analysis[item.category].count += item.quantity;
-      analysis[item.category].items.push(item.name);
-    });
+      
+      this.currentOrder.push({ name: itemName, quantity, category });
+      
+    }
     
-    return analysis;
+    
   }
 
-  // ===== CATEGORIE DA SUGGERIRE =====
-  getCategoriesToSuggest() {
-    const categoryAnalysis = this.getCategoryAnalysis();
-    const allCategories = Object.keys(this.menuData);
+  // ===== CATEGORIE MANCANTI NELL'ORDINE =====
+  getMissingCategories(availableCategories) {
+    const orderedCategories = new Set(
+      this.currentOrder
+        .map(item => item.category)
+        .filter(cat => cat !== null)
+    );
     
-    const categoriesToSuggest = allCategories.filter(cat => {
-      const count = categoryAnalysis[cat]?.count || 0;
-      return count === 0;
-    });
     
-    console.log('🎯 Categorie mancanti:', categoriesToSuggest);
-    return categoriesToSuggest;
+    
+    const missing = availableCategories.filter(cat => !orderedCategories.has(cat));
+    
+    
+    
+    return missing;
   }
 
-  // ===== ESTRAI INGREDIENTI =====
-  extractIngredientsFromDescription(description) {
-    if (!description) return [];
-    
-    return description
-      .toLowerCase()
-      .replace(/[^\w\s,]/g, '')
-      .split(',')
-      .map(ing => ing.trim())
-      .filter(ing => ing.length > 0);
-  }
-
-  // ===== CALCOLA SCORE PREFERENZE =====
+  // ===== CALCOLA SCORE INGREDIENTI =====
   calculatePreferenceScore(item) {
-    if (!this.userPreferences) {
-      return 0;
-    }
-
-    const itemIngredients = this.extractIngredientsFromDescription(item.description);
-    
-    if (itemIngredients.length === 0) {
-      return 0;
-    }
+    if (!this.userPreferences) return 0;
 
     let totalScore = 0;
-    let matchedIngredients = 0;
+    
+    // Estrai ingredienti dalla description (separati da virgola)
+    if (item.description) {
+      const ingredients = item.description
+        .toLowerCase()
+        .split(',')
+        .map(ing => ing.trim())
+        .filter(ing => ing.length > 0);
+      
+      ingredients.forEach(ingredient => {
+        if (this.userPreferences[ingredient]) {
+          totalScore += this.userPreferences[ingredient];
+        }
+      });
+    }
 
-    itemIngredients.forEach(ingredient => {
-      const cleanIngredient = ingredient.toLowerCase().trim();
-      if (this.userPreferences[cleanIngredient]) {
-        totalScore += this.userPreferences[cleanIngredient];
-        matchedIngredients++;
-      }
-    });
+    return totalScore;
+  }
 
-    const bonusScore = matchedIngredients * 2;
-    return totalScore + bonusScore;
+  // ===== SEED DETERMINISTICO =====
+  generateSeed() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const typeFilter = urlParams.get('type') || 'all';
+    
+    // Seed cambia in base a: restaurantId + userId + type + items nell'ordine
+    const orderString = this.currentOrder
+      .map(item => item.name)
+      .sort()
+      .join('|');
+    
+    const seedString = `${this.restaurantId}-${this.userId || 'anon'}-${typeFilter}-${orderString}`;
+    
+    let hash = 0;
+    for (let i = 0; i < seedString.length; i++) {
+      hash = ((hash << 5) - hash) + seedString.charCodeAt(i);
+      hash = hash & hash;
+    }
+    
+    return Math.abs(hash);
+  }
+
+  // ===== SHUFFLE DETERMINISTICO =====
+  seededShuffle(array, seed) {
+    const shuffled = [...array];
+    let currentSeed = seed;
+    
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const x = Math.sin(currentSeed++) * 10000;
+      const random = x - Math.floor(x);
+      const j = Math.floor(random * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    
+    return shuffled;
   }
 
   // ===== GENERA SUGGERIMENTI =====
   async generateSuggestions() {
+    
+    
     this.loadCurrentOrder();
     await this.loadUserPreferences();
-
+    
+    const itemsByCategory = this.getAvailableItemsByCategory();
+    const availableCategories = Object.keys(itemsByCategory);
+    
+    if (availableCategories.length === 0) {
+      console.error('\n❌ ERRORE: Nessuna categoria disponibile! I suggerimenti saranno VUOTI.');
+      return [];
+    }
+    
+    // Trova categorie mancanti nell'ordine
+    const missingCategories = this.getMissingCategories(availableCategories);
+    
+    // Se tutte le categorie sono presenti, usa tutte
+    const categoriesToSuggest = missingCategories.length > 0 ? missingCategories : availableCategories;
+    
+    const currentItemNames = new Set(this.currentOrder.map(item => item.name));
+    const seed = this.generateSeed();
+    
+    
+    
+    
+    
     const suggestions = [];
-    const currentItems = new Set(this.currentOrder.map(item => item.name));
-    const categoriesToSuggest = this.getCategoriesToSuggest();
-
-    console.log('🔍 Generazione suggerimenti...');
     
-    if (this.userPreferences) {
-      console.log('✨ Modalità: PERSONALIZZATI (con preferenze)');
-    } else {
-      console.log('🎲 Modalità: GENERICI (senza preferenze)');
-    }
-
-    const suggestionsByCategory = {};
-    
+    // Per ogni categoria mancante, prendi 1-2 item
     for (const category of categoriesToSuggest) {
-      const categoryItems = this.menuData[category] || [];
-      const scoredItems = [];
-
-      for (const item of categoryItems) {
-        if (currentItems.has(item.name)) continue;
+      
+      
+      const categoryItems = itemsByCategory[category].filter(
+        item => !currentItemNames.has(item.name)
+      );
+      
+      
+      
+      if (categoryItems.length === 0) {
         
-        const score = this.calculatePreferenceScore(item);
-        scoredItems.push({ 
-          ...item, 
-          category, 
-          preferenceScore: score 
-        });
+        continue;
       }
-
-      scoredItems.sort((a, b) => {
-        if (a.preferenceScore === 0 && b.preferenceScore === 0) {
-          return Math.random() - 0.5;
-        }
-        return b.preferenceScore - a.preferenceScore;
-      });
       
-      suggestionsByCategory[category] = scoredItems.slice(0, 2);
-    }
-
-    const maxSuggestions = 4;
-    let remainingSlots = maxSuggestions;
-    const categorizedSuggestions = [];
-
-    for (const category of categoriesToSuggest) {
-      const items = suggestionsByCategory[category];
-      if (items && items.length > 0) {
-        items.forEach(item => {
-          if (remainingSlots > 0) {
-            categorizedSuggestions.push(item);
-            currentItems.add(item.name);
-            remainingSlots--;
-          }
+      // Calcola score per ogni item
+      const scoredItems = categoryItems.map(item => ({
+        ...item,
+        img: item.imagePath,
+        category,
+        preferenceScore: this.calculatePreferenceScore(item)
+      }));
+      
+      let selectedFromCategory;
+      
+      // Se ci sono preferenze, ordina per score
+      if (scoredItems.some(item => item.preferenceScore > 0)) {
+        
+        scoredItems.sort((a, b) => b.preferenceScore - a.preferenceScore);
+        scoredItems.forEach(item => {
+          
         });
+        selectedFromCategory = scoredItems.slice(0, 2);
+      } else {
+        
+        const shuffled = this.seededShuffle(scoredItems, seed + suggestions.length);
+        selectedFromCategory = shuffled.slice(0, 2);
       }
-    }
-
-    if (remainingSlots > 0) {
-      const allRemainingItems = [];
       
-      Object.entries(this.menuData).forEach(([category, items]) => {
-        items.forEach(item => {
-          if (!currentItems.has(item.name)) {
-            const score = this.calculatePreferenceScore(item);
-            allRemainingItems.push({ ...item, category, preferenceScore: score });
-          }
-        });
-      });
-
-      allRemainingItems.sort((a, b) => {
-        if (a.preferenceScore === 0 && b.preferenceScore === 0) {
-          return Math.random() - 0.5;
-        }
-        return b.preferenceScore - a.preferenceScore;
-      });
       
-      while (remainingSlots > 0 && allRemainingItems.length > 0) {
-        const item = allRemainingItems.shift();
-        categorizedSuggestions.push(item);
-        currentItems.add(item.name);
-        remainingSlots--;
+      suggestions.push(...selectedFromCategory);
+      
+      // Max 4 suggerimenti totali
+      if (suggestions.length >= 4) {
+        
+        break;
       }
     }
-
-    const categoryOrder = Object.keys(this.menuData);
-    categorizedSuggestions.sort((a, b) => {
-      return categoryOrder.indexOf(a.category) - categoryOrder.indexOf(b.category);
+    
+    
+    suggestions.forEach((s, i) => {
+      
     });
-
-    suggestions.push(...categorizedSuggestions);
-
-    console.log(`🎉 ${suggestions.length} suggerimenti generati`);
-    return suggestions.slice(0, maxSuggestions);
+    
+    return suggestions.slice(0, 4);
   }
 
   // ===== RENDERIZZA SUGGERIMENTI =====
@@ -288,11 +352,15 @@ class SuggestionsEngine {
     const wrapper = document.querySelector(".suggestions-wrapper");
     const suggestionsList = document.querySelector(".suggestions-list");
     
-    if (!wrapper || !suggestionsList) return;
+    if (!wrapper || !suggestionsList) {
+      console.error('❌ Elementi DOM non trovati: .suggestions-wrapper o .suggestions-list');
+      return;
+    }
 
     suggestionsList.innerHTML = "";
 
     if (suggestions.length === 0) {
+      
       wrapper.style.display = "none";
       return;
     }
@@ -310,7 +378,7 @@ class SuggestionsEngine {
       container.className = "suggested-single";
 
       const img = document.createElement("img");
-      img.src = `IDs/${restaurantId}/${suggestion.img}`;
+      img.src = `IDs/${restaurantId}/${suggestion.imagePath}`;
       img.alt = suggestion.name;
       img.onerror = () => { img.src = 'img/placeholder.png'; };
 
@@ -342,42 +410,59 @@ class SuggestionsEngine {
     });
 
     wrapper.style.display = "";
+    
   }
 
   // ===== AGGIUNGI SUGGERIMENTO ALL'ORDINE =====
   addSuggestionToOrder(suggestion, restaurantId) {
     const currentSelected = JSON.parse(localStorage.getItem("totemino_selected") || "[]");
     const currentNotes = JSON.parse(localStorage.getItem("totemino_notes") || "[]");
-    
-    // ✅ Carica gli item suggeriti esistenti
     const suggestedItems = JSON.parse(localStorage.getItem("totemino_suggested_items") || "[]");
     
     let itemExists = false;
     
-    for (let i = 0; i < currentSelected.length; i += 2) {
-      if (currentSelected[i] === suggestion.name) {
-        const currentQty = parseInt(currentSelected[i + 1]) || 0;
-        currentSelected[i + 1] = (currentQty + 1).toString();
-        itemExists = true;
-        break;
+    if (currentSelected.length % 3 === 0 && currentSelected.length > 0) {
+      for (let i = 0; i < currentSelected.length; i += 3) {
+        if (currentSelected[i] === suggestion.name) {
+          const currentQty = parseInt(currentSelected[i + 2]) || 0;
+          currentSelected[i + 2] = (currentQty + 1).toString();
+          itemExists = true;
+          break;
+        }
       }
     }
     
     if (!itemExists) {
-      currentSelected.push(suggestion.name, "1");
+      currentSelected.push(suggestion.name, "{}", "1");
       currentNotes.push("");
     }
     
-    // ✅ MARCA L'ITEM COME SUGGERITO (se non è già presente)
     if (!suggestedItems.includes(suggestion.name)) {
       suggestedItems.push(suggestion.name);
     }
     
     localStorage.setItem("totemino_selected", JSON.stringify(currentSelected));
     localStorage.setItem("totemino_notes", JSON.stringify(currentNotes));
-    localStorage.setItem("totemino_suggested_items", JSON.stringify(suggestedItems)); // ✅ SALVA FLAG
+    localStorage.setItem("totemino_suggested_items", JSON.stringify(suggestedItems));
     
-    console.log('✅ Item suggerito aggiunto:', suggestion.name);
+    // Ricalcola totale
+    let total = 0;
+    for (let i = 0; i < currentSelected.length; i += 3) {
+      const itemName = currentSelected[i];
+      const qty = parseInt(currentSelected[i + 2]) || 1;
+      
+      for (const category in this.menuData) {
+        const item = this.menuData[category].find(it => it.name === itemName);
+        if (item) {
+          total += item.price * qty;
+          break;
+        }
+      }
+    }
+    
+    const count = currentSelected.length / 3;
+    localStorage.setItem("totemino_total", total.toFixed(2));
+    localStorage.setItem("totemino_count", count.toString());
     
     window.location.reload();
   }
@@ -387,7 +472,20 @@ class SuggestionsEngine {
 const suggestionsEngine = new SuggestionsEngine();
 
 async function initializeSuggestions(menuData, restaurantId) {
-  suggestionsEngine.loadMenuData(menuData);
+  
+  
+  if (!menuData) {
+    console.error('❌ ERRORE CRITICO: menuData è undefined/null! Impossibile inizializzare suggerimenti.');
+    console.error('   Assicurati di caricare il menu prima di chiamare initializeSuggestions()');
+    return;
+  }
+  
+  if (!restaurantId) {
+    console.error('❌ ERRORE CRITICO: restaurantId è undefined/null!');
+    return;
+  }
+  
+  suggestionsEngine.loadMenuData(menuData, restaurantId);
   await suggestionsEngine.renderSuggestions(restaurantId);
 }
 
@@ -395,5 +493,3 @@ async function initializeSuggestions(menuData, restaurantId) {
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = { SuggestionsEngine, initializeSuggestions };
 }
-
-console.log('💡 Sistema suggerimenti GDPR caricato');

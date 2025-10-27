@@ -143,7 +143,7 @@ class AuthAPI {
                 return await response.json();
             }
         } catch (error) {
-            console.log('Nessuna sessione attiva');
+            
         }
         return null;
     }
@@ -342,11 +342,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Check if already authenticated
     const authData = await AuthAPI.checkAuth();
     if (authData && authData.success) {
-        console.log('Utente già autenticato, redirect...');
+        
         window.location.href = `profile.html?id=${authData.user.userCode}`;
     }
     
-    console.log('Sistema di login sicuro caricato ✓');
+    
 });
 
 // ===== SECURITY =====

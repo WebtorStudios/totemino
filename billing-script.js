@@ -137,7 +137,7 @@ document.addEventListener("DOMContentLoaded", function() {
             this.textContent = 'Caricamento...';
             
             try {
-                console.log('📤 Creazione checkout:', { planType, priceId });
+                
 
                 const response = await fetch('/api/create-checkout', {
                     method: 'POST',
@@ -162,7 +162,7 @@ document.addEventListener("DOMContentLoaded", function() {
                     throw new Error(data.error || 'Errore nella creazione della sessione di pagamento');
                 }
 
-                console.log('✅ Sessione creata:', data.sessionId);
+                
 
                 // Reindirizza a Stripe Checkout
                 window.location.href = data.url;
@@ -195,12 +195,12 @@ checkUserStatus();
 async function checkUserStatus() {
   try {
       const response = await fetch('/api/auth/me', { credentials: 'include' });
-      if (!response.ok) return console.log('⚠️ Utente non loggato');
+      if (!response.ok) return 
 
       const data = await response.json();
       
       if (!data.success || !data.user) {
-          console.log('⚠️ Utente non autenticato');
+          
           return;
       }
       
@@ -208,7 +208,7 @@ async function checkUserStatus() {
       const status = user.status;
       const isTrialActive = user.isTrialActive;
       
-      console.log('👤 Status:', status, '| Trial:', isTrialActive, '| Giorni:', user.trialDaysLeft);
+      
 
       const cards = {
           'premium': { normal: 'p-base', paid: 'p-base-paid' },

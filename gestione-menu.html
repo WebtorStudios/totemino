@@ -3,6 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <!-- ===== SCRIPT TEMA ===== -->
   <script>
     (function() {
       const saved = localStorage.getItem('totemino_theme');
@@ -11,17 +13,20 @@
       document.documentElement.setAttribute('data-theme', theme);
     })();
   </script>
+
   <title>Totemino - Modifica Menu</title>
   <link rel="icon" type="image/png" href="img/favicon.png">
   <link rel="stylesheet" href="gestione-menu-styles.css">
+  <link rel="stylesheet" href="customization-styles.css">
 </head>
+
 <body>
-  <!-- Luci animate di sfondo -->
+  <!-- ===== SFONDO LUMINOSO ===== -->
   <div class="bg-light light1"></div>
   <div class="bg-light light2"></div>
   <div class="bg-light light3"></div>
 
-  <!-- Header -->
+  <!-- ===== SEZIONE HEADER ===== -->
   <div class="title">
     <div class="logo_space">
       <img class="theme-img" data-light="img/logo_light.png" data-dark="img/logo_dark.png" alt="Logo">
@@ -30,7 +35,7 @@
     </div>
     <div>
       <button id="back-btn" class="header-btn" type="button">
-          <img class="theme-img" data-light="img/exit_light.png" data-dark="img/exit_dark.png" alt="Torna a Gestione">
+        <img class="theme-img" data-light="img/exit_light.png" data-dark="img/exit_dark.png" alt="Torna a Gestione">
       </button>
       <button id="theme" class="header-btn" type="button">
         <img class="theme-img" data-light="img/theme_light.png" data-dark="img/theme_dark.png" alt="Cambia tema">
@@ -38,24 +43,19 @@
     </div>
   </div>
 
-  <!-- Contenuto principale -->
+  <!-- ===== SEZIONE PRINCIPALE ===== -->
   <div class="management-container">
+
+    <!-- ===== IMPOSTAZIONI COPERTO ===== -->
     <div class="coperto-settings-section">
       <div class="coperto-header">
-        <h2>Impostazioni base</h2>
+        <h2>Impostazioni di Base</h2>
       </div>
-      
       <div class="coperto-content">
         <div class="coperto-field">
           <label for="coperto-price">Prezzo del Coperto (€):</label>
           <div class="coperto-input-group">
-            <input 
-              type="number" 
-              id="coperto-price" 
-              step="0.10" 
-              min="0" 
-              placeholder="0.00"
-            >
+            <input type="number" id="coperto-price" step="0.10" min="0" placeholder="0.00">
             <button class="coperto-save-btn" id="save-coperto">Salva</button>
           </div>
           <p class="coperto-description">
@@ -66,72 +66,95 @@
       </div>
     </div>
 
+    <!-- ===== METODI DI CHECKOUT ===== -->
     <div class="checkout-methods-section">
-  <div class="coperto-header">
-    <h2>Metodi di Checkout</h2>
-  </div>
-  
-  <div class="coperto-content">
-    
-    
-    <div class="checkout-methods-grid">
-      <label class="checkout-method-card">
-        <input type="checkbox" id="method-table" checked>
-        <div class="method-card-content">
-          <img class="theme-img" data-light="img/service-table_light.png" data-dark="img/service-table_dark.png" alt="Servizio al Tavolo">
-          <h3>Servizio al Tavolo</h3>
-          <p>Il cliente inserisce il numero del tavolo</p>
+      <div class="coperto-header">
+        <h2>Metodi di Checkout</h2>
+      </div>
+      <div class="coperto-content">
+        <div class="checkout-methods-grid">
+
+          <label class="checkout-method-card">
+            <input type="checkbox" id="method-table" checked>
+            <div class="method-card-content">
+              <img class="theme-img" data-light="img/service-table_light.png" data-dark="img/service-table_dark.png" alt="Servizio al Tavolo">
+              <h3>Servizio al Tavolo</h3>
+              <p>Il cliente inserisce il numero del tavolo</p>
+            </div>
+            <span class="checkmark-circle"></span>
+          </label>
+
+          <label class="checkout-method-card">
+            <input type="checkbox" id="method-pickup" checked>
+            <div class="method-card-content">
+              <img class="theme-img" data-light="img/service-pickup_light.png" data-dark="img/service-pickup_dark.png" alt="Ritiro al Banco">
+              <h3>Ritiro al Banco</h3>
+              <p>Ordine con numero di ritiro automatico</p>
+            </div>
+            <span class="checkmark-circle"></span>
+          </label>
+
+          <label class="checkout-method-card">
+            <input type="checkbox" id="method-show" checked>
+            <div class="method-card-content">
+              <img class="theme-img" data-light="img/service-show_light.png" data-dark="img/service-show_dark.png" alt="Mostra Ordine">
+              <h3>Mostra Ordine</h3>
+              <p>Visualizza un riepilogo dell'ordine senza completarlo</p>
+            </div>
+            <span class="checkmark-circle"></span>
+          </label>
         </div>
-        <span class="checkmark-circle"></span>
-      </label>
-      
-      <label class="checkout-method-card">
-        <input type="checkbox" id="method-pickup" checked>
-        <div class="method-card-content">
-          <img class="theme-img" data-light="img/service-pickup_light.png" data-dark="img/service-pickup_dark.png" alt="Ritiro al Banco">
-          <h3>Ritiro al Banco</h3>
-          <p>Ordine con numero di ritiro automatico</p>
-        </div>
-        <span class="checkmark-circle"></span>
-      </label>
-      
-      <label class="checkout-method-card">
-        <input type="checkbox" id="method-show-order" checked>
-        <div class="method-card-content">
-          <img class="theme-img" data-light="img/logo_light.png" data-dark="img/logo_dark.png" alt="Mostra Ordine">
-          <h3>Mostra Ordine</h3>
-          <p>Visualizza un riepilogo dell'ordine senza completarlo</p>
-        </div>
-        <span class="checkmark-circle"></span>
-      </label>
+
+        <button class="coperto-save-btn" id="save-checkout-methods" style="margin-top: 1rem;">Salva Metodi</button>
+        <p class="coperto-description">
+          Seleziona quali metodi di completamento ordine mostrare ai clienti nella pagina checkout.
+        </p>
+      </div>
     </div>
-    <p class="coperto-description" style="margin-bottom: 1.5rem;">
-      Seleziona quali metodi di completamento ordine mostrare ai clienti nella pagina checkout.
-    </p>
-    <button class="coperto-save-btn" id="save-checkout-methods" style="margin-top: 1rem;">Salva Metodi</button>
-  </div>
-</div>
-    
-    <div class="menu-sections" id="menu-sections">
-      <!-- Le sezioni verranno caricate dinamicamente -->
+
+    <!-- ===== TIPI DI MENU ===== -->
+    <div class="menu-types-section">
+      <div class="coperto-settings-section">
+        <div class="coperto-header">
+          <h2>Tipi di Menu</h2>
+        </div>
+        <div class="coperto-content">
+          <div class="coperto-field">
+            <label for="menu-type-filter">Filtra elementi per tipo:</label>
+            <div class="coperto-input-group">
+              <select id="menu-type-filter">
+                <option value="">Tutti gli elementi</option>
+              </select>
+              <button class="coperto-save-btn" onclick="openMenuTypesManager()">Gestisci Menu</button>
+            </div>
+            <p class="coperto-description">
+              Crea e gestisci i diversi tipi di menu (es. Ristorante, Bar, Karaoke).<br>
+              Gli elementi possono apparire in più menu contemporaneamente.
+            </p>
+          </div>
+        </div>
+      </div>
     </div>
     
-    <!-- Pulsante salva modifiche -->
+
+    <!-- ===== SEZIONI MENU ===== -->
+    <div class="menu-sections" id="menu-sections"></div>
+
+    <!-- ===== SALVATAGGIO MENU ===== -->
     <div class="save-section">
       <button class="save-btn" id="save-menu">Salva Menu</button>
     </div>
   </div>
 
-  <!-- Popup per modificare/aggiungere elementi -->
+  <!-- ===== POPUP MODIFICA ELEMENTO ===== -->
   <div class="popup hidden" id="edit-popup">
     <div class="popup-content management-popup">
       <button class="close-popup" id="close-edit-popup">
         <img src="img/x.png" alt="Chiudi">
       </button>
-      
       <h2 class="popup-title" id="popup-title">Modifica Elemento</h2>
-      
-      <!-- Sezione principale con nome, prezzo e immagine -->
+
+      <!-- ===== FORM PRINCIPALE ===== -->
       <div class="main-form-section">
         <div class="image-section">
           <p style="display: block; font-weight: 600; margin-bottom: 0.3rem; color: var(--text-primary); font-size: 0.95rem;">Immagine</p>
@@ -144,12 +167,13 @@
             <input type="file" id="product-image" accept="image/*" class="hidden">
           </div>
         </div>
+
         <div class="text-inputs">
           <div class="form-field">
             <label for="item-name">Nome prodotto:</label>
             <input type="text" id="item-name" placeholder="Es. Pizza Margherita">
           </div>
-          
+
           <div class="form-field">
             <label for="item-price">Prezzo (€):</label>
             <input type="number" id="item-price" step="0.10" placeholder="Es. 6.90">
@@ -157,13 +181,13 @@
         </div>
       </div>
 
-      <!-- Descrizione -->
+      <!-- ===== DESCRIZIONE ===== -->
       <div class="form-field">
         <label for="item-description">Descrizione (opzionale):</label>
         <textarea id="item-description" placeholder="Descrivi gli ingredienti del prodotto, separati da una virgola. (Es. Pomodoro, mozzarella, basilico)"></textarea>
       </div>
 
-      <!-- Checkbox novità -->
+      <!-- ===== CHECKBOX OPZIONI ===== -->
       <div class="checkbox-section">
         <label class="checkbox-label">
           <input type="checkbox" id="item-new">
@@ -177,14 +201,40 @@
         </label>
       </div>
 
-      <!-- Sezione allergeni -->
-      <div class="allergens-section">
-        <h3>Allergeni</h3>
-        <div class="allergens-grid" id="allergens-grid">
-          <!-- Gli allergeni verranno generati dinamicamente -->
+      <!-- ===== CUSTOMIZZAZIONE ===== -->
+      <div class="customization-field">
+        <div class="customization-header">
+          <label class="checkbox-label">
+            <input type="checkbox" id="item-customizable" onchange="updateCustomizationVisibility()">
+            <span class="checkmark"></span>
+            <span class="checkbox-text">Prodotto Modificabile</span>
+          </label>
+        </div>
+
+        <div class="customization-controls" id="customization-controls" style="display: none;">
+          <input type="hidden" id="customization-group-id" />
+          <button type="button" class="btn-choose-group" onclick="openGroupSelectionPopup()">Scegli Gruppo</button>
+          <button type="button" class="btn-add-group" onclick="createNewGroup()">+ Aggiungi Gruppo</button>
+          <div id="selected-group-display" style="display: none;">
+            <span class="customization-group-display">
+              Gruppo: <span id="selected-group-number"></span>
+            </span>
+          </div>
         </div>
       </div>
 
+      <!-- ===== VISIBILITÀ MENU ===== -->
+      <div class="menu-types-field">
+        <div class="menu-types-checkboxes checkbox-section" id="menu-types-checkboxes"></div>
+      </div>
+
+      <!-- ===== ALLERGENI ===== -->
+      <div class="allergens-section">
+        <h3>Allergeni</h3>
+        <div class="allergens-grid" id="allergens-grid"></div>
+      </div>
+
+      <!-- ===== AZIONI POPUP ===== -->
       <div class="popup-actions">
         <button class="btn-danger hidden" id="delete-item">Elimina</button>
         <button class="btn-secondary" id="cancel-edit">Annulla</button>
@@ -192,7 +242,8 @@
       </div>
     </div>
   </div>
-  
+
+  <!-- ===== POPUP ELIMINAZIONE ===== -->
   <div class="delete-popup-overlay popup hidden" id="delete-popup">
     <div class="delete-popup">
       <div class="delete-popup-header">
@@ -205,17 +256,64 @@
       </div>
     </div>
   </div>
-  
-  <!-- Notifica di salvataggio -->
+
+  <!-- ===== POPUP SELEZIONE GRUPPO ===== -->
+  <div class="popup hidden" id="group-selection-popup">
+    <div class="group-selection-content">
+      <div class="group-selection-header">
+        <h2>Seleziona Gruppo Customizzazione</h2>
+        <button class="close-popup" onclick="closeGroupSelectionPopup()">
+          <img src="img/x.png" alt="Chiudi">
+        </button>
+      </div>
+      <div id="groups-list"></div>
+      <div class="create-new-group-section">
+        <button class="btn-create-new-group" onclick="createNewGroup()">+ Crea Nuovo Gruppo</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== POPUP GESTIONE CUSTOMIZZAZIONE ===== -->
+  <div class="popup hidden" id="customization-popup">
+    <div class="customization-popup-content">
+      <button class="close-popup" onclick="closeCustomizationGroupPopup()">
+        <img src="img/x.png" alt="Chiudi">
+      </button>
+      <h2 id="customization-popup-title">Crea Nuovo Gruppo Customizzazione</h2>
+      <div id="customization-sections-container"></div>
+      <button class="add-section-btn" onclick="addCustomizationSection()">+ Aggiungi Nuova Sezione</button>
+      <div class="customization-popup-actions">
+        <button class="btn-secondary" onclick="closeCustomizationGroupPopup()">Annulla</button>
+        <button class="btn-save-customization" onclick="saveCustomizationGroup()">Salva Gruppo</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== NOTIFICA SALVATAGGIO ===== -->
   <div class="notification hidden" id="save-notification">
     <span>Menu salvato con successo!</span>
   </div>
-  
-  <script src="paywall-system.js"></script>
+
+  <!-- ===== POPUP TIPI DI MENU ===== -->
+  <div class="popup hidden" id="menu-types-popup">
+    <div class="customization-popup-content">
+      <button class="close-popup" onclick="closeMenuTypesPopup()">
+        <img src="img/x.png" alt="Chiudi">
+      </button>
+      <h2>Gestisci Tipi di Menu</h2>
+      <div id="menu-types-list"></div>
+      <div class="add-menu-type-section">
+        <input type="text" id="new-menu-type-id" placeholder="ID di una parola (es. bar)" />
+        <input type="text" id="new-menu-type-name" placeholder="Nome visualizzato (es. Menu Bar)" />
+        <button class="btn-primary" onclick="addNewMenuType()">+ Aggiungi Tipo Menu</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== SCRIPT FINALI ===== -->
   <script src="auth-protection.js"></script>
   <script src="theme.js"></script>
   <script src="gestione-menu-script.js"></script>
+  <script src="customization-manager.js"></script>
 </body>
 </html>
-
-

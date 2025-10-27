@@ -25,6 +25,86 @@ let selectedItems = new Map();
 let quantityPopup = null;
 let quantityPopupTimeout = null;
 let currentPopupItem = null;
+let customizationData = {};
+
+// Carica customization.json
+async function loadCustomizations() {
+  try {
+    const res = await fetch(`IDs/${restaurantId}/customization.json`);
+    customizationData = await res.json();
+  } catch (e) {
+    console.warn("customization.json non trovato o errore:", e);
+  }
+}
+
+// Genera chiave univoca per item con customizzazioni
+function generateItemKey(itemName, customizations = {}) {
+  const sortedKeys = Object.keys(customizations).sort();
+  const customStr = sortedKeys.map(k => `${k}:${customizations[k]}`).join(',');
+  return customStr ? `${itemName}|{${customStr}}` : itemName;
+}
+
+// Estrae nome base e customizzazioni da una chiave
+function parseItemKey(key) {
+  const match = key.match(/^(.+?)\|\{(.+)\}$/);
+  if (!match) return { name: key, customizations: {} };
+  
+  const name = match[1];
+  const customStr = match[2];
+  const customizations = {};
+  
+  if (customStr) {
+    customStr.split(',').forEach(pair => {
+      const [k, v] = pair.split(':');
+      customizations[k] = parseInt(v) || 0;
+    });
+  }
+  
+  return { name, customizations };
+}
+
+// Calcola prezzo totale con modificatori
+function calculateItemPrice(itemName, customizations = {}) {
+  const item = findItemByName(itemName);
+  if (!item) return 0;
+  
+  let price = item.price;
+  
+  if (item.customizable && item.customizationGroup) {
+    const group = customizationData[item.customizationGroup];
+    if (group) {
+      group.forEach(section => {
+        section.options.forEach(opt => {
+          if (customizations[opt.id]) {
+            price += opt.priceModifier * customizations[opt.id];
+          }
+        });
+      });
+    }
+  }
+  
+  return price;
+}
+
+// Ottieni label per customizzazioni
+function getCustomizationLabel(customizations) {
+  const labels = [];
+  for (const [key, qty] of Object.entries(customizations)) {
+    if (qty > 0) {
+      // Trova il nome dell'opzione
+      for (const groupId in customizationData) {
+        const group = customizationData[groupId];
+        for (const section of group) {
+          const opt = section.options.find(o => o.id === key);
+          if (opt) {
+            labels.push(qty > 1 ? `${opt.name} x${qty}` : opt.name);
+          }
+        }
+      }
+    }
+  }
+  return labels.length > 0 ? ` (${labels.join(', ')})` : '';
+}
 
 function updateItemButtonUI(itemName) {
   const buttons = itemsContainer.querySelectorAll("button");
@@ -32,22 +112,28 @@ function updateItemButtonUI(itemName) {
     const titleEl = btn.querySelector("h3");
     if (!titleEl) return;
 
-    let baseName = titleEl.textContent.replace(/\s*\(x\d+\)$/, "");
+    const baseName = titleEl.getAttribute('data-item-name');
+    if (baseName !== itemName) return;
 
-    if (baseName === itemName) {
-      const qty = selectedItems.get(itemName) || 0;
-
-      if (qty > 1) {
-        titleEl.textContent = `${itemName} (x${qty})`;
-      } else {
-        titleEl.textContent = itemName;
+    // Conta TUTTE le varianti di questo item
+    let totalQty = 0;
+    for (const [key, data] of selectedItems) {
+      const parsed = parseItemKey(key);
+      if (parsed.name === itemName) {
+        totalQty += data.qty;
       }
+    }
 
-      if (qty > 0) {
-        btn.classList.add("selected");
-      } else {
-        btn.classList.remove("selected");
-      }
+    if (totalQty > 1) {
+      titleEl.textContent = `${itemName} (x${totalQty})`;
+    } else {
+      titleEl.textContent = itemName;
+    }
+
+    if (totalQty > 0) {
+      btn.classList.add("selected");
+    } else {
+      btn.classList.remove("selected");
     }
   });
 }
@@ -61,8 +147,13 @@ for (let i = 1; i <= 14; i++) {
 // === PERSISTENZA ===
 function saveSelectionToStorage() {
   const arr = [];
-  for (const [name, qty] of selectedItems) {
-    arr.push(name, qty.toString());
+  for (const [key, data] of selectedItems) {
+    const parsed = parseItemKey(key);
+    arr.push(
+      parsed.name,                              // Nome base
+      JSON.stringify(data.customizations || {}), // Customizations
+      data.qty.toString()                        // Quantity
+    );
   }
   localStorage.setItem("totemino_selected", JSON.stringify(arr));
   localStorage.setItem("totemino_total", total.toFixed(2));
@@ -74,11 +165,14 @@ function loadSelectionFromStorage() {
   selectedItems = new Map();
   if (saved) {
     const arr = JSON.parse(saved);
-    for (let i = 0; i < arr.length; i += 2) {
+    for (let i = 0; i < arr.length; i += 3) {
       const name = arr[i];
-      const qty = parseInt(arr[i + 1]);
+      const customizations = JSON.parse(arr[i + 1] || '{}');
+      const qty = parseInt(arr[i + 2]);
+      
       if (name && qty && qty > 0) {
-        selectedItems.set(name, qty);
+        const key = generateItemKey(name, customizations);
+        selectedItems.set(key, { qty, customizations });
       }
     }
   }
@@ -120,8 +214,9 @@ function toggleCartPopup() {
 function renderCartPopup() {
   cartPopup.innerHTML = "";
   
-  for (const [name, qty] of selectedItems) {
-    const item = findItemByName(name);
+  for (const [key, data] of selectedItems) {
+    const parsed = parseItemKey(key);
+    const item = findItemByName(parsed.name);
     if (!item) continue;
     
     const itemDiv = document.createElement("div");
@@ -133,10 +228,10 @@ function renderCartPopup() {
     
     itemDiv.appendChild(img);
     
-    if (qty > 1) {
+    if (data.qty > 1) {
       const badge = document.createElement("span");
       badge.className = "cart-popup-badge";
-      badge.textContent = qty;
+      badge.textContent = data.qty;
       itemDiv.appendChild(badge);
     }
     
@@ -161,6 +256,190 @@ document.addEventListener("click", (e) => {
   }
 });
 
+// === SCHERMATA CUSTOMIZZAZIONE ===
+function openCustomizationScreen(item) {
+  const screen = document.createElement("div");
+  screen.className = "customization-screen";
+  screen.innerHTML = `
+    <div class="customization-header">
+      <h2>Modifica ${item.displayName}</h2>
+      <button class="back-btn">
+        <img src="img/x.png" alt="Chiudi">
+      </button>
+    </div>
+    <div class="customization-content">
+      ${item.img ? `<img src="IDs/${restaurantId}/${item.img}" alt="${item.displayName}">` : ""}
+      <div class="customization-sections"></div>
+    </div>
+    <div class="customization-footer">
+      <div class="price-display">
+        <span class="base-price">Prezzo base: €${item.price.toFixed(2)}</span>
+        <span class="total-price">Totale: €${item.price.toFixed(2)}</span>
+      </div>
+      <button class="add-to-cart-btn">Conferma</button>
+    </div>
+  `;
+  
+  document.body.appendChild(screen);
+  document.body.classList.add("noscroll");
+  
+  const sectionsContainer = screen.querySelector(".customization-sections");
+  const totalPriceEl = screen.querySelector(".total-price");
+  const addBtn = screen.querySelector(".add-to-cart-btn");
+  const backBtn = screen.querySelector(".back-btn");
+  
+  const customizationState = {};
+  
+  // Carica le sezioni di customizzazione
+  const group = customizationData[item.customizationGroup];
+  if (group) {
+    group.forEach(section => {
+      const sectionDiv = document.createElement("div");
+      sectionDiv.className = "customization-section";
+      
+      const title = document.createElement("h3");
+      title.textContent = section.name + (section.required ? " *" : "");
+      sectionDiv.appendChild(title);
+      
+      section.options.forEach(opt => {
+        const optDiv = document.createElement("div");
+        optDiv.className = "customization-option";
+        
+        const optLabel = document.createElement("label");
+        optLabel.textContent = opt.name;
+        if (opt.priceModifier !== 0) {
+          optLabel.textContent += ` (+€${opt.priceModifier.toFixed(2)})`;
+        }
+        
+        const controls = document.createElement("div");
+        controls.className = "option-controls";
+        
+        if (section.maxSelections === 1) {
+          // Radio button per scelta singola
+          const radio = document.createElement("input");
+          radio.type = "radio";
+          radio.name = section.id;
+          radio.value = opt.id;
+          radio.addEventListener("change", () => {
+            // Reset tutte le opzioni della sezione
+            section.options.forEach(o => {
+              customizationState[o.id] = 0;
+            });
+            customizationState[opt.id] = 1;
+            updateTotalPrice();
+          });
+          controls.appendChild(radio);
+        } else {
+          // Counter per selezioni multiple
+          const minusBtn = document.createElement("button");
+          minusBtn.textContent = "−";
+          minusBtn.className = "counter-btn";
+          
+          const qtySpan = document.createElement("span");
+          qtySpan.textContent = "0";
+          qtySpan.className = "counter-qty";
+          
+          const plusBtn = document.createElement("button");
+          plusBtn.textContent = "+";
+          plusBtn.className = "counter-btn";
+          
+          customizationState[opt.id] = 0;
+          
+          minusBtn.addEventListener("click", () => {
+            if (customizationState[opt.id] > 0) {
+              customizationState[opt.id]--;
+              qtySpan.textContent = customizationState[opt.id];
+              updateTotalPrice();
+            }
+          });
+          
+          plusBtn.addEventListener("click", () => {
+            const currentTotal = section.options.reduce((sum, o) => 
+              sum + (customizationState[o.id] || 0), 0);
+            
+            if (!section.maxSelections || currentTotal < section.maxSelections) {
+              customizationState[opt.id]++;
+              qtySpan.textContent = customizationState[opt.id];
+              updateTotalPrice();
+            }
+          });
+          
+          controls.appendChild(minusBtn);
+          controls.appendChild(qtySpan);
+          controls.appendChild(plusBtn);
+        }
+        
+        optDiv.appendChild(optLabel);
+        optDiv.appendChild(controls);
+        sectionDiv.appendChild(optDiv);
+      });
+      
+      sectionsContainer.appendChild(sectionDiv);
+    });
+  }
+  
+  function updateTotalPrice() {
+    const totalPrice = calculateItemPrice(item.name, customizationState);
+    totalPriceEl.textContent = `Totale: €${totalPrice.toFixed(2)}`;
+    
+    // Verifica se tutte le sezioni required sono compilate
+    let allRequiredFilled = true;
+    if (group) {
+      for (const section of group) {
+        if (section.required) {
+          const hasSelection = section.options.some(opt => 
+            customizationState[opt.id] > 0
+          );
+          if (!hasSelection) {
+            allRequiredFilled = false;
+            break;
+          }
+        }
+      }
+    }
+    
+    addBtn.disabled = !allRequiredFilled;
+    if (!allRequiredFilled) {
+      addBtn.classList.add("disabled");
+    } else {
+      addBtn.classList.remove("disabled");
+    }
+  }
+  
+  addBtn.addEventListener("click", () => {
+    const itemKey = generateItemKey(item.name, customizationState);
+    const itemPrice = calculateItemPrice(item.name, customizationState);
+    
+    if (selectedItems.has(itemKey)) {
+      const data = selectedItems.get(itemKey);
+      data.qty++;
+    } else {
+      selectedItems.set(itemKey, {
+        qty: 1,
+        customizations: { ...customizationState }
+      });
+    }
+    
+    total += itemPrice;
+    count += 1;
+    
+    updateCart();
+    saveSelectionToStorage();
+    updateItemButtonUI(item.name);
+    
+    // Chiudi schermata
+    document.body.removeChild(screen);
+    document.body.classList.remove("noscroll");
+  });
+  
+  backBtn.addEventListener("click", () => {
+    document.body.removeChild(screen);
+    document.body.classList.remove("noscroll");
+  });
+  
+  updateTotalPrice();
+}
+
 // === MENU ===
 async function loadMenu() {
   const params = new URLSearchParams(window.location.search);
@@ -172,6 +451,58 @@ async function loadMenu() {
 
   const res = await fetch(`IDs/${restaurantId}/menu.json`);
   const menuJson = await res.json();
+  
+  // ✅ Carica settings per verificare menu types disponibili
+  let availableMenuTypes = [];
+  try {
+    const settingsRes = await fetch(`IDs/${restaurantId}/settings.json`);
+    if (settingsRes.ok) {
+      const settings = await settingsRes.json();
+      availableMenuTypes = settings.menuTypes || [];
+    }
+  } catch (e) {
+    console.warn("Settings non trovati, nessun filtro disponibile");
+  }
+  
+  // ✅ FILTRO MENU TYPE con validazione
+  const requestedType = params.get("type");
+  let menuTypeFilter = null;
+  
+  if (requestedType) {
+    // Controlla se il type esiste nei menu types configurati
+    const typeExists = availableMenuTypes.some(t => t.id === requestedType);
+    
+    if (typeExists) {
+      menuTypeFilter = requestedType;
+      
+    } else {
+      console.warn(`⚠️ Menu type "${requestedType}" non trovato, mostro tutto il menu`);
+      // Opzionale: rimuovi il parametro dall'URL
+      const newUrl = new URL(window.location.href);
+      newUrl.searchParams.delete('type');
+      window.history.replaceState({}, '', newUrl);
+    }
+  }
+  
+  if (menuTypeFilter) {
+    menuJson.categories = menuJson.categories
+      .map(cat => ({
+        ...cat,
+        items: cat.items.filter(item => 
+          item.menuType && item.menuType.includes(menuTypeFilter)
+        )
+      }))
+      .filter(cat => cat.items.length > 0);
+  }
+  
+  menuJson.categories = menuJson.categories
+    .map(cat => ({
+      ...cat,
+      items: cat.items.filter(item => item.visible)
+    }))
+    .filter(cat => cat.items.length > 0);
+  
+  await loadCustomizations();
 
   categories = menuJson.categories.map(cat => cat.name);
 
@@ -214,7 +545,8 @@ async function loadMenu() {
         ingredients: item.description.split(",").map(i => i.trim()).filter(Boolean),
         allergens: item.allergens.map(a => a.toString()),
         isNew: item.featured,
-        isSuggested: false
+        customizable: item.customizable || false,
+        customizationGroup: item.customizationGroup || null
       });
     });
   });
@@ -280,7 +612,6 @@ function renderItems(category) {
 
     items.forEach(item => {
       const btn = document.createElement("button");
-      const itemKey = item.name;
 
       if (item.isNew) {
         const badge = document.createElement("div");
@@ -303,50 +634,95 @@ function renderItems(category) {
       img.onerror = () => {
         img.src = 'img/placeholder.png';
       };
+      
       const title = document.createElement("h3");
-      const qty = selectedItems.get(itemKey) || 0;
-      if (qty > 1) {
-        title.textContent = `${item.displayName} (x${qty})`;
+      title.setAttribute('data-item-name', item.name);
+      
+      // Conta TUTTE le varianti di questo item
+      let totalQty = 0;
+      for (const [key, data] of selectedItems) {
+        const parsed = parseItemKey(key);
+        if (parsed.name === item.name) {
+          totalQty += data.qty;
+        }
+      }
+      
+      if (totalQty > 1) {
+        title.textContent = `${item.displayName} (x${totalQty})`;
       } else {
         title.textContent = item.displayName;
       }
 
       const price = document.createElement("p");
-      price.textContent = `€${item.price.toFixed(2)}`;
+      if (item.customizable) {
+        price.textContent = `€${item.price.toFixed(2)} + Modifica`;
+        price.classList.add("customizable-price");
+      } else {
+        price.textContent = `€${item.price.toFixed(2)}`;
+      }
 
       btn.appendChild(img);
       btn.appendChild(title);
       btn.appendChild(price);
 
-      if (selectedItems.has(itemKey)) {
+      if (totalQty > 0) {
         btn.classList.add("selected");
       }
 
       btn.addEventListener("click", (event) => {
         if (event.target.closest(".info-btn")) return;
       
-        if (selectedItems.has(itemKey)) {
-          let oldQty = selectedItems.get(itemKey);
-          if (oldQty <= 1) {
-            selectedItems.delete(itemKey);
-            total -= item.price;
-            count -= 1;
-            btn.classList.remove("selected");
+        if (item.customizable) {
+          let isItemSelected = false;
+          for (const [key] of selectedItems) {
+            if (parseItemKey(key).name === item.name) {
+              isItemSelected = true;
+              break;
+            }
+          }
+      
+          if (isItemSelected) {
+            // Rimuovi TUTTE le varianti
+            const keysToRemove = [];
+            for (const [key, data] of selectedItems) {
+              const parsed = parseItemKey(key);
+              if (parsed.name === item.name) {
+                keysToRemove.push(key);
+                total -= calculateItemPrice(parsed.name, parsed.customizations) * data.qty;
+                count -= data.qty;
+              }
+            }
+            keysToRemove.forEach(key => selectedItems.delete(key));
+            updateCart();
+            saveSelectionToStorage();
+            updateItemButtonUI(item.name);
           } else {
-            selectedItems.set(itemKey, oldQty - 1);
-            total -= item.price;
-            count -= 1;
+            openCustomizationScreen(item);
           }
         } else {
-          selectedItems.set(itemKey, 1);
-          total += item.price;
-          count += 1;
-          btn.classList.add("selected");
+          const itemKey = item.name;
+          if (selectedItems.has(itemKey)) {
+            let data = selectedItems.get(itemKey);
+            if (data.qty <= 1) {
+              selectedItems.delete(itemKey);
+              total -= item.price;
+              count -= 1;
+              btn.classList.remove("selected");
+            } else {
+              data.qty--;
+              total -= item.price;
+              count -= 1;
+            }
+          } else {
+            selectedItems.set(itemKey, { qty: 1, customizations: {} });
+            total += item.price;
+            count += 1;
+            btn.classList.add("selected");
+          }
+          updateCart();
+          saveSelectionToStorage();
+          updateItemButtonUI(item.name);
         }
-      
-        updateCart();
-        saveSelectionToStorage();
-        updateItemButtonUI(itemKey);
       });
 
       infoBtn.addEventListener("click", (e) => {
@@ -367,12 +743,11 @@ function updateCart() {
 
   total = 0;
   count = 0;
-  for (const [name, qty] of selectedItems) {
-    const item = findItemByName(name);
-    if (item) {
-      total += item.price * qty;
-      count += qty;
-    }
+  for (const [key, data] of selectedItems) {
+    const parsed = parseItemKey(key);
+    const itemPrice = calculateItemPrice(parsed.name, parsed.customizations);
+    total += itemPrice * data.qty;
+    count += data.qty;
   }
 
   priceDisplay.textContent = `€${total.toFixed(2)}`;
@@ -411,96 +786,140 @@ function openPopup(item) {
   const popupControls = popup.querySelector(".popup-controls");
   const allergenTitle = document.getElementById("titolo-allergeni");
 
-  if (item.allergens.length === 0) {
-    allergenTitle.style.display = "none";
-  } else {
-    allergenTitle.style.display = "block";
-  }
+  allergenTitle.style.display = item.allergens.length === 0 ? "none" : "block";
   
   popupImg.src = `IDs/${restaurantId}/${item.img}`;
-  popupImg.onerror = () => {
-    popupImg.src = 'img/placeholder.png';
-  };
+  popupImg.onerror = () => { popupImg.src = 'img/placeholder.png'; };
   popupTitle.textContent = item.displayName;
   popupIngredients.textContent = item.ingredients.join(", ");
   popupAllergens.innerHTML = "";
-
   popupControls.innerHTML = "";
-  const minusBtn = document.createElement("button");
-  minusBtn.textContent = "−";
-  minusBtn.className = "popup-minus";
+  
+  // Calcola quantità totale dell'item
+  let totalQty = 0;
+  for (const [key, data] of selectedItems) {
+    const parsed = parseItemKey(key);
+    if (parsed.name === item.name) totalQty += data.qty;
+  }
+  
+  if (item.customizable && totalQty === 0) {
+    // Item customizzabile NON selezionato: solo "Personalizza"
+    const customizeBtn = document.createElement("button");
+    customizeBtn.textContent = "Personalizza";
+    customizeBtn.className = "popup-customize-btn";
+    customizeBtn.addEventListener("click", () => {
+      closePopup();
+      openCustomizationScreen(item);
+    });
+    popupControls.appendChild(customizeBtn);
+  } else {
+    // Item customizzabile SELEZIONATO o NON customizzabile: mostra + e -
+    const minusBtn = document.createElement("button");
+    minusBtn.textContent = "−";
+    minusBtn.className = "popup-minus";
 
-  const qtyDisplay = document.createElement("span");
-  qtyDisplay.className = "popup-qty";
+    const qtyDisplay = document.createElement("span");
+    qtyDisplay.className = "popup-qty";
 
-  const plusBtn = document.createElement("button");
-  plusBtn.textContent = "+";
-  plusBtn.className = "popup-plus";
+    const plusBtn = document.createElement("button");
+    plusBtn.textContent = "+";
+    plusBtn.className = "popup-plus";
 
-  let qty = selectedItems.get(item.name) || 0;
-  qtyDisplay.textContent = qty;
+    const itemKey = item.name;
+    let qty = item.customizable ? totalQty : (selectedItems.has(itemKey) ? selectedItems.get(itemKey).qty : 0);
+    qtyDisplay.textContent = qty;
 
-  minusBtn.addEventListener("click", () => {
-    if (qty > 0) {
-      qty--;
-      if (qty === 0) {
-        selectedItems.delete(item.name);
-      } else {
-        selectedItems.set(item.name, qty);
+    minusBtn.addEventListener("click", () => {
+      if (qty > 0) {
+        if (item.customizable) {
+          // Rimuovi una unità dalla prima variante
+          for (const [key, data] of selectedItems) {
+            const parsed = parseItemKey(key);
+            if (parsed.name === item.name) {
+              const itemPrice = calculateItemPrice(parsed.name, parsed.customizations);
+              if (data.qty > 1) {
+                data.qty--;
+              } else {
+                selectedItems.delete(key);
+              }
+              total -= itemPrice;
+              count -= 1;
+              qty--;
+              break;
+            }
+          }
+          if (qty === 0) closePopup();
+        } else {
+          qty--;
+          if (qty === 0) {
+            selectedItems.delete(itemKey);
+          } else {
+            selectedItems.set(itemKey, { qty, customizations: {} });
+          }
+          total -= item.price;
+          count -= 1;
+        }
+        qtyDisplay.textContent = qty;
+        updateCart();
+        saveSelectionToStorage();
+        updateItemButtonUI(item.name);
       }
-      total -= item.price;
-      count -= 1;
+    });
+    
+    plusBtn.addEventListener("click", () => {
+      if (item.customizable) {
+        // Aggiungi una unità alla prima variante
+        for (const [key, data] of selectedItems) {
+          const parsed = parseItemKey(key);
+          if (parsed.name === item.name) {
+            const itemPrice = calculateItemPrice(parsed.name, parsed.customizations);
+            data.qty++;
+            total += itemPrice;
+            count += 1;
+            qty++;
+            break;
+          }
+        }
+      } else {
+        qty++;
+        selectedItems.set(itemKey, { qty, customizations: {} });
+        total += item.price;
+        count += 1;
+      }
       qtyDisplay.textContent = qty;
       updateCart();
       saveSelectionToStorage();
       updateItemButtonUI(item.name);
-    }
-  });
-  
-  plusBtn.addEventListener("click", () => {
-    qty++;
-    selectedItems.set(item.name, qty);
-    total += item.price;
-    count += 1;
-    qtyDisplay.textContent = qty;
-    updateCart();
-    saveSelectionToStorage();
-    updateItemButtonUI(item.name);
-  });
-
-  popupControls.appendChild(minusBtn);
-  popupControls.appendChild(qtyDisplay);
-  popupControls.appendChild(plusBtn);
-
-  if (item.allergens.length > 0) {
-    item.allergens.forEach(id => {
-      const img = document.createElement("img");
-      img.src = `img/allergeni/${id}.png`;
-      img.alt = `Allergene ${id}`;
-      img.style.cursor = "pointer";
-      img.addEventListener("click", (e) => {
-        e.stopPropagation();
-        const popupMsg = document.getElementById("allergen-popup");
-        popupMsg.textContent = allergenNames[id] || "Allergene sconosciuto";
-
-        const rect = img.getBoundingClientRect();
-        const centerX = rect.left + rect.width / 2;
-        const centerY = rect.top + rect.height / 2;
-        popupMsg.style.top = `${centerY - 60}px`;
-        popupMsg.style.left = `${centerX - popupMsg.offsetWidth / 2}px`;
-
-        clearTimeout(allergenPopupTimeout);
-        popupMsg.classList.remove("hidden");
-        popupMsg.classList.add("show");
-        allergenPopupTimeout = setTimeout(() => {
-          popupMsg.classList.remove("show");
-          setTimeout(() => popupMsg.classList.add("hidden"), 200);
-        }, 1200);
-      });
-
-      popupAllergens.appendChild(img);
     });
+
+    popupControls.appendChild(minusBtn);
+    popupControls.appendChild(qtyDisplay);
+    popupControls.appendChild(plusBtn);
   }
+
+  // Allergeni
+  item.allergens.forEach(id => {
+    const img = document.createElement("img");
+    img.src = `img/allergeni/${id}.png`;
+    img.alt = `Allergene ${id}`;
+    img.style.cursor = "pointer";
+    img.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const popupMsg = document.getElementById("allergen-popup");
+      popupMsg.textContent = allergenNames[id] || "Allergene sconosciuto";
+      const rect = img.getBoundingClientRect();
+      popupMsg.style.top = `${rect.top + rect.height / 2 - 60}px`;
+      popupMsg.style.left = `${rect.left + rect.width / 2 - popupMsg.offsetWidth / 2}px`;
+      clearTimeout(allergenPopupTimeout);
+      popupMsg.classList.remove("hidden");
+      popupMsg.classList.add("show");
+      allergenPopupTimeout = setTimeout(() => {
+        popupMsg.classList.remove("show");
+        setTimeout(() => popupMsg.classList.add("hidden"), 200);
+      }, 1200);
+    });
+    popupAllergens.appendChild(img);
+  });
 
   popup.classList.remove("hidden");
   document.body.classList.add("noscroll");
@@ -529,7 +948,19 @@ if (nextBtn) {
       lastSwipeDirection = "left";
       setActiveCategory(currentCategoryIndex + 1);
     } else {
-      window.location.href = `checkout.html?id=${encodeURIComponent(restaurantId)}`;
+      // ✅ Costruisci URL con tutti i parametri
+      const params = new URLSearchParams(window.location.search);
+      const checkoutUrl = new URL('checkout.html', window.location.origin);
+      
+      checkoutUrl.searchParams.set('id', restaurantId);
+      
+      // ✅ Passa il type se presente
+      const menuType = params.get('type');
+      if (menuType) {
+        checkoutUrl.searchParams.set('type', menuType);
+      }
+      
+      window.location.href = checkoutUrl.toString();
     }
   });
 }

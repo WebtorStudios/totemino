@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Totemino - Scegli menu</title>
+    <link rel="icon" type="image/png" href="img/favicon.png">
+    <style>
+        @import url("menu-styles.css");
+        
+        .menu-container {
+            padding: 2rem 1rem;
+            text-align: center;
+        }
+
+        .menu-title {
+            font-family: 'CalSans';
+            font-size: 3rem;
+            color: var(--text-accent);
+            margin-bottom: 2rem;
+        }
+
+        .menu-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+            max-width: 500px;
+            margin: 0 auto;
+            padding: 0 1rem;
+        }
+
+        .menu-card {
+            background: 
+                linear-gradient(
+                    to top,
+                    color-mix(in srgb, var(--card-color) 15%, transparent) 0%,
+                    transparent 40%
+                ),
+                var(--card-bg);
+            border: 5px solid var(--card-color);
+            border-radius: 1.5rem;
+            padding: 2rem 1rem;
+            padding-bottom: 4rem;
+            text-decoration: none;
+            color: var(--text-primary);
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 12px var(--shadow-sm);
+            cursor: pointer;
+            text-align: left;
+            position: relative;
+        }
+
+        .menu-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 20px var(--shadow-sm);
+        }
+
+        .menu-card h3 {
+            font-family: 'CalSans';
+            font-size: 1.8rem;
+            margin: 0;
+            color: var(--card-color);
+            padding: 0 1rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="bg-light light1"></div>
+    <div class="bg-light light2"></div>
+    <div class="bg-light light3"></div>
+
+    <div class="title">
+        <div class="logo_space">
+            <img class="theme-img" data-light="img/logo_light.png" data-dark="img/logo_dark.png" alt="Logo">
+            <a href="index.html"><h1>Totemino</h1></a>
+        </div>
+        <div>
+            <button id="theme" class="header-btn" type="button">
+                <img class="theme-img" data-light="img/theme_light.png" data-dark="img/theme_dark.png" alt="Tema">
+            </button>
+        </div>
+    </div>
+
+    <div class="menu-container">
+        <h1 class="menu-title">Scegli il menu</h1>
+        <div class="menu-grid" id="menuGrid">
+            <!-- Le card dei menu verranno generate qui -->
+        </div>
+    </div>
+    
+    <script src="theme.js"></script>
+    <script>
+        const colors = ['#FFE066', '#FF6F6F', '#FF9A4D', '#56D97C', '#42C7F5', '#6C8CFF', '#9C7DFF', '#FF77F6', '#FFB36B', '#F7E250'];
+        
+        async function loadMenuSelection() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const id = urlParams.get('id');
+            
+            if (!id) {
+                window.location.href = 'index.html';
+                return;
+            }
+            
+            try {
+                const settingsResponse = await fetch(`IDs/${id}/settings.json`);
+                const settings = await settingsResponse.json();
+                
+                const menuResponse = await fetch(`IDs/${id}/menu.json`);
+                const menuData = await menuResponse.json();
+                
+                const menuGrid = document.getElementById('menuGrid');
+                
+                const fullMenuCard = document.createElement('a');
+                fullMenuCard.className = 'menu-card';
+                const fullMenuColor = colors[0];
+                fullMenuCard.style.borderColor = fullMenuColor;
+                fullMenuCard.style.setProperty('--card-color', fullMenuColor); // <-- QUI
+                fullMenuCard.href = `menu.html?id=${id}`;
+                fullMenuCard.innerHTML = `
+                    <h3>Menu intero</h3>
+                `;
+                menuGrid.appendChild(fullMenuCard);
+                
+                let availableMenus = 0;
+                
+                // Menu alternativi
+                if (settings.menuTypes) {
+                    for (let i = 0; i < settings.menuTypes.length; i++) {
+                        const menuType = settings.menuTypes[i];
+                        const hasItems = checkMenuTypeHasItems(menuData, menuType.id);
+                        
+                        if (hasItems) {
+                            availableMenus++;
+                            const menuCard = document.createElement('a');
+                            menuCard.className = 'menu-card';
+                            const cardColor = colors[(i + 1) % colors.length];
+                            menuCard.style.borderColor = cardColor;
+                            menuCard.style.setProperty('--card-color', cardColor); // <-- QUI
+                            menuCard.href = `menu.html?id=${id}&type=${menuType.id}`;
+                            menuCard.innerHTML = `
+                                <h3>${menuType.name}</h3>
+                            `;
+                            menuGrid.appendChild(menuCard);
+                        }
+                    }
+                }
+                
+                // Se non ci sono menu alternativi, redirect automatico
+                // SOLO se non c'è NESSUNA card oltre al menu intero
+                if (availableMenus === 0 && menuGrid.children.length === 1) {
+                    window.location.href = `menu.html?id=${id}`;
+                }
+                
+            } catch (error) {
+                console.error('Errore nel caricamento:', error);
+                window.location.href = 'index.html';
+            }
+        }
+
+        function checkMenuTypeHasItems(menuData, menuTypeId) {
+            // Verifica in tutte le categorie e items
+            for (const category of menuData.categories) {
+                for (const item of category.items) {
+                    // Controlla se l'item ha menuType e se contiene il tipo cercato
+                    if (item.menuType && item.menuType.includes(menuTypeId)) {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+
+        // Carica la selezione menu al caricamento della pagina
+        loadMenuSelection();
+    </script>
+</body>
+</html>

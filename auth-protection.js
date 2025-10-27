@@ -62,7 +62,7 @@ async function checkSession() {
 
 // === AUTENTICAZIONE ===
 async function validateAccess() {
-    console.log('Validazione accesso...');
+    
     
     const user = await checkSession();
     if (!user) return redirectToLogin('Sessione non valida');

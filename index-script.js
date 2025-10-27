@@ -130,7 +130,7 @@ submitBtn.addEventListener('click', async () => {
   
   setTimeout(() => {
     if (isValid) {
-      window.location.href = `menu.html?id=${code}`;
+      window.location.href = `menu-select.html?id=${code}`;
     } else {
       inputs.forEach(i => {
         i.classList.remove('error');

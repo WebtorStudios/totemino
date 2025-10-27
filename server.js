@@ -8,17 +8,15 @@ const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const cron = require('node-cron');
 
 const app = express();
-
 app.set('trust proxy', 1);
 
-// === LIVE RELOAD (SOLO IN SVILUPPO) ===
+// ==================== LIVE RELOAD (SOLO SVILUPPO) ====================
 if (process.env.NODE_ENV !== 'production') {
   const livereload = require('livereload');
   const connectLivereload = require('connect-livereload');
   
   const liveReloadServer = livereload.createServer();
   liveReloadServer.watch(__dirname);
-  
   app.use(connectLivereload());
   
   liveReloadServer.server.once("connection", () => {
@@ -26,25 +24,25 @@ if (process.env.NODE_ENV !== 'production') {
   });
 }
 
-// 1️⃣ Forza HTTPS
+// ==================== MIDDLEWARE ====================
 app.use((req, res, next) => {
   if (req.headers['cloudfront-forwarded-proto'] === 'https') {
     req.secure = true;
-    req.connection.encrypted = true; 
+    req.connection.encrypted = true;
   }
   next();
 });
 
-// 2️⃣ Configurazione sessione
+// Sessioni
 const session = require('express-session');
 const FileStore = require('session-file-store')(session);
 
 app.use(session({
   store: new FileStore({
-    path: './sessions',           // Cartella dove salvare le sessioni
-    ttl: 14*86400,                   // Time to live: 24 ore
-    retries: 0,                   // Non ritentare se fallisce
-    reapInterval: 86400,           // Pulisce sessioni scadute ogni giorno
+    path: './sessions',
+    ttl: 14 * 86400,
+    retries: 0,
+    reapInterval: 86400,
   }),
   secret: process.env.SESSION_SECRET || 'fallback-secret-key',
   resave: false,
@@ -58,7 +56,7 @@ app.use(session({
   }
 }));
 
-// ⚠️ WEBHOOK DEVE essere PRIMA di express.json()
+// Webhook Stripe (PRIMA di express.json)
 app.post('/webhook/stripe', 
   express.raw({ type: 'application/json' }), 
   async (req, res) => {
@@ -66,82 +64,61 @@ app.post('/webhook/stripe',
     const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
     
     let event;
-    
     try {
       event = stripe.webhooks.constructEvent(req.body, sig, webhookSecret);
     } catch (err) {
-      console.error('Webhook signature verification failed:', err.message);
+      console.error('❌ Webhook signature failed:', err.message);
       return res.status(400).send(`Webhook Error: ${err.message}`);
     }
     
-    console.log('Webhook ricevuto:', event.type);
     
-    // Gestisci checkout.session.completed
+    
     if (event.type === 'checkout.session.completed') {
       const session = event.data.object;
+      const userCode = session.metadata?.userCode;
+      const planType = session.metadata?.planType || 'premium';
       
-      console.log('Pagamento completato:', session.id);
-      console.log('Metadata:', session.metadata);
+      if (!userCode) {
+        console.error('❌ UserCode mancante nei metadata');
+        return res.status(400).json({ error: 'UserCode mancante' });
+      }
       
       try {
-        const userCode = session.metadata?.userCode;
-        const planType = session.metadata?.planType || 'premium';
-        
-        if (!userCode) {
-          console.error('UserCode mancante nei metadata');
-          return res.status(400).json({ error: 'UserCode mancante' });
-        }
-        
-        // Carica e aggiorna utente
-        const users = await loadAllUsers();
+        const users = await FileManager.loadUsers();
         
         if (!users[userCode]) {
-          console.error(`Utente ${userCode} non trovato`);
+          console.error(`❌ Utente ${userCode} non trovato`);
           return res.status(404).json({ error: 'Utente non trovato' });
         }
         
-        // Determina lo status in base al piano
-        let newStatus;
-        if (planType === 'pro') {
-          newStatus = 'pro';
-        } else {
-          newStatus = 'paid'; // per premium
-        }
+        const newStatus = planType === 'pro' ? 'pro' : 'paid';
         
-        // Aggiorna lo status
         users[userCode].status = newStatus;
         users[userCode].planType = planType;
         users[userCode].paymentDate = new Date().toISOString();
         users[userCode].stripeSessionId = session.id;
         users[userCode].stripeCustomerId = session.customer;
         
-        const saved = await saveAllUsers(users);
+        await FileManager.saveUsers(users);
         
-        if (saved) {
-          console.log(`Utente ${userCode} aggiornato a status: ${newStatus} (${planType})`);
-          return res.json({ received: true, userCode, status: newStatus });
-        } else {
-          console.error('Errore salvataggio users.json');
-          return res.status(500).json({ error: 'Errore salvataggio' });
-        }
+        
+        return res.json({ received: true, userCode, status: newStatus });
         
       } catch (error) {
-        console.error('Errore elaborazione pagamento:', error);
+        console.error('❌ Errore elaborazione pagamento:', error);
         return res.status(500).json({ error: error.message });
       }
     }
     
-    // Altri eventi webhook
-    console.log(`Evento ${event.type} ricevuto ma non gestito`);
     res.json({ received: true });
   }
 );
 
-// DOPO il webhook, aggiungi express.json()
+// Middleware per body parsing
 app.use(express.static(__dirname));
 app.use(express.json({ limit: '50mb' }));
 
-// Auth middleware
+// Middleware di autenticazione
 const requireAuth = (req, res, next) => {
   if (!req.session.user) {
     return res.status(401).json({
@@ -153,364 +130,471 @@ const requireAuth = (req, res, next) => {
   next();
 };
 
-// === UTILITIES ===
-function ensureDirectoryExists(dirPath) {
-  if (!fsSync.existsSync(dirPath)) {
-    fsSync.mkdirSync(dirPath, { recursive: true });
-  }
-}
+// ==================== FILE MANAGER (UTILITIES CENTRALIZZATE) ====================
+const FileManager = {
+  PATHS: {
+    users: path.join(__dirname, 'userdata', 'users.json'),
+    preferences: path.join(__dirname, 'userdata', 'users-preferences.json')
+  },
 
-function initializeDirectories() {
-  ensureDirectoryExists(path.join(__dirname, 'IDs'));
-  ensureDirectoryExists(path.join(__dirname, 'userdata'));
-  console.log('Struttura directories inizializzata');
-}
-
-// === GESTIONE UTENTI CENTRALIZZATA ===
-const USERS_FILE = path.join(__dirname, 'userdata', 'users.json');
-
-async function checkAndExpireTrials() {
-  console.log('🔍 Controllo trial scaduti...');
-  
-  try {
-    const users = await loadAllUsers();
-    let expiredCount = 0;
-    const now = new Date();
-    
-    for (const [userCode, userData] of Object.entries(users)) {
-      // Controlla solo utenti free con trial attivo
-      if (userData.status === 'free' && userData.trialEndsAt) {
-        const trialEnd = new Date(userData.trialEndsAt);
-        
-        // Se il trial è scaduto
-        if (now >= trialEnd) {
-          // Rimuovi la data di scadenza trial
-          delete users[userCode].trialEndsAt;
-          expiredCount++;
-          console.log(`⏰ Trial scaduto per utente ${userCode}`);
-        }
-      }
+  ensureDir(dirPath) {
+    if (!fsSync.existsSync(dirPath)) {
+      fsSync.mkdirSync(dirPath, { recursive: true });
     }
+  },
+
+  initDirectories() {
+    this.ensureDir(path.join(__dirname, 'IDs'));
+    this.ensureDir(path.join(__dirname, 'userdata'));
     
-    if (expiredCount > 0) {
-      await saveAllUsers(users);
-      console.log(`✅ ${expiredCount} trial scaduti e aggiornati`);
-    } else {
-      console.log('✅ Nessun trial da scadere');
-    }
-    
-  } catch (error) {
-    console.error('❌ Errore controllo trial:', error);
-  }
-}
+  },
 
-// ========================================
-// 4️⃣ CRON JOB - Esegue ogni giorno a mezzanotte
-// ========================================
-
-// Esegue alle 00:00 ogni giorno
-cron.schedule('0 0 * * *', () => {
-  console.log('⏰ Esecuzione controllo trial automatico...');
-  checkAndExpireTrials();
-});
-
-// Esegui anche all'avvio del server (per recuperare eventuali giorni persi)
-setTimeout(() => {
-  console.log('🚀 Controllo trial all\'avvio del server...');
-  checkAndExpireTrials();
-}, 5000); // Aspetta 5 secondi dopo l'avvio
-
-async function loadAllUsers() {
-  try {
-    ensureDirectoryExists(path.dirname(USERS_FILE));
-    
-    if (!fsSync.existsSync(USERS_FILE)) {
+  async loadUsers() {
+    try {
+      this.ensureDir(path.dirname(this.PATHS.users));
+      if (!fsSync.existsSync(this.PATHS.users)) return {};
+      
+      const data = await fs.readFile(this.PATHS.users, 'utf8');
+      return JSON.parse(data);
+    } catch (error) {
+      console.error('❌ Errore caricamento utenti:', error);
       return {};
     }
-    
-    const data = await fs.readFile(USERS_FILE, 'utf8');
-    return JSON.parse(data);
-  } catch (error) {
-    console.error('Errore caricamento utenti:', error);
-    return {};
-  }
-}
+  },
 
-async function saveAllUsers(users) {
-  try {
-    ensureDirectoryExists(path.dirname(USERS_FILE));
-    await fs.writeFile(USERS_FILE, JSON.stringify(users, null, 2));
-    return true;
-  } catch (error) {
-    console.error('Errore salvataggio utenti:', error);
-    return false;
-  }
-}
+  async saveUsers(users) {
+    try {
+      this.ensureDir(path.dirname(this.PATHS.users));
+      await fs.writeFile(this.PATHS.users, JSON.stringify(users, null, 2));
+      return true;
+    } catch (error) {
+      console.error('❌ Errore salvataggio utenti:', error);
+      return false;
+    }
+  },
 
-async function findUserByCode(userCode) {
-  const users = await loadAllUsers();
-  return users[userCode] || null;
-}
-
-function generateUniqueFilename(baseDir, prefix, identifier, extension = '.json') {
-  const now = new Date();
-  const timestamp = now.toISOString()
-    .replace(/T/, ' - ')
-    .replace(/\..+/, '')
-    .replace(/:/g, '.');
-  
-  let fileName = `${prefix} ${identifier} - ${timestamp}${extension}`;
-  let filePath = path.join(baseDir, fileName);
-  
-  let counter = 1;
-  while (fsSync.existsSync(filePath)) {
-    fileName = `${prefix} ${identifier} - ${timestamp}_${counter}${extension}`;
-    filePath = path.join(baseDir, fileName);
-    counter++;
-  }
-  
-  return { fileName, filePath };
-}
-
-// === STATISTICS ===
-async function updateStats(restaurantId, orderData) {
-  const now = new Date();
-  const monthYear = `${now.getMonth() + 1}-${now.getFullYear()}`;
-  const statsPath = path.join(__dirname, 'IDs', restaurantId, 'statistics', `${monthYear}.json`);
-  const salesPath = path.join(__dirname, 'IDs', restaurantId, 'daily-sales', `${monthYear}.json`);
-  const usersPath = path.join(__dirname, 'IDs', restaurantId, 'statistics', 'users', 'general.json');
-  
-  try {
-    // === CARICA O INIZIALIZZA STATISTICHE ===
-    ensureDirectoryExists(path.dirname(statsPath));
-    let stats = {
-      totale_ordini: 0,
-      totale_incasso: 0,
-      scontrino_medio: 0,
-      numero_piatti_venduti: {},
-      numero_categorie_venduti: {},
-      suggerimenti: {
-        totale_items_suggeriti: 0,
-        totale_valore_suggeriti: 0,
-        items_suggeriti_venduti: {},
-        categorie_suggerite_vendute: {}
+  async loadPreferences() {
+    try {
+      this.ensureDir(path.dirname(this.PATHS.preferences));
+      if (!fsSync.existsSync(this.PATHS.preferences)) {
+        await fs.writeFile(this.PATHS.preferences, '{}');
+        return {};
       }
-    };
-    
-    if (fsSync.existsSync(statsPath)) {
-      const existing = JSON.parse(await fs.readFile(statsPath, 'utf8'));
-      stats = { ...stats, ...existing };
       
-      // Assicura che suggerimenti esista
-      if (!stats.suggerimenti) {
-        stats.suggerimenti = {
+      const data = await fs.readFile(this.PATHS.preferences, 'utf8');
+      return JSON.parse(data);
+    } catch (error) {
+      console.error('❌ Errore caricamento preferenze:', error);
+      return {};
+    }
+  },
+
+  async savePreferences(preferences) {
+    try {
+      this.ensureDir(path.dirname(this.PATHS.preferences));
+      await fs.writeFile(this.PATHS.preferences, JSON.stringify(preferences, null, 2));
+      return true;
+    } catch (error) {
+      console.error('❌ Errore salvataggio preferenze:', error);
+      return false;
+    }
+  },
+
+  async loadJSON(filePath, defaultValue = {}) {
+    try {
+      if (!fsSync.existsSync(filePath)) return defaultValue;
+      const data = await fs.readFile(filePath, 'utf8');
+      return JSON.parse(data);
+    } catch {
+      return defaultValue;
+    }
+  },
+
+  async saveJSON(filePath, data) {
+    try {
+      this.ensureDir(path.dirname(filePath));
+      await fs.writeFile(filePath, JSON.stringify(data, null, 2));
+      return true;
+    } catch (error) {
+      console.error('❌ Errore salvataggio JSON:', error);
+      return false;
+    }
+  },
+
+  generateUniqueFilename(baseDir, prefix, identifier, extension = '.json') {
+    const now = new Date();
+    const timestamp = now.toISOString()
+      .replace(/T/, ' - ')
+      .replace(/\..+/, '')
+      .replace(/:/g, '.');
+    
+    let fileName = `${prefix} ${identifier} - ${timestamp}${extension}`;
+    let filePath = path.join(baseDir, fileName);
+    
+    let counter = 1;
+    while (fsSync.existsSync(filePath)) {
+      fileName = `${prefix} ${identifier} - ${timestamp}_${counter}${extension}`;
+      filePath = path.join(baseDir, fileName);
+      counter++;
+    }
+    
+    return { fileName, filePath };
+  }
+};
+
+// ==================== CUSTOMIZATION PARSER ====================
+const CustomizationParser = {
+  /**
+   * Parse itemKey formato: "nome|{opt1:2,opt2:1}"
+   * Ritorna: { name, customizations }
+   */
+  parseItemKey(key) {
+    const match = key.match(/^(.+?)\|\{(.+)\}$/);
+    if (!match) return { name: key, customizations: {} };
+    
+    const name = match[1];
+    const customStr = match[2];
+    const customizations = {};
+    
+    if (customStr) {
+      customStr.split(',').forEach(pair => {
+        const [k, v] = pair.split(':');
+        customizations[k] = parseInt(v) || 0;
+      });
+    }
+    
+    return { name, customizations };
+  },
+
+  /**
+   * Calcola il prezzo finale di un item con customizzazioni
+   */
+  async calculateItemPrice(restaurantId, itemName, customizations = {}) {
+    try {
+      // Carica menu e customization data
+      const menuPath = path.join(__dirname, 'IDs', restaurantId, 'menu.json');
+      const customPath = path.join(__dirname, 'IDs', restaurantId, 'customization.json');
+      
+      const menuData = await FileManager.loadJSON(menuPath, { categories: [] });
+      const customizationData = await FileManager.loadJSON(customPath, {});
+      
+      // Trova l'item base
+      let baseItem = null;
+      for (const category of menuData.categories) {
+        const found = category.items.find(i => i.name === itemName);
+        if (found) {
+          baseItem = found;
+          break;
+        }
+      }
+      
+      if (!baseItem) return 0;
+      
+      let finalPrice = baseItem.price;
+      const customizationDetails = [];
+      
+      // Aggiungi modificatori
+      if (baseItem.customizable && baseItem.customizationGroup) {
+        const group = customizationData[baseItem.customizationGroup];
+        if (group) {
+          group.forEach(section => {
+            section.options.forEach(opt => {
+              const qty = customizations[opt.id] || 0;
+              if (qty > 0) {
+                finalPrice += opt.priceModifier * qty;
+                customizationDetails.push({
+                  id: opt.id,
+                  name: opt.name,
+                  priceModifier: opt.priceModifier,
+                  quantity: qty
+                });
+              }
+            });
+          });
+        }
+      }
+      
+      return { finalPrice, customizationDetails, basePrice: baseItem.price };
+      
+    } catch (error) {
+      console.error('❌ Errore calcolo prezzo:', error);
+      return { finalPrice: 0, customizationDetails: [], basePrice: 0 };
+    }
+  },
+
+  /**
+   * Processa gli items dall'ordine con customizzazioni
+   */
+  async processOrderItems(restaurantId, rawItems) {
+    const processedItems = [];
+    
+    // rawItems è l'array che arriva dal client
+    for (const item of rawItems) {
+      const { name, quantity, category, ingredients, isSuggested, isCoperto, customizations = {} } = item;
+      
+      // Se è coperto, usa il prezzo diretto
+      if (isCoperto) {
+        processedItems.push({
+          name,
+          basePrice: item.price,
+          finalPrice: item.price,
+          quantity,
+          category,
+          ingredients,
+          isSuggested: false,
+          isCoperto: true,
+          customizations: {},
+          customizationDetails: []
+        });
+        continue;
+      }
+      
+      // Calcola prezzo con customizzazioni
+      const priceData = await this.calculateItemPrice(restaurantId, name, customizations);
+      
+      processedItems.push({
+        name,
+        basePrice: priceData.basePrice,
+        finalPrice: priceData.finalPrice,
+        quantity,
+        category,
+        ingredients,
+        isSuggested: isSuggested || false,
+        isCoperto: false,
+        customizations,
+        customizationDetails: priceData.customizationDetails
+      });
+    }
+    
+    return processedItems;
+  }
+};
+
+// ==================== STATISTICS MANAGER ====================
+const StatisticsManager = {
+  async updateStats(restaurantId, orderData) {
+    const now = new Date();
+    const monthYear = `${now.getMonth() + 1}-${now.getFullYear()}`;
+    const statsPath = path.join(__dirname, 'IDs', restaurantId, 'statistics', `${monthYear}.json`);
+    const salesPath = path.join(__dirname, 'IDs', restaurantId, 'daily-sales', `${monthYear}.json`);
+    const usersPath = path.join(__dirname, 'IDs', restaurantId, 'statistics', 'users', 'general.json');
+    
+    try {
+      // === CARICA STATISTICHE ===
+      let stats = await FileManager.loadJSON(statsPath, {
+        totale_ordini: 0,
+        totale_incasso: 0,
+        scontrino_medio: 0,
+        numero_piatti_venduti: {},
+        numero_categorie_venduti: {},
+        customizzazioni_popolari: {},
+        suggerimenti: {
           totale_items_suggeriti: 0,
           totale_valore_suggeriti: 0,
           items_suggeriti_venduti: {},
           categorie_suggerite_vendute: {}
-        };
+        }
+      });
+      
+      // === AGGIORNA TOTALI ===
+      stats.totale_ordini += 1;
+      if (orderData.total && typeof orderData.total === 'number') {
+        stats.totale_incasso = parseFloat((stats.totale_incasso + orderData.total).toFixed(2));
       }
-    }
-    
-    // === AGGIORNA TOTALI ===
-    stats.totale_ordini += 1;
-    if (orderData.total && typeof orderData.total === 'number') {
-      stats.totale_incasso = parseFloat((stats.totale_incasso + orderData.total).toFixed(2));
-    }
-    stats.scontrino_medio = stats.totale_ordini > 0 ? 
-      Math.round((stats.totale_incasso / stats.totale_ordini) * 100) / 100 : 0;
-    
-    // === TRACCIA PIATTI VENDUTI ===
-    if (orderData.items && Array.isArray(orderData.items)) {
-      orderData.items.forEach(item => {
-        const itemName = item.name;
-        const quantity = item.quantity || 1;
+      stats.scontrino_medio = stats.totale_ordini > 0 
+        ? Math.round((stats.totale_incasso / stats.totale_ordini) * 100) / 100 
+        : 0;
+      
+      // === TRACCIA PIATTI E CUSTOMIZZAZIONI ===
+      if (orderData.items && Array.isArray(orderData.items)) {
+        orderData.items.forEach(item => {
+          const itemName = item.name;
+          const quantity = item.quantity || 1;
+          const finalPrice = item.finalPrice || item.price || 0;
+          
+          // Conta piatti venduti (con prezzo finale corretto)
+          if (!stats.numero_piatti_venduti[itemName]) {
+            stats.numero_piatti_venduti[itemName] = { count: 0, revenue: 0 };
+          }
+          stats.numero_piatti_venduti[itemName].count += quantity;
+          stats.numero_piatti_venduti[itemName].revenue += finalPrice * quantity;
+          
+          // Conta categorie
+          if (item.category) {
+            stats.numero_categorie_venduti[item.category] = 
+              (stats.numero_categorie_venduti[item.category] || 0) + quantity;
+          }
+          
+          // Traccia customizzazioni popolari
+          if (item.customizationDetails && item.customizationDetails.length > 0) {
+            item.customizationDetails.forEach(custom => {
+              if (!stats.customizzazioni_popolari[custom.name]) {
+                stats.customizzazioni_popolari[custom.name] = 0;
+              }
+              stats.customizzazioni_popolari[custom.name] += custom.quantity;
+            });
+          }
+          
+          // Traccia suggerimenti
+          if (item.isSuggested) {
+            stats.suggerimenti.totale_items_suggeriti += quantity;
+            stats.suggerimenti.totale_valore_suggeriti = parseFloat(
+              (stats.suggerimenti.totale_valore_suggeriti + (finalPrice * quantity)).toFixed(2)
+            );
+            
+            stats.suggerimenti.items_suggeriti_venduti[itemName] = 
+              (stats.suggerimenti.items_suggeriti_venduti[itemName] || 0) + quantity;
+            
+            if (item.category) {
+              stats.suggerimenti.categorie_suggerite_vendute[item.category] = 
+                (stats.suggerimenti.categorie_suggerite_vendute[item.category] || 0) + quantity;
+            }
+          }
+        });
+      }
+      
+      await FileManager.saveJSON(statsPath, stats);
+      
+      // === VENDITE GIORNALIERE ===
+      let salesData = await FileManager.loadJSON(salesPath, []);
+      
+      const day = now.getDate();
+      let entry = salesData.find(d => d.day === day);
+      if (!entry) {
+        entry = { day, sales: 0 };
+        salesData.push(entry);
+        salesData.sort((a, b) => a.day - b.day);
+      }
+      
+      const orderTotal = typeof orderData.total === 'number' ? orderData.total : 0;
+      entry.sales = parseFloat((entry.sales + orderTotal).toFixed(2));
+      
+      const jsonString = '[\n' + salesData.map(d => 
+        `  { "day": ${d.day}, "sales": ${d.sales.toFixed(2)} }`
+      ).join(',\n') + '\n]';
+      
+      await fs.writeFile(salesPath, jsonString, 'utf8');
+      
+      // === TRACCIA UTENTI ===
+      if (orderData.userId) {
+        let usersData = await FileManager.loadJSON(usersPath, {});
         
-        // Conta piatti venduti
-        stats.numero_piatti_venduti[itemName] = (stats.numero_piatti_venduti[itemName] || 0) + quantity;
-        
-        // Conta categorie vendute
-        if (item.category) {
-          stats.numero_categorie_venduti[item.category] = (stats.numero_categorie_venduti[item.category] || 0) + quantity;
+        const userId = orderData.userId;
+        if (!usersData[userId]) {
+          usersData[userId] = {
+            ordersCount: 0,
+            totalSpent: 0,
+            lastOrderDate: null
+          };
         }
         
-        // Traccia suggerimenti
-        if (item.isSuggested) {
-          stats.suggerimenti.totale_items_suggeriti += quantity;
-          stats.suggerimenti.totale_valore_suggeriti = parseFloat(
-            (stats.suggerimenti.totale_valore_suggeriti + (item.price * quantity)).toFixed(2)
-          );
+        usersData[userId].ordersCount += 1;
+        usersData[userId].totalSpent = parseFloat(
+          (usersData[userId].totalSpent + orderTotal).toFixed(2)
+        );
+        
+        const dateStr = `${now.getDate().toString().padStart(2, '0')}-${(now.getMonth() + 1).toString().padStart(2, '0')}-${now.getFullYear()}_${now.getHours().toString().padStart(2, '0')}-${now.getMinutes().toString().padStart(2, '0')}`;
+        usersData[userId].lastOrderDate = dateStr;
+        
+        await FileManager.saveJSON(usersPath, usersData);
+      }
+      
+    } catch (error) {
+      console.error('❌ Errore aggiornamento statistiche:', error);
+    }
+  }
+};
+
+// ==================== PREFERENCES MANAGER ====================
+const PreferencesManager = {
+  async updatePreferences(userId, items) {
+    try {
+      const preferences = await FileManager.loadPreferences();
+      
+      if (!preferences[userId]) {
+        preferences[userId] = {};
+      }
+      
+      items.forEach(item => {
+        const quantity = item.quantity || 1;
+        const ingredients = item.ingredients || [];
+        
+        // Traccia ingredienti base
+        ingredients.forEach(ingredient => {
+          const cleanIngredient = ingredient.trim().toLowerCase();
+          if (cleanIngredient) {
+            preferences[userId][cleanIngredient] = 
+              (preferences[userId][cleanIngredient] || 0) + quantity;
+          }
+        });
+        
+        // Traccia customizzazioni come preferenze
+        if (item.customizationDetails && item.customizationDetails.length > 0) {
+          item.customizationDetails.forEach(custom => {
+            const cleanCustom = `custom_${custom.name.trim().toLowerCase()}`;
+            preferences[userId][cleanCustom] = 
+              (preferences[userId][cleanCustom] || 0) + custom.quantity;
+          });
+        }
+      });
+      
+      await FileManager.savePreferences(preferences);
+      return true;
+    } catch (error) {
+      console.error('❌ Errore aggiornamento preferenze:', error);
+      return false;
+    }
+  }
+};
+
+// ==================== TRIAL MANAGER ====================
+const TrialManager = {
+  async checkAndExpireTrials() {
+    
+    
+    try {
+      const users = await FileManager.loadUsers();
+      let expiredCount = 0;
+      const now = new Date();
+      
+      for (const [userCode, userData] of Object.entries(users)) {
+        if (userData.status === 'free' && userData.trialEndsAt) {
+          const trialEnd = new Date(userData.trialEndsAt);
           
-          stats.suggerimenti.items_suggeriti_venduti[itemName] = 
-            (stats.suggerimenti.items_suggeriti_venduti[itemName] || 0) + quantity;
-          
-          if (item.category) {
-            stats.suggerimenti.categorie_suggerite_vendute[item.category] = 
-              (stats.suggerimenti.categorie_suggerite_vendute[item.category] || 0) + quantity;
+          if (now >= trialEnd) {
+            delete users[userCode].trialEndsAt;
+            expiredCount++;
+            
           }
         }
-      });
-    }
-    
-    // Salva statistiche
-    await fs.writeFile(statsPath, JSON.stringify(stats, null, 2));
-    
-    // === AGGIORNA VENDITE GIORNALIERE ===
-    ensureDirectoryExists(path.dirname(salesPath));
-    let salesData = [];
-    if (fsSync.existsSync(salesPath)) {
-      try {
-        salesData = JSON.parse(await fs.readFile(salesPath, 'utf8'));
-      } catch {}
-    }
-    
-    const day = now.getDate();
-    let entry = salesData.find(d => d.day === day);
-    if (!entry) {
-      entry = { day, sales: 0 };
-      salesData.push(entry);
-      salesData.sort((a, b) => a.day - b.day);
-    }
-    
-    const orderTotal = typeof orderData.total === 'number' ? orderData.total : 0;
-    entry.sales = parseFloat((entry.sales + orderTotal).toFixed(2));
-    
-    const jsonString = '[\n' + salesData.map(d => `  { "day": ${d.day}, "sales": ${d.sales.toFixed(2)} }`).join(',\n') + '\n]';
-    await fs.writeFile(salesPath, jsonString, 'utf8');
-    
-    // === TRACCIA UTENTI ===
-    if (orderData.userId) {
-      ensureDirectoryExists(path.dirname(usersPath));
-      let usersData = {};
-      
-      if (fsSync.existsSync(usersPath)) {
-        try {
-          usersData = JSON.parse(await fs.readFile(usersPath, 'utf8'));
-        } catch {}
       }
       
-      const userId = orderData.userId;
-      if (!usersData[userId]) {
-        usersData[userId] = {
-          ordersCount: 0,
-          totalSpent: 0,
-          lastOrderDate: null
-        };
+      if (expiredCount > 0) {
+        await FileManager.saveUsers(users);
+        
+      } else {
+        
       }
       
-      usersData[userId].ordersCount += 1;
-      usersData[userId].totalSpent = parseFloat(
-        (usersData[userId].totalSpent + orderTotal).toFixed(2)
-      );
-      
-      // Formato: dd-MM-yyyy_hh-mm
-      const dateStr = `${now.getDate().toString().padStart(2, '0')}-${(now.getMonth() + 1).toString().padStart(2, '0')}-${now.getFullYear()}_${now.getHours().toString().padStart(2, '0')}-${now.getMinutes().toString().padStart(2, '0')}`;
-      usersData[userId].lastOrderDate = dateStr;
-      
-      await fs.writeFile(usersPath, JSON.stringify(usersData, null, 2));
+    } catch (error) {
+      console.error('❌ Errore controllo trial:', error);
     }
-    
-  } catch (error) {
-    console.error('Errore aggiornamento statistiche:', error);
   }
-}
+};
 
-// === USER PREFERENCES MANAGEMENT ===
-const PREFERENCES_FILE = path.join(__dirname, 'userdata', 'users-preferences.json');
-
-async function loadUserPreferences() {
-  try {
-    ensureDirectoryExists(path.dirname(PREFERENCES_FILE));
-    
-    if (!fsSync.existsSync(PREFERENCES_FILE)) {
-      // Crea file vuoto se non esiste
-      await fs.writeFile(PREFERENCES_FILE, '{}');
-      return {};
-    }
-    
-    const data = await fs.readFile(PREFERENCES_FILE, 'utf8');
-    return JSON.parse(data);
-  } catch (error) {
-    console.error('Errore caricamento preferenze:', error);
-    return {};
-  }
-}
-
-async function saveUserPreferences(preferences) {
-  try {
-    ensureDirectoryExists(path.dirname(PREFERENCES_FILE));
-    await fs.writeFile(PREFERENCES_FILE, JSON.stringify(preferences, null, 2));
-    return true;
-  } catch (error) {
-    console.error('Errore salvataggio preferenze:', error);
-    return false;
-  }
-}
-
-async function updateUserPreferences(userId, items) {
-  try {
-    const preferences = await loadUserPreferences();
-    
-    // Inizializza utente se non esiste
-    if (!preferences[userId]) {
-      preferences[userId] = {};
-    }
-    
-    // Processa ogni item
-    items.forEach(item => {
-      const quantity = item.quantity || 1;
-      const ingredients = item.ingredients || [];
-      
-      // Incrementa contatore per ogni ingrediente
-      ingredients.forEach(ingredient => {
-        const cleanIngredient = ingredient.trim().toLowerCase(); // ✅ Normalizza in lowercase
-        if (cleanIngredient) {
-          preferences[userId][cleanIngredient] = 
-            (preferences[userId][cleanIngredient] || 0) + quantity;
-        }
-      });
-    });
-    
-    await saveUserPreferences(preferences);
-    return true;
-  } catch (error) {
-    console.error('Errore aggiornamento preferenze:', error);
-    return false;
-  }
-}
-
-// PUBLIC endpoint per aggiornare preferenze (chiamato dal client)
-app.post('/api/update-preferences', async (req, res) => {
-  const { userId, items } = req.body;
+// Cron job per trial (ogni giorno a mezzanotte)
+cron.schedule('0 0 * * *', () => {
   
-  if (!userId || !items || !Array.isArray(items)) {
-    return res.status(400).json({ 
-      success: false, 
-      message: 'userId e items richiesti' 
-    });
-  }
-  
-  try {
-    const success = await updateUserPreferences(userId, items);
-    
-    if (success) {
-      res.json({ success: true });
-    } else {
-      res.status(500).json({ 
-        success: false, 
-        message: 'Errore nel salvataggio delle preferenze' 
-      });
-    }
-  } catch (error) {
-    console.error('Errore endpoint preferenze:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: error.message 
-    });
-  }
+  TrialManager.checkAndExpireTrials();
 });
 
-// === ROUTES AUTH ===
+// Controllo all'avvio del server
+setTimeout(() => {
+  
+  TrialManager.checkAndExpireTrials();
+}, 5000);
+
+// ==================== AUTH ROUTES ====================
 app.post('/api/auth/login', async (req, res) => {
   const { userCode, password } = req.body;
 
@@ -522,7 +606,9 @@ app.post('/api/auth/login', async (req, res) => {
   }
 
   try {
-    const user = await findUserByCode(userCode);
+    const users = await FileManager.loadUsers();
+    const user = users[userCode];
+    
     if (!user || !(await bcrypt.compare(password, user.password))) {
       return res.status(401).json({
         success: false,
@@ -544,7 +630,7 @@ app.post('/api/auth/login', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Errore login:', error);
+    console.error('❌ Errore login:', error);
     res.status(500).json({
       success: false,
       message: 'Errore interno del server'
@@ -577,7 +663,7 @@ app.post('/api/auth/register', async (req, res) => {
   }
 
   try {
-    const users = await loadAllUsers();
+    const users = await FileManager.loadUsers();
     
     if (users[userCode]) {
       return res.status(409).json({
@@ -588,26 +674,20 @@ app.post('/api/auth/register', async (req, res) => {
 
     const now = new Date();
     const trialEnd = new Date(now);
-    trialEnd.setDate(trialEnd.getDate() + 14); // Aggiungi 14 giorni
+    trialEnd.setDate(trialEnd.getDate() + 14);
 
     const hashedPassword = await bcrypt.hash(password, 10);
     users[userCode] = {
       password: hashedPassword,
       status: 'free',
       createdAt: now.toISOString(),
-      trialEndsAt: trialEnd.toISOString() // ✅ Scade tra 14 giorni
+      trialEndsAt: trialEnd.toISOString()
     };
 
-    const saved = await saveAllUsers(users);
-    if (!saved) {
-      return res.status(500).json({
-        success: false,
-        message: 'Errore nel salvataggio dell\'utente'
-      });
-    }
-
+    await FileManager.saveUsers(users);
+    
     const userDir = path.join(__dirname, 'IDs', userCode);
-    ensureDirectoryExists(userDir);
+    FileManager.ensureDir(userDir);
 
     res.json({
       success: true,
@@ -621,7 +701,7 @@ app.post('/api/auth/register', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Errore registrazione:', error);
+    console.error('❌ Errore registrazione:', error);
     res.status(500).json({
       success: false,
       message: 'Errore interno del server'
@@ -634,7 +714,7 @@ app.get('/api/auth/me', async (req, res) => {
     return res.json({ success: false, requireLogin: true });
   }
 
-  const users = await loadAllUsers();
+  const users = await FileManager.loadUsers();
   const userCode = req.session.user.userCode;
   const freshUser = users[userCode];
 
@@ -642,7 +722,6 @@ app.get('/api/auth/me', async (req, res) => {
     return res.json({ success: false, requireLogin: true });
   }
 
-  // ✅ Calcola lo stato del trial
   let isTrialActive = false;
   let trialDaysLeft = 0;
 
@@ -656,7 +735,6 @@ app.get('/api/auth/me', async (req, res) => {
     }
   }
 
-  // Aggiorna sessione
   req.session.user.status = freshUser.status;
   req.session.user.isTrialActive = isTrialActive;
   req.session.user.trialDaysLeft = trialDaysLeft;
@@ -671,7 +749,7 @@ app.get('/api/auth/me', async (req, res) => {
 app.post('/api/auth/logout', (req, res) => {
   req.session.destroy((err) => {
     if (err) {
-      console.error('Errore logout:', err);
+      console.error('❌ Errore logout:', err);
       return res.status(500).json({
         success: false,
         message: 'Errore durante il logout'
@@ -681,7 +759,7 @@ app.post('/api/auth/logout', (req, res) => {
   });
 });
 
-// === STRIPE CHECKOUT ===
+// ==================== STRIPE ROUTES ====================
 app.post('/api/create-checkout', requireAuth, async (req, res) => {
   const { priceId, planType } = req.body;
   const userCode = req.session.user.userCode;
@@ -691,7 +769,6 @@ app.post('/api/create-checkout', requireAuth, async (req, res) => {
   }
   
   try {
-    // Determina l'origin corretto
     const origin = process.env.NODE_ENV === 'production' 
       ? process.env.PRODUCTION_URL 
       : `http://localhost:${process.env.PORT || 3000}`;
@@ -715,12 +792,11 @@ app.post('/api/create-checkout', requireAuth, async (req, res) => {
     res.json({ url: session.url, sessionId: session.id });
     
   } catch (error) {
-    console.error('Errore creazione checkout:', error);
+    console.error('❌ Errore creazione checkout:', error);
     res.status(500).json({ error: error.message });
   }
 });
 
-// === VERIFICA PAGAMENTO (per success page) ===
 app.get('/api/verify-payment/:sessionId', requireAuth, async (req, res) => {
   const { sessionId } = req.params;
   const userCode = req.session.user.userCode;
@@ -733,8 +809,7 @@ app.get('/api/verify-payment/:sessionId', requireAuth, async (req, res) => {
     }
     
     if (session.payment_status === 'paid') {
-      // ✅ AGGIORNA ANCHE IL FILE users.json QUI
-      const users = await loadAllUsers();
+      const users = await FileManager.loadUsers();
       
       if (users[userCode]) {
         const planType = session.metadata.planType || 'premium';
@@ -746,20 +821,17 @@ app.get('/api/verify-payment/:sessionId', requireAuth, async (req, res) => {
         users[userCode].stripeSessionId = session.id;
         users[userCode].stripeCustomerId = session.customer;
         
-        await saveAllUsers(users);
+        await FileManager.saveUsers(users);
         
-        // Aggiorna anche la sessione
         req.session.user.status = newStatus;
         req.session.user.planType = planType;
       }
-      
-      const user = await findUserByCode(userCode);
       
       res.json({
         success: true,
         paid: true,
         planType: session.metadata.planType,
-        currentStatus: user?.status || 'free'
+        currentStatus: users[userCode]?.status || 'free'
       });
     } else {
       res.json({
@@ -770,12 +842,83 @@ app.get('/api/verify-payment/:sessionId', requireAuth, async (req, res) => {
     }
     
   } catch (error) {
-    console.error('Errore verifica pagamento:', error);
+    console.error('❌ Errore verifica pagamento:', error);
     res.status(500).json({ error: error.message });
   }
 });
 
-// === PROTECTED ROUTES (solo admin) ===
+// ==================== PREFERENCES ROUTES ====================
+app.post('/api/update-preferences', async (req, res) => {
+  const { userId, items } = req.body;
+  
+  if (!userId || !items || !Array.isArray(items)) {
+    return res.status(400).json({ 
+      success: false, 
+      message: 'userId e items richiesti' 
+    });
+  }
+  
+  try {
+    const success = await PreferencesManager.updatePreferences(userId, items);
+    
+    if (success) {
+      res.json({ success: true });
+    } else {
+      res.status(500).json({ 
+        success: false, 
+        message: 'Errore nel salvataggio delle preferenze' 
+      });
+    }
+  } catch (error) {
+    console.error('❌ Errore endpoint preferenze:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: error.message 
+    });
+  }
+});
+
+// ==================== RESTAURANT STATUS ====================
+app.get('/api/restaurant-status/:restaurantId', async (req, res) => {
+  const { restaurantId } = req.params;
+  
+  try {
+    const users = await FileManager.loadUsers();
+    const user = users[restaurantId];
+    
+    if (!user) {
+      return res.json({ 
+        status: 'free', 
+        isTrialActive: false 
+      });
+    }
+    
+    let isTrialActive = false;
+    if (user.status === 'free' && user.trialEndsAt) {
+      const now = new Date();
+      const trialEnd = new Date(user.trialEndsAt);
+      
+      if (now < trialEnd) {
+        isTrialActive = true;
+      }
+    }
+    
+    res.json({
+      status: user.status,
+      isTrialActive: isTrialActive,
+      planType: user.planType || null
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore caricamento status ristorante:', error);
+    res.status(500).json({ 
+      status: 'free', 
+      isTrialActive: false 
+    });
+  }
+});
+
+// ==================== ADMIN PROTECTED ROUTES ====================
 app.post('/upload-image', requireAuth, async (req, res) => {
   const { fileName, fileData, restaurantId } = req.body;
   
@@ -789,7 +932,7 @@ app.post('/upload-image', requireAuth, async (req, res) => {
   
   try {
     const imgDir = path.join(__dirname, 'IDs', restaurantId, 'img');
-    ensureDirectoryExists(imgDir);
+    FileManager.ensureDir(imgDir);
     
     const finalFilePath = path.join(imgDir, fileName);
     const base64Data = fileData.replace(/^data:image\/[a-z]+;base64,/, '');
@@ -798,7 +941,7 @@ app.post('/upload-image', requireAuth, async (req, res) => {
     res.json({ success: true, fileName });
     
   } catch (error) {
-    console.error('Errore upload immagine:', error);
+    console.error('❌ Errore upload immagine:', error);
     res.status(500).json({ success: false, message: 'Errore nel salvataggio dell\'immagine' });
   }
 });
@@ -820,8 +963,8 @@ app.post('/save-menu/:restaurantId', requireAuth, async (req, res) => {
   const menuFilePath = path.join(restaurantDir, 'menu.json');
 
   try {
-    ensureDirectoryExists(restaurantDir);
-    ensureDirectoryExists(backupDir);
+    FileManager.ensureDir(restaurantDir);
+    FileManager.ensureDir(backupDir);
 
     if (fsSync.existsSync(menuFilePath)) {
       const backupFiles = (await fs.readdir(backupDir))
@@ -862,7 +1005,7 @@ app.post('/save-menu/:restaurantId', requireAuth, async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Errore salvataggio menu:', error);
+    console.error('❌ Errore salvataggio menu:', error);
     res.status(500).json({ 
       success: false, 
       message: 'Errore nel salvataggio del menu',
@@ -871,7 +1014,88 @@ app.post('/save-menu/:restaurantId', requireAuth, async (req, res) => {
   }
 });
 
-// === PUBLIC ROUTES (ordini clienti - NO AUTH) ===
+app.post('/save-settings/:restaurantId', requireAuth, async (req, res) => {
+  const { restaurantId } = req.params;
+  const { settings } = req.body;
+
+  if (req.session.user.restaurantId !== restaurantId) {
+    return res.status(403).json({ success: false, message: 'Accesso non autorizzato' });
+  }
+
+  if (!settings) {
+    return res.status(400).json({ success: false, message: 'Impostazioni mancanti' });
+  }
+
+  const settingsPath = path.join(__dirname, 'IDs', restaurantId, 'settings.json');
+
+  try {
+    await FileManager.saveJSON(settingsPath, settings);
+    res.json({ success: true });
+  } catch (error) {
+    console.error('❌ Errore salvataggio impostazioni:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Errore nel salvataggio delle impostazioni',
+      details: error.message
+    });
+  }
+});
+
+app.post('/save-customizations/:restaurantId', requireAuth, async (req, res) => {
+  const { restaurantId } = req.params;
+  const { customizations } = req.body;
+
+  if (req.session.user.restaurantId !== restaurantId) {
+    return res.status(403).json({ success: false, message: 'Accesso non autorizzato' });
+  }
+
+  if (!customizations) {
+    return res.status(400).json({ success: false, message: 'Customizzazioni mancanti' });
+  }
+
+  const customizationsPath = path.join(__dirname, 'IDs', restaurantId, 'customization.json');
+
+  try {
+    await FileManager.saveJSON(customizationsPath, customizations);
+    res.json({ success: true });
+  } catch (error) {
+    console.error('❌ Errore salvataggio customizzazioni:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Errore nel salvataggio delle customizzazioni',
+      details: error.message
+    });
+  }
+});
+
+// ==================== PUBLIC ROUTES (NO AUTH) ====================
+app.get('/IDs/:restaurantId/customization.json', async (req, res) => {
+  const { restaurantId } = req.params;
+  const customizationsPath = path.join(__dirname, 'IDs', restaurantId, 'customization.json');
+
+  try {
+    const customizations = await FileManager.loadJSON(customizationsPath, {});
+    res.json(customizations);
+  } catch (error) {
+    console.error('❌ Errore caricamento customizzazioni:', error);
+    res.status(500).json({ error: 'Errore nel caricamento delle customizzazioni' });
+  }
+});
+
+app.get('/IDs/:restaurantId/settings.json', async (req, res) => {
+  const { restaurantId } = req.params;
+  const settingsPath = path.join(__dirname, 'IDs', restaurantId, 'settings.json');
+
+  try {
+    const settings = await FileManager.loadJSON(settingsPath, { copertoPrice: 0 });
+    res.json(settings);
+  } catch (error) {
+    console.error('❌ Errore caricamento impostazioni:', error);
+    res.status(500).json({ error: 'Errore nel caricamento delle impostazioni' });
+  }
+});
+
+// ==================== ORDER ROUTES (PUBLIC - NO AUTH) ====================
 app.post('/IDs/:restaurantId/orders/:section', async (req, res) => {
   const { restaurantId, section } = req.params;
   const orderData = req.body;
@@ -884,31 +1108,66 @@ app.post('/IDs/:restaurantId/orders/:section', async (req, res) => {
   const ordersDir = path.join(__dirname, 'IDs', restaurantId, 'orders', section);
   
   try {
-    ensureDirectoryExists(ordersDir);
+    FileManager.ensureDir(ordersDir);
     
-    const identifier = section === 'pickup' ? (orderData.orderNumber || 100) : (orderData.tableNumber || 'unknown');
-    const { fileName, filePath } = generateUniqueFilename(ordersDir, section.charAt(0).toUpperCase() + section.slice(1), identifier);
+    // ✅ PROCESSA ITEMS CON CUSTOMIZZAZIONI
+    const processedItems = await CustomizationParser.processOrderItems(restaurantId, orderData.items);
     
+    // ✅ CALCOLA TOTALE CORRETTO
+    const calculatedTotal = processedItems.reduce((sum, item) => 
+      sum + (item.finalPrice * item.quantity), 0
+    );
+    
+    const identifier = section === 'pickup' 
+      ? (orderData.orderNumber || 100) 
+      : (orderData.tableNumber || 'unknown');
+    
+    const { fileName, filePath } = FileManager.generateUniqueFilename(
+      ordersDir, 
+      section.charAt(0).toUpperCase() + section.slice(1), 
+      identifier
+    );
+    
+    // ✅ STRUTTURA ORDINE PULITA (SENZA DATI DUPLICATI)
     const completeOrderData = {
-      ...orderData,
+      userId: orderData.userId,
+      tableNumber: orderData.tableNumber,
+      orderNumber: orderData.orderNumber,
+      items: processedItems,
+      orderNotes: orderData.orderNotes || [],
+      total: calculatedTotal,
       timestamp: new Date().toISOString(),
       type: section,
       restaurantId,
       status: 'pending'
     };
     
+    // Salva ordine
     await fs.writeFile(filePath, JSON.stringify(completeOrderData, null, 2));
-    await updateStats(restaurantId, completeOrderData);
     
-    res.json({ success: true, fileName, [section === 'pickup' ? 'orderNumber' : 'tableNumber']: identifier });
+    // Aggiorna statistiche
+    await StatisticsManager.updateStats(restaurantId, completeOrderData);
+    
+    // Aggiorna preferenze utente
+    if (orderData.userId) {
+      await PreferencesManager.updatePreferences(orderData.userId, processedItems);
+    }
+    
+    
+    
+    res.json({ 
+      success: true, 
+      fileName, 
+      [section === 'pickup' ? 'orderNumber' : 'tableNumber']: identifier 
+    });
     
   } catch (error) {
-    console.error(`Errore salvataggio ordine ${section}:`, error);
+    console.error(`❌ Errore salvataggio ordine ${section}:`, error);
     res.status(500).json({ success: false, message: error.message });
   }
 });
 
-// === PROTECTED ORDER MANAGEMENT (solo admin) ===
+// ==================== ADMIN ORDER MANAGEMENT (PROTECTED) ====================
 app.get('/IDs/:restaurantId/orders/:section', requireAuth, async (req, res) => {
   const { restaurantId, section } = req.params;
 
@@ -937,7 +1196,7 @@ app.get('/IDs/:restaurantId/orders/:section', requireAuth, async (req, res) => {
         orders.push(orderData);
         
       } catch (fileError) {
-        console.error(`Errore lettura ${file}:`, fileError.message);
+        console.error(`❌ Errore lettura ${file}:`, fileError.message);
       }
     }
     
@@ -945,7 +1204,7 @@ app.get('/IDs/:restaurantId/orders/:section', requireAuth, async (req, res) => {
     res.json(orders);
     
   } catch (error) {
-    console.error('Errore lettura ordini:', error);
+    console.error('❌ Errore lettura ordini:', error);
     res.status(500).json({ error: 'Errore nel caricamento degli ordini' });
   }
 });
@@ -976,7 +1235,7 @@ app.patch('/IDs/:restaurantId/orders/:section/:orderId', requireAuth, async (req
     res.json({ success: true, orderId, status });
     
   } catch (error) {
-    console.error('Errore aggiornamento ordine:', error);
+    console.error('❌ Errore aggiornamento ordine:', error);
     res.status(500).json({ error: 'Errore nell\'aggiornamento dello stato' });
   }
 });
@@ -997,7 +1256,7 @@ app.delete('/IDs/:restaurantId/orders/:section/:orderId', requireAuth, async (re
       return res.status(404).json({ error: 'Ordine non trovato' });
     }
     
-    ensureDirectoryExists(deletedDir);
+    FileManager.ensureDir(deletedDir);
     const timestamp = Date.now();
     const newFileName = `${orderId}_deleted_${timestamp}.json`;
     const deletedFilePath = path.join(deletedDir, newFileName);
@@ -1006,12 +1265,12 @@ app.delete('/IDs/:restaurantId/orders/:section/:orderId', requireAuth, async (re
     res.json({ success: true, orderId, deletedFile: newFileName });
 
   } catch (error) {
-    console.error('Errore eliminazione ordine:', error);
+    console.error('❌ Errore eliminazione ordine:', error);
     res.status(500).json({ error: 'Errore nell\'eliminazione dell\'ordine' });
   }
 });
 
-// === STATISTICS ROUTES (PROTETTO) ===
+// ==================== STATISTICS ROUTES (PROTECTED) ====================
 app.get('/api/months/:restaurantId', requireAuth, async (req, res) => {
   const { restaurantId } = req.params;
 
@@ -1037,7 +1296,7 @@ app.get('/api/months/:restaurantId', requireAuth, async (req, res) => {
 
     res.json(months);
   } catch (err) {
-    console.error(err);
+    console.error('❌ Errore caricamento mesi:', err);
     res.status(500).json({ error: 'Errore interno server' });
   }
 });
@@ -1052,22 +1311,19 @@ app.get('/IDs/:restaurantId/statistics/:monthYear', requireAuth, async (req, res
   try {
     const statsPath = path.join(__dirname, 'IDs', restaurantId, 'statistics', `${monthYear}.json`);
     
-    let stats = {
+    const stats = await FileManager.loadJSON(statsPath, {
       totale_ordini: 0,
       totale_incasso: 0,
       scontrino_medio: 0,
       numero_piatti_venduti: {},
-      numero_categorie_venduti: {}
-    };
-    
-    if (fsSync.existsSync(statsPath)) {
-      stats = JSON.parse(await fs.readFile(statsPath, 'utf8'));
-    }
+      numero_categorie_venduti: {},
+      customizzazioni_popolari: {}
+    });
     
     res.json({ month: monthYear, stats });
     
   } catch (error) {
-    console.error('Errore lettura statistiche:', error);
+    console.error('❌ Errore lettura statistiche:', error);
     res.status(500).json({ error: 'Errore nel caricamento delle statistiche' });
   }
 });
@@ -1079,57 +1335,14 @@ app.get('/IDs/:restaurantId/statistics', requireAuth, async (req, res) => {
   res.redirect(`/IDs/${restaurantId}/statistics/${currentMonth}`);
 });
 
-app.get('/api/restaurant-status/:restaurantId', async (req, res) => {
-  const { restaurantId } = req.params;
-  
-  try {
-    const users = await loadAllUsers();
-    const user = users[restaurantId];
-    
-    if (!user) {
-      return res.json({ 
-        status: 'free', 
-        isTrialActive: false 
-      });
-    }
-    
-    // Controlla se il trial è attivo
-    let isTrialActive = false;
-    if (user.status === 'free' && user.trialEndsAt) {
-      const now = new Date();
-      const trialEnd = new Date(user.trialEndsAt);
-      
-      if (now < trialEnd) {
-        isTrialActive = true;
-      }
-    }
-    
-    res.json({
-      status: user.status,
-      isTrialActive: isTrialActive,
-      planType: user.planType || null
-    });
-    
-  } catch (error) {
-    console.error('Errore caricamento status ristorante:', error);
-    res.status(500).json({ 
-      status: 'free', 
-      isTrialActive: false 
-    });
-  }
-});
-
-// Health check endpoint per Render
+// ==================== HEALTH CHECK ====================
 app.get('/health', (req, res) => {
   res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// Error handling middleware
+// ==================== ERROR HANDLING ====================
 app.use((err, req, res, next) => {
-  console.error('❌ ERRORE:', err.message);
-  console.error('Stack:', err.stack);
   
-  // ✅ IMPORTANTE: Non inviare risposta se già inviata
   if (res.headersSent) {
     return next(err);
   }
@@ -1139,62 +1352,12 @@ app.use((err, req, res, next) => {
     message: 'Errore interno del server'
   });
 });
-// === STARTUP ===
-initializeDirectories();
+
+// ==================== STARTUP ====================
+FileManager.initDirectories();
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-  console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
-});
-
-// ===== AGGIUNGI QUESTI ENDPOINT AL server.js =====
-
-// Salva impostazioni ristorante (PROTETTO - solo admin)
-app.post('/save-settings/:restaurantId', requireAuth, async (req, res) => {
-  const { restaurantId } = req.params;
-  const { settings } = req.body;
-
-  if (req.session.user.restaurantId !== restaurantId) {
-    return res.status(403).json({ success: false, message: 'Accesso non autorizzato' });
-  }
-
-  if (!settings) {
-    return res.status(400).json({ success: false, message: 'Impostazioni mancanti' });
-  }
-
-  const settingsPath = path.join(__dirname, 'IDs', restaurantId, 'settings.json');
-
-  try {
-    ensureDirectoryExists(path.dirname(settingsPath));
-    await fs.writeFile(settingsPath, JSON.stringify(settings, null, 2), 'utf8');
-    
-    res.json({ success: true });
-  } catch (error) {
-    console.error('Errore salvataggio impostazioni:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: 'Errore nel salvataggio delle impostazioni',
-      details: error.message
-    });
-  }
-});
-
-// Carica impostazioni ristorante (PUBBLICO - necessario per checkout)
-app.get('/IDs/:restaurantId/settings.json', async (req, res) => {
-  const { restaurantId } = req.params;
-  const settingsPath = path.join(__dirname, 'IDs', restaurantId, 'settings.json');
-
-  try {
-    if (fsSync.existsSync(settingsPath)) {
-      const settings = JSON.parse(await fs.readFile(settingsPath, 'utf8'));
-      res.json(settings);
-    } else {
-      // Restituisci impostazioni di default se il file non esiste
-      res.json({ copertoPrice: 0 });
-    }
-  } catch (error) {
-    console.error('Errore caricamento impostazioni:', error);
-    res.status(500).json({ error: 'Errore nel caricamento delle impostazioni' });
-  }
+  console.log(`🚀 Server running on port ${PORT}`);
+  console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
 });

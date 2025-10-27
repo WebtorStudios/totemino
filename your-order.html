@@ -13,101 +13,78 @@
             max-width: 500px;
             width: calc(100% - 2rem);
             border: 8px solid var(--text-accent);
-            position: relative;
-            z-index: 1;
             margin: 1rem auto;
             transition: background-color 0.4s, border-color 0.4s;
         }
 
         .receipt-header {
             text-align: center;
-            padding: 2rem 2rem 1rem;
+            padding: 2rem 2rem 2rem;
             border-bottom: 3px dashed var(--text-accent);
-            transition: border-color 0.4s;
         }
 
         .receipt-header h1 {
             font-family: 'CalSans', sans-serif;
             font-size: 2.5rem;
             color: var(--text-accent);
-            margin: 0;
+            margin: 0 0 0.5rem 0;
         }
 
-        .receipt-body { padding: 2rem; }
+        .receipt-body { 
+            padding: 2rem;
+            text-align: left;
+        }
 
         .order-item {
             display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-bottom: 1rem;
-            margin-right: 0.5rem;
-        }
-
-        .item-details {
-            display: flex;
-            align-items: center;
             gap: 1rem;
+            margin-bottom: 1.5rem;
+            color: var(--text-primary);
         }
 
-        .item-image {
+        .order-item:last-child {
+            margin-bottom: 0rem;
+        }
+
+        .order-item img {
             width: 70px;
             height: 70px;
             object-fit: contain;
         }
 
+        .item-text {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            flex: 1;
+        }
+
         .item-name {
             font-size: 1.2rem;
             font-weight: 700;
-            color: var(--text-primary);
         }
 
-        .item-price {
-            font-size: 1rem;
-            font-weight: 600;
-            color: var(--text-primary);
-            white-space: nowrap;
+        .item-custom {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            font-style: italic;
+            margin-top: 0.25rem;
         }
 
         .empty-order {
             text-align: center;
             padding: 3rem 2rem;
-        }
-
-        .empty-order h2 {
-            font-family: 'CalSans', sans-serif;
-            font-size: 2rem;
-            color: var(--text-accent);
-            margin-bottom: 1rem;
-        }
-
-        .empty-order p {
-            font-size: 1.1rem;
-            color: var(--text-primary);
-        }
-
-        .loading, .error-message {
-            text-align: center;
             font-size: 1.2rem;
             color: var(--text-primary);
         }
 
-        .error-message {
-            background: var(--text-primary);
-            color: var(--bg-primary);
-            padding: 1rem;
-            margin: 1rem 0;
-            font-weight: 600;
-        }
-
         @media (max-width: 600px) {
-            .receipt-container {
-                border-width: 5px;
-                margin-left: 1rem;
-            }
+            .receipt-container { border-width: 5px; }
             .receipt-header h1 { font-size: 2rem; }
             .receipt-body { padding: 1.5rem; }
-            .item-image { width: 60px; height: 60px; }
+            .order-item img { width: 60px; height: 60px; }
             .item-name { font-size: 1rem; }
+            .item-custom { font-size: 0.85rem; }
         }
     </style>
 </head>
@@ -117,173 +94,93 @@
     <div class="bg-light light3"></div>
 
     <div class="title">
-		<div class="logo_space">
-			<img class="theme-img" data-light="img/logo_light.png" data-dark="img/logo_dark.png" alt="Logo">
-			<a href="index.html"><h1>Totemino</h1></a>
-		</div>
-		<div>
-			<button id="back-to-checkout" class="header-btn" type="button"><img class="theme-img" data-light="img/exit_light.png" data-dark="img/exit_dark.png" alt="Torna al menu"></button>
-			<button id="theme" class="header-btn" type="button"><img class="theme-img" data-light="img/theme_light.png" data-dark="img/theme_dark.png" alt="Cambia tema"></button>
-		</div>
-	</div>
+        <div class="logo_space">
+            <img class="theme-img" data-light="img/logo_light.png" data-dark="img/logo_dark.png" alt="Logo">
+            <a href="index.html"><h1>Totemino</h1></a>
+        </div>
+        <div>
+            <button id="back-to-checkout" class="header-btn" type="button">
+                <img class="theme-img" data-light="img/exit_light.png" data-dark="img/exit_dark.png" alt="Torna">
+            </button>
+            <button id="theme" class="header-btn" type="button">
+                <img class="theme-img" data-light="img/theme_light.png" data-dark="img/theme_dark.png" alt="Tema">
+            </button>
+        </div>
+    </div>
 
     <div class="receipt-container">
         <div class="receipt-header">
             <h1>Il tuo ordine</h1>
+            <p>Detta l'ordine al personale per confermarlo</p>
         </div>
         <div class="receipt-body">
-            <div id="orderContent" class="loading">Caricamento ordine...</div>
+            <div id="orderContent">Caricamento...</div>
         </div>
     </div>
     
     <script src="theme.js"></script>
-	<script>
-        // ==================== CONFIGURAZIONE ====================
-        const COPERTO_KEY = 'totemino_last_coperto';
-        const COOLDOWN_HOURS = 4;
-        
+    <script>
         const id = new URLSearchParams(window.location.search).get('id');
         const content = document.getElementById('orderContent');
         
-        let copertoPrice = 0;
-        
-        document.getElementById('back-to-checkout').addEventListener('click', () => {
+        document.getElementById('back-to-checkout').onclick = () => {
             window.location.href = `checkout.html?id=${id}`;
-        });
+        };
 
-        // ==================== GESTIONE COPERTO ====================
-        async function loadCopertoPrice() {
-            try {
-                const response = await fetch(`IDs/${id}/settings.json`);
-                if (response.ok) {
-                    const settings = await response.json();
-                    copertoPrice = parseFloat(settings.copertoPrice) || 0;
-                    console.log('✅ Coperto caricato:', copertoPrice);
-                } else {
-                    copertoPrice = 0;
-                    console.log('ℹ️ Nessun coperto impostato');
-                }
-            } catch (error) {
-                console.log('ℹ️ Errore caricamento coperto, disabilitato');
-                copertoPrice = 0;
-            }
-        }
-
-        function canAddCoperto() {
-            if (copertoPrice <= 0) return false;
-            
-            const lastCoperto = localStorage.getItem(COPERTO_KEY);
-            if (!lastCoperto) return true;
-            
-            const lastTime = parseInt(lastCoperto, 10);
-            const now = Date.now();
-            const hoursPassed = (now - lastTime) / (1000 * 60 * 60);
-            
-            return hoursPassed >= COOLDOWN_HOURS;
-        }
-
-        function addCopertoToOrder(items) {
-            const hasCoperto = items.some(item => item.name === 'Coperto');
-            if (hasCoperto) {
-                console.log('✓ Coperto già presente nell\'ordine');
-                return items;
-            }
-
-            if (!canAddCoperto()) {
-                console.log('⏳ Coperto non disponibile (prezzo: €' + copertoPrice + ', cooldown attivo)');
-                return items;
-            }
-
-            const copertoItem = {
-                name: 'Coperto',
-                price: copertoPrice,
-                img: 'img/coperto.png',
-                qty: 1,
-                isCoperto: true
-            };
-
-            items.push(copertoItem);
-            
-            // Salva nel localStorage
-            const orderArr = JSON.parse(localStorage.getItem('totemino_selected') || '[]');
-            orderArr.push('Coperto', '1');
-            localStorage.setItem('totemino_selected', JSON.stringify(orderArr));
-            
-            console.log('✓ Coperto aggiunto automaticamente (€' + copertoPrice + ')');
-            return items;
-        }
-
-        // ==================== CARICAMENTO ORDINE ====================
         if (!id) {
-            content.innerHTML = '<div class="error-message">ID mancante nell\'URL</div>';
+            content.innerHTML = '<div class="empty-order">ID mancante</div>';
         } else {
             (async () => {
                 try {
-                    // Carica il prezzo del coperto
-                    await loadCopertoPrice();
-                    
-                    const menu = await fetch(`IDs/${id}/menu.json`).then(r => r.ok ? r.json() : null);
-                    if (!menu) throw new Error('Menu non trovato');
+                    const [menu, custom] = await Promise.all([
+                        fetch(`IDs/${id}/menu.json`).then(r => r.json()),
+                        fetch(`IDs/${id}/customization.json`).then(r => r.json()).catch(() => ({}))
+                    ]);
 
-                    const order = localStorage.getItem('totemino_selected');
-                    if (!order) {
-                        content.innerHTML = '<div class="empty-order"><h2>Ordine Vuoto</h2><p>Non ci sono articoli nel tuo ordine</p></div>';
+                    const order = JSON.parse(localStorage.getItem('totemino_selected') || '[]');
+                    
+                    if (!order.length) {
+                        content.innerHTML = '<div class="empty-order">Ordine vuoto</div>';
                         return;
                     }
 
-                    const orderArr = JSON.parse(order);
-                    const items = [];
+                    let html = '';
                     
-                    for (let i = 0; i < orderArr.length; i += 2) {
-                        const itemName = orderArr[i];
-                        const itemQty = parseInt(orderArr[i + 1]);
+                    for (let i = 0; i < order.length; i += 3) {
+                        const name = order[i].split('|')[0];
+                        const qty = parseInt(order[i + 1]);
+                        const customObj = JSON.parse(order[i + 2] || '{}');
                         
-                        // Cerca nel menu
-                        const item = menu.categories.flatMap(c => c.items).find(it => it.name === itemName);
-                        if (item) {
-                            items.push({ 
-                                ...item, 
-                                qty: itemQty,
-                                isCoperto: false
-                            });
+                        const item = menu.categories.flatMap(c => c.items).find(it => it.name === name);
+                        if (!item) continue;
+
+                        const customNames = [];
+                        if (item.customizationGroup && custom[item.customizationGroup]) {
+                            for (const section of custom[item.customizationGroup]) {
+                                for (const opt of section.options) {
+                                    if (customObj[opt.id] === 1) customNames.push(opt.name);
+                                }
+                            }
                         }
-                    }
 
-                    if (!items.length) {
-                        content.innerHTML = '<div class="empty-order"><h2>Ordine Vuoto</h2><p>Nessun articolo valido trovato</p></div>';
-                        return;
-                    }
-
-                    // ✅ Aggiungi coperto se necessario
-                    const finalItems = addCopertoToOrder(items);
-
-                    // Renderizza gli items
-                    content.innerHTML = finalItems.map(item => {
-                        const img = item.isCoperto 
-                            ? item.img 
-                            : (item.imagePath.startsWith('IDs/') ? item.imagePath : `IDs/${id}/${item.imagePath}`);
+                        const img = item.imagePath.startsWith('IDs/') ? item.imagePath : `IDs/${id}/${item.imagePath}`;
                         
-                        const itemClass = item.isCoperto ? 'order-item coperto-item' : 'order-item';
-                        
-                        return `
-                            <div class="${itemClass}">
-                                <div class="item-details">
-                                    <img src="${img}" alt="${item.name}" class="item-image" onerror="this.style.display='none'">
-                                    <div class="item-name">${item.name}${item.qty > 1 ? ` (x${item.qty})` : ''}</div>
-                                </div>
-                                <div class="item-price">€${(item.price * item.qty).toFixed(2)}</div>
+                        html += `<div class="order-item">
+                            <img src="${img}" alt="${name}" onerror="this.style.display='none'">
+                            <div class="item-text">
+                                <div class="item-name">${name}${qty > 1 ? ` (x${qty})` : ''}</div>
+                                ${customNames.length ? `<div class="item-custom">(${customNames.join(', ')})</div>` : ''}
                             </div>
-                        `;
-                    }).join('');
+                        </div>`;
+                    }
+
+                    content.innerHTML = html || '<div class="empty-order">Nessun articolo</div>';
 
                 } catch (err) {
-                    console.error('Errore caricamento:', err);
-                    content.innerHTML = '<div class="error-message">Errore nel caricamento</div>';
+                    content.innerHTML = '<div class="empty-order">Errore caricamento</div>';
                 }
             })();
         }
     </script>
 </body>
-
 </html>
-

@@ -141,7 +141,7 @@ function getCookieConsent() {
         const consent = JSON.parse(saved);
         // Verifica versione consenso
         if (consent.version !== CONSENT_VERSION) {
-            console.log('Versione consenso obsoleta, richiedi nuovamente');
+            
             localStorage.removeItem(COOKIE_CONSENT_KEY);
             return null;
         }
@@ -156,7 +156,7 @@ function saveCookieConsent(consent) {
     consent.version = CONSENT_VERSION;
     consent.timestamp = new Date().toISOString();
     localStorage.setItem(COOKIE_CONSENT_KEY, JSON.stringify(consent));
-    console.log('✅ Consenso salvato:', consent);
+    
 }
 
 // ===== AZIONI BANNER =====
@@ -216,27 +216,27 @@ function hideBanner() {
 
 // ===== APPLICAZIONE CONSENSO =====
 function applyCookieSettings(consent) {
-    console.log('🔧 Applicazione impostazioni:', consent);
+    
     
     // PROFILAZIONE
     if (consent.profiling) {
-        console.log('✅ Profilazione ABILITATA');
+        
         window.PROFILING_ENABLED = true;
     } else {
-        console.log('🚫 Profilazione DISABILITATA');
+        
         window.PROFILING_ENABLED = false;
         
         // PULISCI DATI DI PROFILAZIONE
         localStorage.removeItem('totemino_user_id');
-        console.log('🧹 Rimosso totemino_user_id');
+        
     }
     
     // ANALYTICS
     if (consent.analytics) {
-        console.log('✅ Analytics ABILITATO');
+        
         window.ANALYTICS_ENABLED = true;
     } else {
-        console.log('🚫 Analytics DISABILITATO');
+        
         window.ANALYTICS_ENABLED = false;
     }
     
@@ -252,7 +252,7 @@ function initCookieBanner() {
     
     if (!consent) {
         // Nessun consenso: mostra banner
-        console.log('📢 Mostra banner cookie');
+        
         injectCookieBanner();
         document.getElementById('cookie-banner').classList.add('show');
         
@@ -261,7 +261,7 @@ function initCookieBanner() {
         window.ANALYTICS_ENABLED = false;
     } else {
         // Consenso esistente: applica impostazioni
-        console.log('✓ Consenso già presente');
+        
         applyCookieSettings(consent);
     }
 }
@@ -281,4 +281,4 @@ document.addEventListener('click', function(e) {
     }
 });
 
-console.log('🍪 Sistema cookie GDPR caricato');
+

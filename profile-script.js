@@ -77,7 +77,7 @@ function setMenuLinks() {
     document.getElementById('gestioneCard').href = `gestione.html?id=${restaurantId}`;
     document.getElementById('menuCard').href = `gestione-menu.html?id=${restaurantId}`;
     document.getElementById('statsCard').href = `statistics.html?id=${restaurantId}`;
-    document.getElementById('previewCard').href = `menu.html?id=${restaurantId}`;
+    document.getElementById('previewCard').href = `menu-select.html?id=${restaurantId}`;
 }
 
 // QR Code functionality
@@ -111,7 +111,7 @@ function initQRCode() {
         const canvas = document.getElementById('qrCanvas');
         if (!canvas) return;
         
-        const menuUrl = `https://totemino.it/menu.html?id=${restaurantId}`;
+        const menuUrl = `https://totemino.it/menu-select.html?id=${restaurantId}`;
         
         canvas.innerHTML = '';
         

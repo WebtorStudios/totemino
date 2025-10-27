@@ -351,13 +351,16 @@ function getFilteredItems() {
     categories.forEach(categoria => {
         if (!state.menu[categoria]) return;
         Object.entries(state.menu[categoria]).forEach(([nome, item]) => {
-            const quantita = venduti[nome] || 0;
+            const vendutiData = venduti[nome];
+            const quantita = vendutiData ? (vendutiData.count || vendutiData) : 0;
+            const ricavo = vendutiData ? (vendutiData.revenue || quantita * item.prezzo) : 0;
+            
             items.push({
                 nome,
                 quantita,
                 prezzo: item.prezzo,
                 immagine: item.immagine,
-                ricavo: quantita * item.prezzo
+                ricavo
             });
         });
     });
@@ -386,8 +389,9 @@ function renderPodium(containerId, items) {
 function updatePerformanceInsights() {
     const { statistics: stats } = state;
     const suggestions = stats.suggerimenti;
-    const totalItems = Object.values(stats.numero_piatti_venduti).reduce((a, b) => a + b, 0);
-    
+    const totalItems = Object.values(stats.numero_piatti_venduti).reduce((sum, item) => {
+        return sum + (item.count || item || 0);
+    }, 0);
     // Metrics calculation
     const metrics = {
         suggestionConversionRate: totalItems > 0 ? (suggestions.totale_items_suggeriti / totalItems * 100).toFixed(1) : 0,
@@ -408,8 +412,9 @@ function updatePerformanceInsights() {
 function updateCategoryPerformance() {
     const categoryRevenue = Object.keys(state.menu).reduce((acc, categoria) => {
         acc[categoria] = Object.entries(state.menu[categoria]).reduce((sum, [nome, item]) => {
-            const quantita = state.statistics.numero_piatti_venduti[nome] || 0;
-            return sum + (quantita * item.prezzo);
+            const vendutiData = state.statistics.numero_piatti_venduti[nome];
+            const ricavo = vendutiData ? (vendutiData.revenue || 0) : 0;
+            return sum + ricavo;
         }, 0);
         return acc;
     }, {});
