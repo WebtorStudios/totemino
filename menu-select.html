@@ -108,20 +108,35 @@
                 const menuResponse = await fetch(`IDs/${id}/menu.json`);
                 const menuData = await menuResponse.json();
                 
+                // Controlla SUBITO se ci sono menu alternativi
+                let availableMenus = 0;
+                if (settings.menuTypes) {
+                    for (const menuType of settings.menuTypes) {
+                        if (checkMenuTypeHasItems(menuData, menuType.id)) {
+                            availableMenus++;
+                        }
+                    }
+                }
+                
+                // Se non ci sono menu alternativi, redirect IMMEDIATO
+                if (availableMenus === 0) {
+                    window.location.href = `menu.html?id=${id}`;
+                    return; // Interrompe l'esecuzione
+                }
+                
+                // Solo se ci sono menu alternativi, crea le card
                 const menuGrid = document.getElementById('menuGrid');
                 
                 const fullMenuCard = document.createElement('a');
                 fullMenuCard.className = 'menu-card';
                 const fullMenuColor = colors[0];
                 fullMenuCard.style.borderColor = fullMenuColor;
-                fullMenuCard.style.setProperty('--card-color', fullMenuColor); // <-- QUI
+                fullMenuCard.style.setProperty('--card-color', fullMenuColor);
                 fullMenuCard.href = `menu.html?id=${id}`;
                 fullMenuCard.innerHTML = `
                     <h3>Menu intero</h3>
                 `;
                 menuGrid.appendChild(fullMenuCard);
-                
-                let availableMenus = 0;
                 
                 // Menu alternativi
                 if (settings.menuTypes) {
@@ -130,12 +145,11 @@
                         const hasItems = checkMenuTypeHasItems(menuData, menuType.id);
                         
                         if (hasItems) {
-                            availableMenus++;
                             const menuCard = document.createElement('a');
                             menuCard.className = 'menu-card';
                             const cardColor = colors[(i + 1) % colors.length];
                             menuCard.style.borderColor = cardColor;
-                            menuCard.style.setProperty('--card-color', cardColor); // <-- QUI
+                            menuCard.style.setProperty('--card-color', cardColor);
                             menuCard.href = `menu.html?id=${id}&type=${menuType.id}`;
                             menuCard.innerHTML = `
                                 <h3>${menuType.name}</h3>
@@ -143,12 +157,6 @@
                             menuGrid.appendChild(menuCard);
                         }
                     }
-                }
-                
-                // Se non ci sono menu alternativi, redirect automatico
-                // SOLO se non c'è NESSUNA card oltre al menu intero
-                if (availableMenus === 0 && menuGrid.children.length === 1) {
-                    window.location.href = `menu.html?id=${id}`;
                 }
                 
             } catch (error) {
@@ -174,4 +182,5 @@
         loadMenuSelection();
     </script>
 </body>
+
 </html>
