@@ -87,7 +87,7 @@
             <!-- Le card dei menu verranno generate qui -->
         </div>
     </div>
-    
+</body>
     <script src="theme.js"></script>
     <script>
         const colors = ['#FFE066', '#FF6F6F', '#FF9A4D', '#56D97C', '#42C7F5', '#6C8CFF', '#9C7DFF', '#FF77F6', '#FFB36B', '#F7E250'];
@@ -124,7 +124,9 @@
                     return; // Interrompe l'esecuzione
                 }
                 
-                // Solo se ci sono menu alternativi, crea le card
+                // Solo se ci sono menu alternativi, mostra la pagina e crea le card
+                document.body.classList.add('show-content');
+                
                 const menuGrid = document.getElementById('menuGrid');
                 
                 const fullMenuCard = document.createElement('a');
@@ -181,6 +183,5 @@
         // Carica la selezione menu al caricamento della pagina
         loadMenuSelection();
     </script>
-</body>
-
 </html>
+
