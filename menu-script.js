@@ -619,8 +619,12 @@ function setActiveCategory(index) {
 function renderItems(category) {
   if (!itemsContainer) return;
 
-  itemsContainer.classList.remove("fade-in-left", "fade-in-right", "fade-out-left", "fade-out-right");
-  itemsContainer.classList.add(lastSwipeDirection === "left" ? "fade-out-left" : "fade-out-right");
+  const isFirstLoad = currentCategoryIndex === 0 && itemsContainer.children.length === 0;
+  
+  if (!isFirstLoad) {
+    itemsContainer.classList.remove("fade-in-left", "fade-in-right", "fade-out-left", "fade-out-right");
+    itemsContainer.classList.add(lastSwipeDirection === "left" ? "fade-out-left" : "fade-out-right");
+  }
 
   setTimeout(() => {
     itemsContainer.innerHTML = "";
@@ -750,9 +754,11 @@ function renderItems(category) {
       itemsContainer.appendChild(btn);
     });
 
-    itemsContainer.classList.remove("fade-out-left", "fade-out-right");
-    itemsContainer.classList.add(lastSwipeDirection === "left" ? "fade-in-right" : "fade-in-left");
-  }, 250);
+    if (!isFirstLoad) {
+      itemsContainer.classList.remove("fade-out-left", "fade-out-right");
+      itemsContainer.classList.add(lastSwipeDirection === "left" ? "fade-in-right" : "fade-in-left");
+    }
+  }, isFirstLoad ? 0 : 250);
 }
 
 function updateCart() {
@@ -1006,3 +1012,4 @@ function handleSwipe() {
 
 
 loadMenu();
+
