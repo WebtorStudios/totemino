@@ -558,7 +558,9 @@ async function loadMenu() {
   });
 
   loadSelectionFromStorage();
-  setActiveCategory(0);
+  setTimeout(() => {
+    setActiveCategory(0);
+  }, 100);
 }
 
 function movePillTo(button) {
@@ -995,5 +997,6 @@ function handleSwipe() {
 
 
 loadMenu();
+
 
 
