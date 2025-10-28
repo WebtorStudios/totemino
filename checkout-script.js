@@ -261,9 +261,8 @@ const DataManager = {
       });
     });
   
-    // 5️⃣ GESTIONE COPERTO
+    // 5️⃣ CARICA PREZZO COPERTO (ma NON aggiungere ancora)
     await CopertoManager.loadCopertoPrice();
-    CopertoManager.addCopertoIfNeeded();
   
     // 6️⃣ RENDERING UI
     UI.renderItems();
@@ -1001,5 +1000,6 @@ DataManager.fetchMenu();
 Navigation.init();
 Payment.init();
 Orders.init();
+
 
 
