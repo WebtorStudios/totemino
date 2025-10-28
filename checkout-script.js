@@ -443,7 +443,7 @@ const UI = {
 
   updateTotal() {
     const total = STATE.items.reduce((sum, i) => sum + i.price * i.quantity, 0);
-    const count = STATE.items.reduce((sum, i) => sum + i.quantity, 0);
+    const count = STATE.items.reduce((sum, i) => sum + (i.isCoperto ? 0 : i.quantity), 0);
 
     CONFIG.elements.total.textContent = `€${total.toFixed(2)}`;
     localStorage.setItem(CONFIG.storageKeys.total, total.toFixed(2));
@@ -1000,6 +1000,7 @@ DataManager.fetchMenu();
 Navigation.init();
 Payment.init();
 Orders.init();
+
 
 
 
