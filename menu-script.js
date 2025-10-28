@@ -564,7 +564,7 @@ async function loadMenu() {
         setActiveCategory(0);
       });
     });
-  }, 200);
+  }, 500);
 }
 
 function movePillTo(button) {
@@ -1001,6 +1001,7 @@ function handleSwipe() {
 
 
 loadMenu();
+
 
 
 
