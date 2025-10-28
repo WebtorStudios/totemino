@@ -558,13 +558,18 @@ async function loadMenu() {
   });
 
   loadSelectionFromStorage();
-  setTimeout(() => {
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        setActiveCategory(0);
-      });
-    });
-  }, 500);
+  const checkAndActivate = () => {
+    const firstButton = nav.querySelector("button");
+    if (firstButton && firstButton.offsetWidth > 0) {
+      // Il pulsante è renderizzato e ha dimensioni
+      setActiveCategory(0);
+    } else {
+      // Riprova dopo 50ms
+      setTimeout(checkAndActivate, 50);
+    }
+  };
+  
+  setTimeout(checkAndActivate, 0);
 }
 
 function movePillTo(button) {
@@ -1001,6 +1006,7 @@ function handleSwipe() {
 
 
 loadMenu();
+
 
 
 
