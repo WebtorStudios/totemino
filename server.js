@@ -1270,6 +1270,45 @@ app.delete('/IDs/:restaurantId/orders/:section/:orderId', requireAuth, async (re
   }
 });
 
+// ===== BANNER ROUTES (PROTECTED) =====
+app.post('/save-banners/:restaurantId', requireAuth, async (req, res) => {
+  const { restaurantId } = req.params;
+  const { banners } = req.body;
+
+  if (req.session.user.restaurantId !== restaurantId) {
+    return res.status(403).json({ success: false, message: 'Accesso non autorizzato' });
+  }
+
+  if (!Array.isArray(banners)) {
+    return res.status(400).json({ success: false, message: 'Dati banner non validi' });
+  }
+
+  const bannersPath = path.join(__dirname, 'IDs', restaurantId, 'banners.json');
+
+  try {
+    await FileManager.saveJSON(bannersPath, banners);
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ 
+      success: false, 
+      message: 'Errore nel salvataggio',
+      details: error.message
+    });
+  }
+});
+
+app.get('/IDs/:restaurantId/banners.json', async (req, res) => {
+  const { restaurantId } = req.params;
+  const bannersPath = path.join(__dirname, 'IDs', restaurantId, 'banners.json');
+
+  try {
+    const banners = await FileManager.loadJSON(bannersPath, []);
+    res.json(banners);
+  } catch (error) {
+    res.status(500).json({ error: 'Errore nel caricamento dei banner' });
+  }
+});
+
 // ==================== STATISTICS ROUTES (PROTECTED) ====================
 app.get('/api/months/:restaurantId', requireAuth, async (req, res) => {
   const { restaurantId } = req.params;
@@ -1360,4 +1399,5 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
   console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
+
 });
