@@ -520,7 +520,6 @@ async function loadMenu() {
   categories.forEach((cat, index) => {
     const btn = document.createElement("button");
     btn.textContent = cat;
-    if (index === 0) btn.classList.add("active");
     btn.addEventListener("click", () => setActiveCategory(index));
     nav.appendChild(btn);
   });
@@ -997,6 +996,7 @@ function handleSwipe() {
 
 
 loadMenu();
+
 
 
 
