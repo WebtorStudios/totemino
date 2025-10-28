@@ -520,6 +520,7 @@ async function loadMenu() {
   categories.forEach((cat, index) => {
     const btn = document.createElement("button");
     btn.textContent = cat;
+    if (index === 0) btn.classList.add("active");  // ✅ AGGIUNGI QUESTA RIGA
     btn.addEventListener("click", () => setActiveCategory(index));
     nav.appendChild(btn);
   });
@@ -557,11 +558,13 @@ async function loadMenu() {
   });
 
   loadSelectionFromStorage();
-  requestAnimationFrame(() => {
+  setTimeout(() => {
     requestAnimationFrame(() => {
-      setActiveCategory(0);
+      requestAnimationFrame(() => {
+        setActiveCategory(0);
+      });
     });
-  });
+  }, 200);
 }
 
 function movePillTo(button) {
@@ -998,6 +1001,7 @@ function handleSwipe() {
 
 
 loadMenu();
+
 
 
 
