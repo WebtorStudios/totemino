@@ -672,7 +672,11 @@ function renderItems(category) {
 
       const price = document.createElement("p");
       if (item.customizable) {
-        price.textContent = `€${item.price.toFixed(2)} + Modifica`;
+        if (item.price < 0.01) {
+          price.textContent = "Seleziona";
+        } else {
+          price.textContent = `€${item.price.toFixed(2)} + Modifica`;
+        }
         price.classList.add("customizable-price");
       } else {
         price.textContent = `€${item.price.toFixed(2)}`;
@@ -1006,6 +1010,7 @@ function handleSwipe() {
 
 
 loadMenu();
+
 
 
 
