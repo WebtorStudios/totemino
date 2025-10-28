@@ -5,6 +5,60 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Totemino - Scegli menu</title>
     <link rel="icon" type="image/png" href="img/favicon.png">
+    <script>
+        // Controllo immediato per redirect veloce
+        (async function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const id = urlParams.get('id');
+            
+            if (!id) {
+                window.location.href = 'index.html';
+                return;
+            }
+            
+            try {
+                const settingsResponse = await fetch(`IDs/${id}/settings.json`);
+                const settings = await settingsResponse.json();
+                
+                const menuResponse = await fetch(`IDs/${id}/menu.json`);
+                const menuData = await menuResponse.json();
+                
+                // Controlla se ci sono menu alternativi
+                let availableMenus = 0;
+                if (settings.menuTypes) {
+                    for (const menuType of settings.menuTypes) {
+                        if (checkMenuTypeHasItems(menuData, menuType.id)) {
+                            availableMenus++;
+                        }
+                    }
+                }
+                
+                // Se non ci sono menu alternativi, redirect IMMEDIATO
+                if (availableMenus === 0) {
+                    window.location.href = `menu.html?id=${id}`;
+                    return;
+                }
+                
+                // Salva i dati per dopo
+                window.menuSelectionData = { settings, menuData };
+                
+            } catch (error) {
+                console.error('Errore nel caricamento:', error);
+                window.location.href = 'index.html';
+            }
+            
+            function checkMenuTypeHasItems(menuData, menuTypeId) {
+                for (const category of menuData.categories) {
+                    for (const item of category.items) {
+                        if (item.menuType && item.menuType.includes(menuTypeId)) {
+                            return true;
+                        }
+                    }
+                }
+                return false;
+            }
+        })();
+    </script>
     <style>
         @import url("menu-styles.css");
         
@@ -62,6 +116,15 @@
             color: var(--card-color);
             padding: 0 1rem;
         }
+
+        /* Nascondi tutto fino a quando non sappiamo se mostrare la pagina */
+        body {
+            visibility: hidden;
+        }
+
+        body.show-content {
+            visibility: visible;
+        }
     </style>
 </head>
 <body>
@@ -83,7 +146,6 @@
 
     <div class="menu-container">
         <h1 class="menu-title">Scegli il menu</h1>
-        <p>Le opzioni disponibili sono:</p>
         <div class="menu-grid" id="menuGrid">
             <!-- Le card dei menu verranno generate qui -->
         </div>
@@ -94,75 +156,58 @@
         const colors = ['#FFE066', '#FF6F6F', '#FF9A4D', '#56D97C', '#42C7F5', '#6C8CFF', '#9C7DFF', '#FF77F6', '#FFB36B', '#F7E250'];
         
         async function loadMenuSelection() {
+            // Aspetta che i dati siano pronti
+            while (!window.menuSelectionData) {
+                await new Promise(resolve => setTimeout(resolve, 50));
+            }
+            
+            // Se siamo ancora qui, significa che ci sono menu alternativi da mostrare
+            document.body.classList.add('show-content');
+            
             const urlParams = new URLSearchParams(window.location.search);
             const id = urlParams.get('id');
             
-            if (!id) {
-                window.location.href = 'index.html';
-                return;
-            }
+            // Usa i dati già caricati nell'head
+            const { settings, menuData } = window.menuSelectionData;
             
-            try {
-                const settingsResponse = await fetch(`IDs/${id}/settings.json`);
-                const settings = await settingsResponse.json();
-                
-                const menuResponse = await fetch(`IDs/${id}/menu.json`);
-                const menuData = await menuResponse.json();
-                
-                const menuGrid = document.getElementById('menuGrid');
-                
-                const fullMenuCard = document.createElement('a');
-                fullMenuCard.className = 'menu-card';
-                const fullMenuColor = colors[0];
-                fullMenuCard.style.borderColor = fullMenuColor;
-                fullMenuCard.style.setProperty('--card-color', fullMenuColor); // <-- QUI
-                fullMenuCard.href = `menu.html?id=${id}`;
-                fullMenuCard.innerHTML = `
-                    <h3>Menu intero</h3>
-                `;
-                menuGrid.appendChild(fullMenuCard);
-                
-                let availableMenus = 0;
-                
-                // Menu alternativi
-                if (settings.menuTypes) {
-                    for (let i = 0; i < settings.menuTypes.length; i++) {
-                        const menuType = settings.menuTypes[i];
-                        const hasItems = checkMenuTypeHasItems(menuData, menuType.id);
-                        
-                        if (hasItems) {
-                            availableMenus++;
-                            const menuCard = document.createElement('a');
-                            menuCard.className = 'menu-card';
-                            const cardColor = colors[(i + 1) % colors.length];
-                            menuCard.style.borderColor = cardColor;
-                            menuCard.style.setProperty('--card-color', cardColor); // <-- QUI
-                            menuCard.href = `menu.html?id=${id}&type=${menuType.id}`;
-                            menuCard.innerHTML = `
-                                <h3>${menuType.name}</h3>
-                            `;
-                            menuGrid.appendChild(menuCard);
-                        }
+            const menuGrid = document.getElementById('menuGrid');
+            
+            const fullMenuCard = document.createElement('a');
+            fullMenuCard.className = 'menu-card';
+            const fullMenuColor = colors[0];
+            fullMenuCard.style.borderColor = fullMenuColor;
+            fullMenuCard.style.setProperty('--card-color', fullMenuColor);
+            fullMenuCard.href = `menu.html?id=${id}`;
+            fullMenuCard.innerHTML = `
+                <h3>Menu intero</h3>
+            `;
+            menuGrid.appendChild(fullMenuCard);
+            
+            // Menu alternativi
+            if (settings.menuTypes) {
+                for (let i = 0; i < settings.menuTypes.length; i++) {
+                    const menuType = settings.menuTypes[i];
+                    const hasItems = checkMenuTypeHasItems(menuData, menuType.id);
+                    
+                    if (hasItems) {
+                        const menuCard = document.createElement('a');
+                        menuCard.className = 'menu-card';
+                        const cardColor = colors[(i + 1) % colors.length];
+                        menuCard.style.borderColor = cardColor;
+                        menuCard.style.setProperty('--card-color', cardColor);
+                        menuCard.href = `menu.html?id=${id}&type=${menuType.id}`;
+                        menuCard.innerHTML = `
+                            <h3>${menuType.name}</h3>
+                        `;
+                        menuGrid.appendChild(menuCard);
                     }
                 }
-                
-                // Se non ci sono menu alternativi, redirect automatico
-                // SOLO se non c'è NESSUNA card oltre al menu intero
-                if (availableMenus === 0 && menuGrid.children.length === 1) {
-                    window.location.href = `menu.html?id=${id}`;
-                }
-                
-            } catch (error) {
-                console.error('Errore nel caricamento:', error);
-                window.location.href = 'index.html';
             }
         }
 
         function checkMenuTypeHasItems(menuData, menuTypeId) {
-            // Verifica in tutte le categorie e items
             for (const category of menuData.categories) {
                 for (const item of category.items) {
-                    // Controlla se l'item ha menuType e se contiene il tipo cercato
                     if (item.menuType && item.menuType.includes(menuTypeId)) {
                         return true;
                     }
@@ -171,7 +216,6 @@
             return false;
         }
 
-        // Carica la selezione menu al caricamento della pagina
         loadMenuSelection();
     </script>
 </body>
