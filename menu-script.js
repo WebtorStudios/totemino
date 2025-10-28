@@ -557,9 +557,11 @@ async function loadMenu() {
   });
 
   loadSelectionFromStorage();
-  setTimeout(() => {
-    setActiveCategory(0);
-  }, 100);
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      setActiveCategory(0);
+    });
+  });
 }
 
 function movePillTo(button) {
@@ -996,6 +998,7 @@ function handleSwipe() {
 
 
 loadMenu();
+
 
 
 
