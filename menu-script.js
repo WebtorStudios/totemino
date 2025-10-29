@@ -315,19 +315,33 @@ function openCustomizationScreen(item) {
         controls.className = "option-controls";
         
         if (section.maxSelections === 1) {
-          // Radio button per scelta singola
+          // Radio button per scelta singola (con deselezione)
           const radio = document.createElement("input");
           radio.type = "radio";
           radio.name = section.id;
           radio.value = opt.id;
-          radio.addEventListener("change", () => {
-            // Reset tutte le opzioni della sezione
-            section.options.forEach(o => {
-              customizationState[o.id] = 0;
-            });
-            customizationState[opt.id] = 1;
+          
+          // Inizializza lo stato se non esiste
+          if (customizationState[opt.id] === undefined) {
+            customizationState[opt.id] = 0;
+          }
+          
+          radio.addEventListener("click", (e) => {
+            // Se già selezionato, deseleziona
+            if (customizationState[opt.id] === 1) {
+              e.preventDefault();
+              radio.checked = false;
+              customizationState[opt.id] = 0;
+            } else {
+              // Altrimenti seleziona e resetta gli altri
+              section.options.forEach(o => {
+                customizationState[o.id] = 0;
+              });
+              customizationState[opt.id] = 1;
+            }
             updateTotalPrice();
           });
+          
           controls.appendChild(radio);
         } else {
           // Counter per selezioni multiple
@@ -1035,6 +1049,7 @@ if (itemsContainer) {
 
 
 loadMenu();
+
 
 
 
