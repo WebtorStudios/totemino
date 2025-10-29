@@ -592,6 +592,13 @@ async function loadMenu() {
         customizationGroup: item.customizationGroup || null
       });
     });
+    
+    // ✅ Ordina gli items: prima quelli featured, poi gli altri
+    window.menuData[categoryName].sort((a, b) => {
+      if (a.isNew && !b.isNew) return -1;
+      if (!a.isNew && b.isNew) return 1;
+      return 0;
+    });
   });
 
   loadSelectionFromStorage();
@@ -1071,6 +1078,7 @@ if (itemsContainer) {
 
 
 loadMenu();
+
 
 
 
