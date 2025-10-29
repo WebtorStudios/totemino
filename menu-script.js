@@ -315,43 +315,32 @@ function openCustomizationScreen(item) {
         controls.className = "option-controls";
         
         if (section.maxSelections === 1) {
-        // Radio button per scelta singola (con deselezione)
-        const radio = document.createElement("input");
-        radio.type = "radio";
-        radio.name = section.id;
-        radio.value = opt.id;
+        const checkbox = document.createElement("input");
+        checkbox.type = "checkbox";
+        checkbox.id = `opt-${opt.id}`;
+        checkbox.className = "radio-checkbox"; // Per stilizzarli come radio
         
-        // Inizializza lo stato se non esiste
         if (customizationState[opt.id] === undefined) {
           customizationState[opt.id] = 0;
         }
         
-        // ✅ Variabile per tracciare lo stato precedente
-        let wasChecked = false;
-        
-        radio.addEventListener("mousedown", (e) => {
-          // Salva lo stato PRIMA del click
-          wasChecked = radio.checked;
-        });
-        
-        radio.addEventListener("click", (e) => {
-          if (wasChecked) {
-            // Era già selezionato, quindi deseleziona
-            e.preventDefault();
-            radio.checked = false;
-            customizationState[opt.id] = 0;
-          } else {
-            // Non era selezionato, quindi seleziona e resetta gli altri
+        checkbox.addEventListener("change", () => {
+          if (checkbox.checked) {
             section.options.forEach(o => {
               customizationState[o.id] = 0;
+              const otherCheckbox = document.getElementById(`opt-${o.id}`);
+              if (otherCheckbox && otherCheckbox !== checkbox) {
+                otherCheckbox.checked = false;
+              }
             });
             customizationState[opt.id] = 1;
-            radio.checked = true;
+          } else {
+            customizationState[opt.id] = 0;
           }
           updateTotalPrice();
         });
         
-        controls.appendChild(radio);
+        controls.appendChild(checkbox);
       } else {
           // Counter per selezioni multiple
           const minusBtn = document.createElement("button");
@@ -1058,6 +1047,7 @@ if (itemsContainer) {
 
 
 loadMenu();
+
 
 
 
