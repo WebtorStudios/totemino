@@ -165,8 +165,6 @@
 html, body {
   overflow-x: hidden;
   scrollbar-width: none;
-  height: 100vh;
-  overflow: hidden; 
 }
 
 body {
@@ -176,8 +174,6 @@ body {
   touch-action: manipulation;
   overscroll-behavior: none;
   transition: background-color 0.4s, color 0.4s;
-  display: flex;
-  flex-direction: column;     
 }
 
 body::-webkit-scrollbar {
@@ -272,7 +268,6 @@ input[type="number"]::-webkit-outer-spin-button {
   align-items: center;
   padding: 1rem;
   padding-bottom: 0;
-  flex-shrink: 0;
 }
 
 .title > div {
@@ -339,7 +334,6 @@ input[type="number"]::-webkit-outer-spin-button {
   margin: 1rem auto;
   scroll-behavior: smooth;
   scrollbar-width: none;
-  flex-shrink: 0;
 }
 
 .categories::-webkit-scrollbar {
@@ -375,15 +369,11 @@ input[type="number"]::-webkit-outer-spin-button {
 
 /* ===== PRODOTTI ===== */
 .items {
-  flex: 1;
-  overflow-y: auto;
-  overflow-x: hidden;
-  min-height: 0;
-  -webkit-overflow-scrolling: touch;
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 1rem;
   padding: 0 1rem 5rem 1rem;
+  margin-bottom: 4rem;
 }
 
 .items button {
@@ -401,10 +391,6 @@ input[type="number"]::-webkit-outer-spin-button {
   justify-content: space-between;
   cursor: pointer;
   overflow: hidden;
-}
-
-.items::-webkit-scrollbar {
-  display: none;
 }
 
 .items button.selected {
@@ -908,6 +894,7 @@ input[type="number"]::-webkit-outer-spin-button {
     gap: 1.5rem;
     padding: 0 2rem 1rem;
     max-width: 1400px;
+    margin: 0 auto 16.5vh;
   }
   
   .items img { height: 9rem; }
@@ -1003,10 +990,3 @@ footer {
 .footer-img a:hover {
   opacity: 0.8;
 }
-
-
-
-
-
-
-
