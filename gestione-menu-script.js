@@ -933,7 +933,7 @@ function validateAndSaveItem() {
   }
   
   // Validazione prezzo
-  if (!price || price <= 0) {
+  if ((!price || price < 0) && price!=0) {
     showNotification('Inserisci un prezzo valido', 'error');
     return false;
   }

@@ -672,11 +672,10 @@ function renderItems(category) {
 
       const price = document.createElement("p");
       if (item.customizable) {
-        if (item.price < 0.01) {
+        if (item.price < 0.01) 
           price.textContent = "Seleziona";
-        } else {
+        else
           price.textContent = `€${item.price.toFixed(2)} + Modifica`;
-        }
         price.classList.add("customizable-price");
       } else {
         price.textContent = `€${item.price.toFixed(2)}`;
@@ -756,6 +755,19 @@ function renderItems(category) {
 
     itemsContainer.classList.remove("fade-out-left", "fade-out-right");
     itemsContainer.classList.add(lastSwipeDirection === "left" ? "fade-in-right" : "fade-in-left");
+    requestAnimationFrame(() => {
+      itemsContainer.querySelectorAll('button').forEach(btn => {
+        const h3 = btn.querySelector('h3');
+        if (!h3) return;
+        const lineHeight = parseFloat(getComputedStyle(h3).lineHeight) || 20; // fallback se NaN
+        if (h3.scrollHeight > Math.ceil(lineHeight)) {
+          h3.style.transform = `translateY(-${lineHeight}px)`;
+        } else {
+          h3.style.transform = '';
+        }
+      });
+    });
+    
   }, 250);
 }
 
@@ -812,7 +824,7 @@ function openPopup(item) {
   popupImg.src = `IDs/${restaurantId}/${item.img}`;
   popupImg.onerror = () => { popupImg.src = 'img/placeholder.png'; };
   popupTitle.textContent = item.displayName;
-  popupIngredients.textContent = item.ingredients.join(", ");
+  popupIngredients.textContent = item.ingredients.join(", ").replace(/\\n/g, '\n');
   popupAllergens.innerHTML = "";
   popupControls.innerHTML = "";
   
@@ -986,31 +998,43 @@ if (nextBtn) {
   });
 }
 
-let startX = 0, endX = 0;
+let startX = 0, startY = 0, isSwipe = false;
+
 if (itemsContainer) {
   itemsContainer.addEventListener("touchstart", (e) => {
     startX = e.touches[0].clientX;
+    startY = e.touches[0].clientY;
+    isSwipe = true; // inizialmente assumiamo che sia uno swipe valido
   });
+
+  itemsContainer.addEventListener("touchmove", (e) => {
+    const deltaX = Math.abs(e.touches[0].clientX - startX);
+    const deltaY = Math.abs(e.touches[0].clientY - startY);
+    
+    if (deltaY > deltaX) {
+      // movimento verticale maggiore di quello orizzontale → blocca swipe
+      isSwipe = false;
+    }
+  });
+
   itemsContainer.addEventListener("touchend", (e) => {
-    endX = e.changedTouches[0].clientX;
-    handleSwipe();
+    if (!isSwipe) return; // se è verticale, non fare swipe
+
+    const endX = e.changedTouches[0].clientX;
+    const threshold = 50;
+    if (endX - startX > threshold) {
+      lastSwipeDirection = "right";
+      setActiveCategory(currentCategoryIndex - 1);
+    } else if (startX - endX > threshold) {
+      lastSwipeDirection = "left";
+      setActiveCategory(currentCategoryIndex + 1);
+    }
   });
 }
 
-function handleSwipe() {
-  const threshold = 50;
-  if (endX - startX > threshold) {
-    lastSwipeDirection = "right";
-    setActiveCategory(currentCategoryIndex - 1);
-  } else if (startX - endX > threshold) {
-    lastSwipeDirection = "left";
-    setActiveCategory(currentCategoryIndex + 1);
-  }
-}
 
 
 loadMenu();
-
 
 
 

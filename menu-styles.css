@@ -399,20 +399,24 @@ input[type="number"]::-webkit-outer-spin-button {
 }
 
 .items img {
-  height: 7.2rem;
+  height: 7rem;
   object-fit: contain;
   border-radius: 1rem;
   display: block;
-  margin: 0 auto;
+  margin: 0 auto 1rem;
 }
 
 .items h3 {
   font-size: 1rem;
   font-weight: 700;
-  white-space: nowrap;
-  margin-left: 1.2rem;
+  margin: 0 1.2rem;
   color: var(--text-primary);
+  word-break: normal;
+  line-height: 1.2rem;
+  text-overflow: ellipsis;
+  max-height: 1.2rem; 
 }
+
 
 .items p {
   font-size: 1rem;
@@ -458,6 +462,7 @@ input[type="number"]::-webkit-outer-spin-button {
   width: 1.4rem;
   height: 1.4rem;
   opacity: 35%;
+  margin: 0 auto;
   pointer-events: none;
 }
 
@@ -739,7 +744,7 @@ input[type="number"]::-webkit-outer-spin-button {
 
 .popup-title {
   font-family: 'Klein-Bold';
-  font-size: 2rem;
+  font-size: 1.7rem;
   margin-bottom: 1rem;
   color: var(--text-accent);
 }
@@ -749,6 +754,8 @@ input[type="number"]::-webkit-outer-spin-button {
   margin: 0 auto 2rem;
   text-align: left;
   color: var(--text-primary);
+  white-space: pre-line;
+  width: 100%;
 }
 
 .popup-controls {

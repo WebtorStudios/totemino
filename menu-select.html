@@ -153,6 +153,28 @@
     
     <script src="theme.js"></script>
     <script>
+        const CONFIG = {
+            storageKeys: {
+                userId: "totemino_user_id",
+                theme: "totemino_theme"
+            }
+        };
+        function clearStorageKeepUser() {
+            const theme = localStorage.getItem(CONFIG.storageKeys.theme);
+            const userId = localStorage.getItem(CONFIG.storageKeys.userId);
+            const cookieConsent = localStorage.getItem('totemino_cookie_consent');
+            const lastCoperto = localStorage.getItem('totemino_last_coperto');
+            
+            localStorage.clear();
+            
+            if (userId) localStorage.setItem(CONFIG.storageKeys.userId, userId);
+            if (theme) localStorage.setItem(CONFIG.storageKeys.theme, theme);
+            if (cookieConsent) localStorage.setItem('totemino_cookie_consent', cookieConsent);
+            if (lastCoperto) localStorage.setItem('totemino_last_coperto', lastCoperto);
+        }
+
+        // Chiamala subito se vuoi resettare lo storage all'apertura
+        clearStorageKeepUser();
         const colors = ['#FFE066', '#FF6F6F', '#FF9A4D', '#56D97C', '#42C7F5', '#6C8CFF', '#9C7DFF', '#FF77F6', '#FFB36B', '#F7E250'];
         
         async function loadMenuSelection() {
