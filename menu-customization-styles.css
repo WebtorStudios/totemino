@@ -127,35 +127,13 @@
   gap: 0.8rem;
 }
 
-/* ✅ Stilizza checkbox come radio button */
+/* ✅ Checkbox stilizzato come radio con accent-color */
 .radio-checkbox {
-  appearance: none;
-  -webkit-appearance: none;
   width: 1.5rem;
   height: 1.5rem;
-  border: 2px solid var(--text-primary);
-  border-radius: 50%;
   cursor: pointer;
-  position: relative;
-  transition: all 0.2s;
+  accent-color: var(--accent-gold);
   flex-shrink: 0;
-}
-
-.radio-checkbox:checked {
-  background: var(--accent-gold);
-  border-color: var(--accent-gold);
-}
-
-.radio-checkbox:checked::after {
-  content: '';
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: 0.6rem;
-  height: 0.6rem;
-  background: var(--text-primary);
-  border-radius: 50%;
 }
 
 .counter-btn {
