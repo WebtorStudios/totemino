@@ -21,7 +21,7 @@
 		margin-left: 1rem;
 		right: 1rem;
 		max-width: 500px;
-		background: var(--bg-primary, #fff);
+		background: var(--card-bg);
 		border-radius: 1.5rem;
 		padding: 1.5rem 3rem 1.5rem 2.5rem;
 		box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
@@ -208,4 +208,5 @@
 	} else {
 	  loadBanners();
 	}
+
   })();
