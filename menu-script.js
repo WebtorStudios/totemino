@@ -767,18 +767,6 @@ function renderItems(category) {
 
     itemsContainer.classList.remove("fade-out-left", "fade-out-right");
     itemsContainer.classList.add(lastSwipeDirection === "left" ? "fade-in-right" : "fade-in-left");
-    requestAnimationFrame(() => {
-      itemsContainer.querySelectorAll('button').forEach(btn => {
-        const h3 = btn.querySelector('h3');
-        if (!h3) return;
-        const lineHeight = parseFloat(getComputedStyle(h3).lineHeight) || 20; // fallback se NaN
-        if (h3.scrollHeight > Math.ceil(lineHeight)) {
-          h3.style.transform = `translateY(-${lineHeight}px)`;
-        } else {
-          h3.style.transform = '';
-        }
-      });
-    });
     
   }, 250);
 }
@@ -1047,6 +1035,7 @@ if (itemsContainer) {
 
 
 loadMenu();
+
 
 
 
