@@ -29,6 +29,8 @@
 		animation: slideIn 0.4s ease-out;
 		display: none;
 		cursor: pointer;
+		backdrop-filter: blur(7px);
+  		-webkit-backdrop-filter: blur(7px);
 	  }
 
 	  .totemino-banner.show {
@@ -210,3 +212,4 @@
 	}
 
   })();
+
