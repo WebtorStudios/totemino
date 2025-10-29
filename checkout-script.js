@@ -75,7 +75,7 @@ const Utils = {
   },
 
   getImagePath(item) {
-    return `IDs/${item.restaurantId || CONFIG.restaurantId}/${item.img}`;
+    return item.img;
   },
 
   handleImageError(img) {
@@ -602,7 +602,7 @@ const Popup = {
     card.className = "suggestion-card";
 
     const img = document.createElement("img");
-    img.src = `IDs/${CONFIG.restaurantId}/${suggestion.img}`;
+    img.src = suggestion.img;
     img.alt = suggestion.name;
     Utils.handleImageError(img);
 
@@ -1005,6 +1005,7 @@ DataManager.fetchMenu();
 Navigation.init();
 Payment.init();
 Orders.init();
+
 
 
 
