@@ -378,12 +378,12 @@ input[type="number"]::-webkit-outer-spin-button {
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
+  min-height: 0;
   -webkit-overflow-scrolling: touch;
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 1rem;
   padding: 0 1rem 5rem 1rem;
-  margin-bottom: 4rem;
 }
 
 .items button {
@@ -1003,6 +1003,7 @@ footer {
 .footer-img a:hover {
   opacity: 0.8;
 }
+
 
 
 
