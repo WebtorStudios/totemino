@@ -163,7 +163,7 @@
                             }
                         }
 
-                        const img = item.imagePath.startsWith('IDs/') ? item.imagePath : `IDs/${id}/${item.imagePath}`;
+                        const img = item.imagePath;
                         
                         html += `<div class="order-item">
                             <img src="${img}" alt="${name}" onerror="this.style.display='none'">
@@ -183,4 +183,5 @@
         }
     </script>
 </body>
+
 </html>
