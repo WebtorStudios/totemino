@@ -1,4 +1,6 @@
 require('dotenv').config();
+const { S3Client, PutObjectCommand } = require('@aws-sdk/client-s3');
+const s3Client = new S3Client({ region: 'eu-west-3' });
 const express = require('express');
 const fs = require('fs').promises;
 const fsSync = require('fs');
@@ -1418,4 +1420,5 @@ app.listen(PORT, () => {
   console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
 
 });
+
 
