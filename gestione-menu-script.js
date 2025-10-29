@@ -229,7 +229,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 function setupEventListeners() {  
   // Back to menu
   document.getElementById('back-btn').addEventListener('click', function () {
-    window.location.href = `gestione.html?id=${restaurantId}`;
+    window.location.href = `profile.html?id=${restaurantId}`;
   });
   
   document.getElementById('save-coperto').addEventListener('click', saveCopertoSettings);
@@ -1355,5 +1355,6 @@ function clearMenuTypeFilter() {
 }
 
 window.getRestaurantSettings = () => restaurantSettings;
+
 
 
