@@ -127,11 +127,35 @@
   gap: 0.8rem;
 }
 
-.option-controls input[type="radio"] {
+/* ✅ Stilizza checkbox come radio button */
+.radio-checkbox {
+  appearance: none;
+  -webkit-appearance: none;
   width: 1.5rem;
   height: 1.5rem;
+  border: 2px solid var(--text-primary);
+  border-radius: 50%;
   cursor: pointer;
-  accent-color: var(--accent-gold);
+  position: relative;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+
+.radio-checkbox:checked {
+  background: var(--accent-gold);
+  border-color: var(--accent-gold);
+}
+
+.radio-checkbox:checked::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 0.6rem;
+  height: 0.6rem;
+  background: var(--text-primary);
+  border-radius: 50%;
 }
 
 .counter-btn {
@@ -226,9 +250,9 @@
   color: var(--text-primary);
   cursor: pointer;
   transition: transform 0.2s;
-  white-space: nowrap; /* Previene a capo */
-  width: 100%; /* Non occupa tutta la larghezza */
-  display: inline-block; /* Si adatta al contenuto */
+  white-space: nowrap;
+  width: 100%;
+  display: inline-block;
 }
 
 @media (min-width: 1200px) {
@@ -236,33 +260,4 @@
     padding-left: 30%;
     padding-right: 30%;
   }
-}
-
-.radio-checkbox {
-  appearance: none;
-  -webkit-appearance: none;
-  width: 1.5rem;
-  height: 1.5rem;
-  border: 2px solid var(--text-primary);
-  border-radius: 50%; /* ← Questo li rende tondi come radio */
-  cursor: pointer;
-  position: relative;
-  transition: all 0.2s;
-}
-
-.radio-checkbox:checked {
-  background: var(--accent-gold);
-  border-color: var(--accent-gold);
-}
-
-.radio-checkbox:checked::after {
-  content: '';
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: 0.6rem;
-  height: 0.6rem;
-  background: var(--text-primary);
-  border-radius: 50%;
 }
