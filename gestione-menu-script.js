@@ -891,7 +891,7 @@ async function processImageFile(file) {
     const result = await response.json();
     
     if (result.success) {
-      uploadedImageName = result.fileName; // Nome finale del file (con eventuale numerazione)
+      uploadedImageName = result.imageUrl || `img/${result.fileName}`;
       
       // Mostra preview
       const preview = document.getElementById('product-preview');
@@ -900,7 +900,6 @@ async function processImageFile(file) {
       preview.src = base64Data;
       preview.classList.remove('hidden');
       placeholder.classList.add('hidden');
-      
     } else {
       throw new Error(result.message || 'Errore durante il caricamento');
     }
@@ -978,7 +977,7 @@ function validateAndSaveItem() {
   const preview = document.getElementById('product-preview');
   if (!preview.classList.contains('hidden')) {
     if (uploadedImageName) {
-      imagePath = `img/${uploadedImageName}`;
+      imagePath = uploadedImageName.startsWith('http') ? uploadedImageName : `img/${uploadedImageName}`;
     } else if (currentEditingItem && currentEditingItem.image) {
       imagePath = currentEditingItem.image;
     }
@@ -1356,4 +1355,5 @@ function clearMenuTypeFilter() {
 }
 
 window.getRestaurantSettings = () => restaurantSettings;
+
 
