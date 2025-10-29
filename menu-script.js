@@ -248,13 +248,7 @@ function renderCartPopup() {
     itemDiv.className = "cart-popup-item";
     
     const img = document.createElement("img");
-    if (item.img && item.img.startsWith("https")) {
-      img.src = item.img;
-    } else if (item.img) {
-      img.src = `IDs/${restaurantId}/${item.img}`;
-    } else {
-      img.src = 'img/placeholder.png';
-    }
+    img.src = item.img;
     img.onerror = () => { img.src = 'img/placeholder.png'; };
     
     itemDiv.appendChild(img);
@@ -299,7 +293,7 @@ function openCustomizationScreen(item) {
       </button>
     </div>
     <div class="customization-content">
-      ${item.img ? `<img src="${item.img && item.img.startsWith('https') ? item.img : (item.img ? `IDs/${restaurantId}/${item.img}` : 'img/placeholder.png')}" alt="${item.displayName}" onerror="this.src='img/placeholder.png'">` : ""}
+      ${item.img ? `<img src="${item.img}" alt="${item.displayName}" onerror="this.src='img/placeholder.png'">` : ""}
       <div class="customization-sections"></div>
     </div>
     <div class="customization-footer">
@@ -689,13 +683,7 @@ function renderItems(category) {
       btn.appendChild(infoBtn);
 
       const img = document.createElement("img");
-      if (item.img && item.img.startsWith("https")) {
-        img.src = item.img;
-      } else if (item.img) {
-        img.src = `IDs/${restaurantId}/${item.img}`;
-      } else {
-        img.src = 'img/placeholder.png';
-      }
+      img.src = item.img;
       img.alt = item.displayName;
       img.onerror = () => {
         img.src = 'img/placeholder.png';
@@ -869,13 +857,7 @@ function openPopup(item) {
 
   allergenTitle.style.display = item.allergens.length === 0 ? "none" : "block";
   
-   if (item.img && item.img.startsWith("https")) {
-    popupImg.src = item.img;
-  } else if (item.img) {
-    popupImg.src = `IDs/${restaurantId}/${item.img}`;
-  } else {
-    popupImg.src = 'img/placeholder.png';
-  }
+  popupImg.src = item.img;
   popupImg.onerror = () => { popupImg.src = 'img/placeholder.png'; };
   popupTitle.textContent = item.displayName;
   popupIngredients.textContent = item.ingredients.join(", ").replace(/\\n/g, '\n');
@@ -1089,6 +1071,7 @@ if (itemsContainer) {
 
 
 loadMenu();
+
 
 
 
