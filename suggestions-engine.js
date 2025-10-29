@@ -378,7 +378,7 @@ class SuggestionsEngine {
       container.className = "suggested-single";
 
       const img = document.createElement("img");
-      img.src = `IDs/${restaurantId}/${suggestion.imagePath}`;
+      img.src = suggestion.imagePath;
       img.alt = suggestion.name;
       img.onerror = () => { img.src = 'img/placeholder.png'; };
 
@@ -492,4 +492,5 @@ async function initializeSuggestions(menuData, restaurantId) {
 // ===== EXPORT =====
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = { SuggestionsEngine, initializeSuggestions };
+
 }
