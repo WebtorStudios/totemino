@@ -583,7 +583,7 @@ function createItemCard(item, category, itemIndex) {
   // Immagine
   const img = document.createElement('img');
   img.className = 'item-image';
-  img.src = `IDs/${restaurantId}/${item.image}`;
+  img.src = item.image;
   img.alt = item.name;
   img.onerror = () => {
     img.src = 'img/placeholder.png';
@@ -820,7 +820,7 @@ function fillEditForm(item) {
   if (item.image) {
     const preview = document.getElementById('product-preview');
     const placeholder = document.getElementById('product-placeholder');
-    preview.src = `IDs/${restaurantId}/${item.image}`;
+    preview.src = item.image;
     preview.classList.remove('hidden');
     placeholder.classList.add('hidden');
   }
@@ -1355,6 +1355,7 @@ function clearMenuTypeFilter() {
 }
 
 window.getRestaurantSettings = () => restaurantSettings;
+
 
 
 
