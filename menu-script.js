@@ -115,6 +115,9 @@ function updateItemButtonUI(itemName) {
     const baseName = titleEl.getAttribute('data-item-name');
     if (baseName !== itemName) return;
 
+    const item = findItemByName(itemName);
+    if (!item) return;
+
     // Conta TUTTE le varianti di questo item
     let totalQty = 0;
     for (const [key, data] of selectedItems) {
@@ -124,6 +127,7 @@ function updateItemButtonUI(itemName) {
       }
     }
 
+    // ✅ Aggiorna il titolo
     if (totalQty > 1) {
       titleEl.textContent = `${itemName} (x${totalQty})`;
     } else {
@@ -134,6 +138,27 @@ function updateItemButtonUI(itemName) {
       btn.classList.add("selected");
     } else {
       btn.classList.remove("selected");
+    }
+
+    const priceEl = btn.querySelector("p");
+    if (priceEl && item.customizable) {
+      if (totalQty > 0) {
+        // Calcola il prezzo totale di tutte le varianti
+        let totalPrice = 0;
+        for (const [key, data] of selectedItems) {
+          const parsed = parseItemKey(key);
+          if (parsed.name === itemName) {
+            totalPrice += calculateItemPrice(parsed.name, parsed.customizations) * data.qty;
+          }
+        }
+        priceEl.textContent = `€${totalPrice.toFixed(2)}`;
+        priceEl.classList.remove("customizable-price");
+      } else {
+        priceEl.textContent = item.price < 0.01 
+          ? "Seleziona" 
+          : `€${item.price.toFixed(2)}`;
+        priceEl.classList.add("customizable-price");
+      }
     }
   });
 }
@@ -1046,6 +1071,7 @@ if (itemsContainer) {
 
 
 loadMenu();
+
 
 
 
