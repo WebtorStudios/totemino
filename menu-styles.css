@@ -908,7 +908,6 @@ input[type="number"]::-webkit-outer-spin-button {
     gap: 1.5rem;
     padding: 0 2rem 1rem;
     max-width: 1400px;
-    margin: 0 auto 16.5vh;
   }
   
   .items img { height: 9rem; }
@@ -1004,6 +1003,7 @@ footer {
 .footer-img a:hover {
   opacity: 0.8;
 }
+
 
 
 
