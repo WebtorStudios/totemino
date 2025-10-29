@@ -672,11 +672,23 @@ function renderItems(category) {
 
       const price = document.createElement("p");
       if (item.customizable) {
-        if (item.price < 0.01) 
-          price.textContent = "Seleziona";
-        else
-          price.textContent = `€${item.price.toFixed(2)} + Modifica`;
-        price.classList.add("customizable-price");
+        if (totalQty > 0) {
+          // Calcola il prezzo totale di tutte le varianti
+          let totalPrice = 0;
+          for (const [key, data] of selectedItems) {
+            const parsed = parseItemKey(key);
+            if (parsed.name === item.name) {
+              totalPrice += calculateItemPrice(parsed.name, parsed.customizations) * data.qty;
+            }
+          }
+          price.textContent = `€${totalPrice.toFixed(2)}`;
+        } else {
+          if (item.price < 0.01) 
+            price.textContent = "Seleziona";
+          else
+            price.textContent = `€${item.price.toFixed(2)} + Modifica`;
+          price.classList.add("customizable-price");
+        }
       } else {
         price.textContent = `€${item.price.toFixed(2)}`;
       }
@@ -1035,6 +1047,7 @@ if (itemsContainer) {
 
 
 loadMenu();
+
 
 
 
