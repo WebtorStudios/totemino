@@ -82,7 +82,7 @@ async function loadMenu() {
         category.items.forEach(item => {
             state.menu[category.name][item.name] = {
                 prezzo: item.price,
-                immagine: item.imagePath.startsWith('IDs/') ? item.imagePath : `IDs/${state.restaurantId}/${item.imagePath}`
+                immagine: item.imagePath
             };
         });
     });
@@ -588,4 +588,5 @@ const mainColor = rootStyles.getPropertyValue('--main-color').trim();
 const mainColorBg = rootStyles.getPropertyValue('--main-color-bg').trim();
 
 // Initialize
+
 document.addEventListener('DOMContentLoaded', () => init());
