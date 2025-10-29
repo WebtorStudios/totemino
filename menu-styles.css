@@ -412,9 +412,9 @@ input[type="number"]::-webkit-outer-spin-button {
   margin: 0 1.2rem;
   color: var(--text-primary);
   word-break: normal;
-  line-height: 1.2rem;
+  line-height: 1.3rem;
   text-overflow: ellipsis;
-  max-height: 2.5rem; 
+  max-height: 2.6rem; 
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
@@ -991,5 +991,6 @@ footer {
 .footer-img a:hover {
   opacity: 0.8;
 }
+
 
 
