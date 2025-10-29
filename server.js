@@ -931,14 +931,31 @@ app.post('/upload-image', requireAuth, async (req, res) => {
   }
   
   try {
-    const imgDir = path.join(__dirname, 'IDs', restaurantId, 'img');
-    FileManager.ensureDir(imgDir);
-    
-    const finalFilePath = path.join(imgDir, fileName);
+    // Prepara i dati per S3
     const base64Data = fileData.replace(/^data:image\/[a-z]+;base64,/, '');
+    const buffer = Buffer.from(base64Data, 'base64');
     
-    await fs.writeFile(finalFilePath, base64Data, 'base64');
-    res.json({ success: true, fileName });
+    // Path S3: restaurantId/img/fileName
+    const s3Key = `${restaurantId}/img/${fileName}`;
+    
+    // Upload su S3
+    const uploadParams = {
+      Bucket: 'totemino',
+      Key: s3Key,
+      Body: buffer,
+      ContentType: 'image/jpeg',
+    };
+    
+    const { S3Client, PutObjectCommand } = require('@aws-sdk/client-s3');
+    const s3Client = new S3Client({ region: 'eu-west-3' });
+    
+    await s3Client.send(new PutObjectCommand(uploadParams));
+    
+    // URL pubblico dell'immagine
+    const imageUrl = `https://totemino.s3.eu-west-3.amazonaws.com/${s3Key}`;
+    
+    console.log('✅ Immagine caricata su S3:', imageUrl);
+    res.json({ success: true, fileName, imageUrl });
     
   } catch (error) {
     console.error('❌ Errore upload immagine:', error);
@@ -1401,3 +1418,4 @@ app.listen(PORT, () => {
   console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
 
 });
+
