@@ -11,6 +11,7 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.919.0",
     "bcrypt": "^6.0.0",
     "connect-livereload": "^0.6.1",
     "dotenv": "^17.2.2",
