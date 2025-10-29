@@ -743,6 +743,7 @@ input[type="number"]::-webkit-outer-spin-button {
   max-height: 12rem;
   border-radius: 1rem;
   object-fit: cover;
+  border: 1px solid red;
 }
 
 .popup-title {
@@ -990,3 +991,4 @@ footer {
 .footer-img a:hover {
   opacity: 0.8;
 }
+
