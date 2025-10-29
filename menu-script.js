@@ -315,35 +315,38 @@ function openCustomizationScreen(item) {
         controls.className = "option-controls";
         
         if (section.maxSelections === 1) {
-          // Radio button per scelta singola (con deselezione)
-          const radio = document.createElement("input");
-          radio.type = "radio";
-          radio.name = section.id;
-          radio.value = opt.id;
-          
-          // Inizializza lo stato se non esiste
-          if (customizationState[opt.id] === undefined) {
+        const radio = document.createElement("input");
+        radio.type = "radio";
+        radio.name = section.id;
+        radio.value = opt.id;
+        
+        if (customizationState[opt.id] === undefined) {
+          customizationState[opt.id] = 0;
+        }
+        
+        radio.addEventListener("click", (e) => {
+          // Se già selezionato, deseleziona
+          if (customizationState[opt.id] === 1) {
+            e.preventDefault();
+            radio.checked = false;  
             customizationState[opt.id] = 0;
+          } else {
+            section.options.forEach(o => {
+              customizationState[o.id] = 0;
+            });
+            customizationState[opt.id] = 1;
+            
+            const allRadios = document.querySelectorAll(`input[name="${section.id}"]`);
+            allRadios.forEach(r => {
+              if (r !== radio) r.checked = false;
+            });
+            radio.checked = true;
           }
-          
-          radio.addEventListener("click", (e) => {
-            // Se già selezionato, deseleziona
-            if (customizationState[opt.id] === 1) {
-              e.preventDefault();
-              radio.checked = false;
-              customizationState[opt.id] = 0;
-            } else {
-              // Altrimenti seleziona e resetta gli altri
-              section.options.forEach(o => {
-                customizationState[o.id] = 0;
-              });
-              customizationState[opt.id] = 1;
-            }
-            updateTotalPrice();
-          });
-          
-          controls.appendChild(radio);
-        } else {
+          updateTotalPrice();
+        });
+        
+        controls.appendChild(radio);
+      } else {
           // Counter per selezioni multiple
           const minusBtn = document.createElement("button");
           minusBtn.textContent = "−";
@@ -1049,6 +1052,7 @@ if (itemsContainer) {
 
 
 loadMenu();
+
 
 
 
