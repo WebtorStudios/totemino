@@ -683,7 +683,11 @@ function renderItems(category) {
       btn.appendChild(infoBtn);
 
       const img = document.createElement("img");
-      img.src = `IDs/${restaurantId}/${item.img}`;
+      if (item.img.startsWith("https")) {
+        img.src = item.img;
+      } else {
+        img.src = `IDs/${restaurantId}/${item.img}`;
+      }
       img.alt = item.displayName;
       img.onerror = () => {
         img.src = 'img/placeholder.png';
@@ -1071,6 +1075,7 @@ if (itemsContainer) {
 
 
 loadMenu();
+
 
 
 
