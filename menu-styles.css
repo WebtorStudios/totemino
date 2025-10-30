@@ -917,9 +917,6 @@ input[type="number"]::-webkit-outer-spin-button {
   .categories {
     max-width: 1337px;
   }
-  .cart-popup-item {
-    padding: 1rem;
-  }
   .order {
     width: 60vw;
     max-width: 600px;
@@ -996,6 +993,7 @@ footer {
 .footer-img a:hover {
   opacity: 0.8;
 }
+
 
 
 
