@@ -418,7 +418,6 @@ input[type="number"]::-webkit-outer-spin-button {
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
-  overflow: hidden;
 }
 
 .items p {
@@ -992,6 +991,7 @@ footer {
 .footer-img a:hover {
   opacity: 0.8;
 }
+
 
 
 
