@@ -534,7 +534,7 @@ const Popup = {
     controls.querySelector(".popup-plus").onclick = () => {
       if (item.customizable) {
         this.hidePopup(popup);
-        CustomizationScreen.open(item, index);
+        CustomizationScreen.open(item);
       } else {
         updateQty(qty + 1);
       }
@@ -1009,7 +1009,7 @@ const Orders = {
 
 // ==================== CUSTOMIZATION SCREEN ====================
 const CustomizationScreen = {
-  open(item, index) {
+  open(item) {
     const screen = document.createElement("div");
     screen.className = "customization-screen";
     screen.innerHTML = `

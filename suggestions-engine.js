@@ -316,8 +316,8 @@ class SuggestionsEngine {
       category: suggestion.category
     };
     
-    if (typeof openCustomizationScreenForSuggestion === 'function') {
-      openCustomizationScreenForSuggestion(item, restaurantId);
+    if (typeof openCustomizationScreen === 'function') {
+      openCustomizationScreen(item);
     }
   }
 
