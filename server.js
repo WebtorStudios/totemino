@@ -933,6 +933,9 @@ app.post('/upload-image', requireAuth, async (req, res) => {
   }
   
   try {
+    const { S3Client, PutObjectCommand, HeadObjectCommand, DeleteObjectCommand } = require('@aws-sdk/client-s3');
+    const s3Client = new S3Client({ region: 'eu-west-3' });
+    
     // Prepara i dati per S3
     const base64Data = fileData.replace(/^data:image\/[a-z]+;base64,/, '');
     const buffer = Buffer.from(base64Data, 'base64');
@@ -940,7 +943,26 @@ app.post('/upload-image', requireAuth, async (req, res) => {
     // Path S3: restaurantId/img/fileName
     const s3Key = `${restaurantId}/img/${fileName}`;
     
-    // Upload su S3
+    // Controlla se il file esiste già
+    try {
+      await s3Client.send(new HeadObjectCommand({
+        Bucket: 'totemino',
+        Key: s3Key
+      }));
+      
+      // Se arriviamo qui, il file esiste - lo cancelliamo
+      await s3Client.send(new DeleteObjectCommand({
+        Bucket: 'totemino',
+        Key: s3Key
+      }));
+    } catch (error) {
+      // Se l'errore è NotFound, il file non esiste (va bene)
+      if (error.name !== 'NotFound') {
+        throw error; // Altri errori vengono propagati
+      }
+    }
+    
+    // Upload del nuovo file su S3
     const uploadParams = {
       Bucket: 'totemino',
       Key: s3Key,
@@ -948,15 +970,10 @@ app.post('/upload-image', requireAuth, async (req, res) => {
       ContentType: 'image/jpeg',
     };
     
-    const { S3Client, PutObjectCommand } = require('@aws-sdk/client-s3');
-    const s3Client = new S3Client({ region: 'eu-west-3' });
-    
     await s3Client.send(new PutObjectCommand(uploadParams));
     
     // URL pubblico dell'immagine
     const imageUrl = `https://totemino.s3.eu-west-3.amazonaws.com/${s3Key}`;
-    
-    console.log('✅ Immagine caricata su S3:', imageUrl);
     res.json({ success: true, fileName, imageUrl });
     
   } catch (error) {
@@ -1420,5 +1437,6 @@ app.listen(PORT, () => {
   console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
 
 });
+
 
 
