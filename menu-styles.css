@@ -574,6 +574,7 @@ input[type="number"]::-webkit-outer-spin-button {
 
 .cart-popup-item {
   position: relative;
+  padding: 0.5rem;
   aspect-ratio: 1;
   overflow: hidden;
 }
@@ -991,5 +992,6 @@ footer {
 .footer-img a:hover {
   opacity: 0.8;
 }
+
 
 
