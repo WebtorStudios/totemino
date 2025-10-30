@@ -349,70 +349,83 @@ function openCustomizationScreen(item) {
         controls.className = "option-controls";
         
         if (section.maxSelections === 1) {
-        const checkbox = document.createElement("input");
-        checkbox.type = "checkbox";
-        checkbox.id = `opt-${opt.id}`;
-        checkbox.className = "radio-checkbox"; // Per stilizzarli come radio
-        
-        if (customizationState[opt.id] === undefined) {
-          customizationState[opt.id] = 0;
-        }
-        
-        checkbox.addEventListener("change", () => {
-          if (checkbox.checked) {
-            section.options.forEach(o => {
-              customizationState[o.id] = 0;
-              const otherCheckbox = document.getElementById(`opt-${o.id}`);
-              if (otherCheckbox && otherCheckbox !== checkbox) {
-                otherCheckbox.checked = false;
-              }
-            });
-            customizationState[opt.id] = 1;
-          } else {
+          // Radio button per selezione singola
+          const checkbox = document.createElement("input");
+          checkbox.type = "checkbox";
+          checkbox.id = `opt-${opt.id}`;
+          checkbox.className = "radio-checkbox";
+          
+          if (customizationState[opt.id] === undefined) {
             customizationState[opt.id] = 0;
           }
-          updateTotalPrice();
-        });
-        
-        controls.appendChild(checkbox);
-      } else {
-          // Counter per selezioni multiple
-          const minusBtn = document.createElement("button");
-          minusBtn.textContent = "−";
-          minusBtn.className = "counter-btn";
           
-          const qtySpan = document.createElement("span");
-          qtySpan.textContent = "0";
-          qtySpan.className = "counter-qty";
+          checkbox.addEventListener("change", () => {
+            if (checkbox.checked) {
+              section.options.forEach(o => {
+                customizationState[o.id] = 0;
+                const otherCheckbox = document.getElementById(`opt-${o.id}`);
+                if (otherCheckbox && otherCheckbox !== checkbox) {
+                  otherCheckbox.checked = false;
+                }
+              });
+              customizationState[opt.id] = 1;
+            } else {
+              customizationState[opt.id] = 0;
+            }
+            updateTotalPrice();
+          });
           
-          const plusBtn = document.createElement("button");
-          plusBtn.textContent = "+";
-          plusBtn.className = "counter-btn";
-          
+          controls.appendChild(checkbox);
+        } else {
+          // Radio buttons per quantità (1-5)
           customizationState[opt.id] = 0;
           
-          minusBtn.addEventListener("click", () => {
-            if (customizationState[opt.id] > 0) {
-              customizationState[opt.id]--;
-              qtySpan.textContent = customizationState[opt.id];
-              updateTotalPrice();
-            }
-          });
+          const maxQty = Math.min(section.maxSelections || 5, 5);
           
-          plusBtn.addEventListener("click", () => {
-            const currentTotal = section.options.reduce((sum, o) => 
-              sum + (customizationState[o.id] || 0), 0);
+          for (let qty = 1; qty <= maxQty; qty++) {
+            const radioBtn = document.createElement("input");
+            radioBtn.type = "checkbox";
+            radioBtn.className = "quantity-radio";
+            radioBtn.id = `opt-${opt.id}-qty-${qty}`;
+            radioBtn.dataset.optionId = opt.id;
+            radioBtn.dataset.quantity = qty;
             
-            if (!section.maxSelections || currentTotal < section.maxSelections) {
-              customizationState[opt.id]++;
-              qtySpan.textContent = customizationState[opt.id];
+            const radioLabel = document.createElement("label");
+            radioLabel.htmlFor = `opt-${opt.id}-qty-${qty}`;
+            radioLabel.className = "quantity-radio-label";
+            radioLabel.textContent = qty;
+            
+            radioBtn.addEventListener("change", () => {
+              if (radioBtn.checked) {
+                // Deseleziona tutti gli altri radio dello stesso gruppo
+                const allRadios = controls.querySelectorAll(`input[data-option-id="${opt.id}"]`);
+                allRadios.forEach(r => {
+                  if (r !== radioBtn) r.checked = false;
+                });
+                
+                // Verifica il limite totale
+                const otherOptionsTotal = section.options
+                  .filter(o => o.id !== opt.id)
+                  .reduce((sum, o) => sum + (customizationState[o.id] || 0), 0);
+                
+                const requestedQty = parseInt(qty);
+                
+                if (!section.maxSelections || (otherOptionsTotal + requestedQty) <= section.maxSelections) {
+                  customizationState[opt.id] = requestedQty;
+                } else {
+                  // Supera il limite, deseleziona
+                  radioBtn.checked = false;
+                  customizationState[opt.id] = 0;
+                }
+              } else {
+                customizationState[opt.id] = 0;
+              }
               updateTotalPrice();
-            }
-          });
-          
-          controls.appendChild(minusBtn);
-          controls.appendChild(qtySpan);
-          controls.appendChild(plusBtn);
+            });
+            
+            controls.appendChild(radioBtn);
+            controls.appendChild(radioLabel);
+          }
         }
         
         optDiv.appendChild(optLabel);
@@ -1079,6 +1092,7 @@ if (itemsContainer) {
 
 
 loadMenu();
+
 
 
 
