@@ -159,73 +159,34 @@
   border-radius: 50%;
 }
 
-.quantity-radio {
+/* Checkbox quadrato per selezioni multiple */
+.square-checkbox {
   appearance: none;
   -webkit-appearance: none;
-  width: 2.5rem;
-  height: 2.5rem;
+  width: 1.5rem;
+  height: 1.5rem;
   border: 2px solid var(--text-primary);
-  border-radius: 8px;
+  border-radius: 4px;
   cursor: pointer;
   position: relative;
   transition: all 0.2s;
   flex-shrink: 0;
-  display: none; /* Nascondi il checkbox nativo */
 }
 
-.quantity-radio:checked {
+.square-checkbox:checked {
   background: var(--accent-gold);
   border-color: var(--accent-gold);
 }
 
-.quantity-radio:checked::after {
+.square-checkbox:checked::after {
   content: '✓';
   position: absolute;
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  font-size: 1.2rem;
+  font-size: 1rem;
   font-weight: 700;
   color: var(--text-primary);
-}
-
-.quantity-radio-label {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 2.5rem;
-  height: 2.5rem;
-  border: 2px solid var(--text-primary);
-  border-radius: 8px;
-  cursor: pointer;
-  font-size: 1.1rem;
-  font-weight: 700;
-  color: var(--text-primary);
-  transition: all 0.2s;
-  user-select: none;
-}
-
-.quantity-radio:checked + .quantity-radio-label {
-  background: var(--accent-gold);
-  border-color: var(--accent-gold);
-  position: relative;
-}
-
-.quantity-radio:checked + .quantity-radio-label::after {
-  content: '✓';
-  position: absolute;
-  top: -8px;
-  right: -8px;
-  width: 1.2rem;
-  height: 1.2rem;
-  background: var(--accent-gold);
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 0.8rem;
-  color: var(--text-primary);
-  border: 2px solid var(--card-bg);
 }
 
 .option-controls {
