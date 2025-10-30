@@ -366,7 +366,6 @@ function showGroupDetails(identifier) {
   }
 }
 
-// ✅ MODIFICATO: Formato items con customizzazioni
 function formatItemDisplay(item) {
   let displayName = item.name;
   
@@ -381,7 +380,6 @@ function formatItemDisplay(item) {
   return displayName;
 }
 
-// ✅ MODIFICATO: Calcola prezzo corretto (usa finalPrice se disponibile)
 function getItemPrice(item) {
   return item.finalPrice || item.price || 0;
 }
@@ -440,7 +438,7 @@ function showCombinedOrderDetails(identifier, orders) {
     return `
       <div class="gpopup-item">
         <div class="item-info">
-          <h4>${item.quantity > 1 ? `(x${item.quantity})` : ''} ${formatItemDisplay(item)}</h4>
+          <h4>${item.quantity > 1 ? `(x${item.quantity}) ` : ''}${formatItemDisplay(item)}</h4>
           <div class="item-price">€${(item.price * item.quantity).toFixed(2)}</div>
         </div>
         ${notesHtml}
@@ -471,7 +469,7 @@ function showOrderDetails(orderId) {
     return `
       <div class="gpopup-item">
         <div class="item-info">
-          <h4>${formatItemDisplay(item)} ${item.quantity > 1 ? `(x${item.quantity})` : ''}</h4>
+          <h4>${item.quantity > 1 ? `(x${item.quantity}) ` : ''}${formatItemDisplay(item)}</h4>
           <div class="item-price">€${(price * item.quantity).toFixed(2)}</div>
         </div>
         ${note ? `<div class="item-note">🗒️ ${note}</div>` : ''}
@@ -747,5 +745,4 @@ window.collapseGroup = collapseGroup;
 window.expandGroup = expandGroup;
 window.showCompleted = showCompleted;
 window.showActive = showActive;
-
 window.loadOrders = loadOrders;
