@@ -184,15 +184,21 @@ const DataManager = {
     const selectedMap = new Map();
     
     if (saved.length > 0 && saved.length % 3 === 0) {
-      // Nuovo formato: [name, customizations_json, qty, ...]
       for (let i = 0; i < saved.length; i += 3) {
         const name = saved[i];
         const customizations = JSON.parse(saved[i + 1] || '{}');
         const qty = Math.max(parseInt(saved[i + 2]) || 1, 1);
-        selectedMap.set(name, { qty, customizations });
+        
+        // ✅ Genera chiave univoca per customizzazioni diverse
+        const customStr = Object.keys(customizations)
+          .sort()
+          .map(k => `${k}:${customizations[k]}`)
+          .join(',');
+        const key = customStr ? `${name}|{${customStr}}` : name;
+        
+        selectedMap.set(key, { qty, customizations });
       }
     } else {
-      // Vecchio formato: [name, qty, ...]
       for (let i = 0; i < saved.length; i += 2) {
         const name = saved[i];
         const qty = Math.max(parseInt(saved[i + 1]) || 1, 1);
@@ -204,13 +210,11 @@ const DataManager = {
   },
 
   async fetchMenu() {
-    // 1️⃣ CARICAMENTI PARALLELI INIZIALI (possono essere fatti insieme)
     await Promise.all([
       this.loadRestaurantStatus(),
       this.loadCheckoutMethods()
     ]);
   
-    // 2️⃣ CARICAMENTI PARALLELI DEI FILE JSON
     const [menuJson, customizationData] = await Promise.all([
       fetch(`IDs/${CONFIG.restaurantId}/menu.json`).then(r => r.json()),
       fetch(`IDs/${CONFIG.restaurantId}/customization.json`)
@@ -223,11 +227,9 @@ const DataManager = {
   
     STATE.customizationData = customizationData;
   
-    // 3️⃣ PREPARAZIONE DATI LOCALI
     const selectedMap = this.loadSelectedItems();
     const suggestedItems = Utils.loadFromStorage(CONFIG.storageKeys.suggestedItems, []);
   
-    // 4️⃣ PROCESSAMENTO MENU E RICOSTRUZIONE ORDINE
     menuJson.categories.forEach(category => {
       STATE.menuData[category.name] = [];
   
@@ -245,9 +247,11 @@ const DataManager = {
   
         STATE.menuData[category.name].push(itemData);
   
-        /// Controlla se questo item è nel carrello
+        // ✅ Controlla TUTTE le varianti di questo item
         for (const [key, data] of selectedMap) {
-          if (key === item.name) {
+          const keyName = key.includes('|') ? key.split('|')[0] : key;
+          
+          if (keyName === item.name) {
             const effectivePrice = Utils.calculateItemPrice(item.name, data.customizations);
             
             STATE.items.push({
@@ -258,7 +262,8 @@ const DataManager = {
               quantity: data.qty,
               category: category.name,
               isSuggested: suggestedItems.includes(item.name),
-              customizations: data.customizations
+              customizations: data.customizations,
+              uniqueKey: key // ✅ Mantieni la chiave univoca
             });
             STATE.selectedCategories.add(category.name);
           }
@@ -266,15 +271,11 @@ const DataManager = {
       });
     });
   
-    // 5️⃣ CARICA PREZZO COPERTO (ma NON aggiungere ancora)
     await CopertoManager.loadCopertoPrice();
-  
-    // 6️⃣ RENDERING UI
     UI.renderItems();
     UI.updateTotal();
-    this.applyCheckoutMethods(); // ✅ Applica subito i metodi checkout
+    this.applyCheckoutMethods();
   
-    // 7️⃣ INIZIALIZZAZIONE SUGGERIMENTI (opzionale, quindi alla fine)
     if (this.canShowSuggestions() && typeof initializeSuggestions !== 'undefined') {
       initializeSuggestions(menuJson, CONFIG.restaurantId).catch(console.error);
     }
@@ -421,7 +422,6 @@ const UI = {
     const info = document.createElement("div");
     info.className = "checkout-info";
     
-    // ✅ Mostra customizzazioni se presenti
     const customLabel = item.customizations ? Utils.getCustomizationLabel(item.customizations) : '';
     const displayName = `${item.name}${customLabel}`;
     
@@ -508,7 +508,6 @@ const Popup = {
       item.quantity = qty;
       STATE.items[index].quantity = qty;
       
-      // ✅ Ricalcola il prezzo se ci sono customizzazioni
       if (item.customizations && Object.keys(item.customizations).length > 0) {
         item.price = Utils.calculateItemPrice(item.name, item.customizations);
         STATE.items[index].price = item.price;
@@ -531,7 +530,15 @@ const Popup = {
       }
     };
   
-    controls.querySelector(".popup-plus").onclick = () => updateQty(qty + 1);
+    // ✅ Se customizzabile, apri la schermata di customizzazione
+    controls.querySelector(".popup-plus").onclick = () => {
+      if (item.customizable) {
+        this.hidePopup(popup);
+        CustomizationScreen.open(item, index);
+      } else {
+        updateQty(qty + 1);
+      }
+    };
   },
 
   showPopup(popup, onClose) {
@@ -1000,11 +1007,231 @@ const Orders = {
   }
 };
 
+// ==================== CUSTOMIZATION SCREEN ====================
+const CustomizationScreen = {
+  open(item, index) {
+    const screen = document.createElement("div");
+    screen.className = "customization-screen";
+    screen.innerHTML = `
+      <div class="customization-header">
+        <h2>Modifica ${item.name}</h2>
+        <button class="back-btn">
+          <img src="img/x.png" alt="Chiudi">
+        </button>
+      </div>
+      <div class="customization-content">
+        ${item.img ? `<img src="${item.img}" alt="${item.name}" onerror="this.src='img/placeholder.png'">` : ""}
+        <div class="customization-sections"></div>
+      </div>
+      <div class="customization-footer">
+        <div class="price-display">
+          <span class="base-price">Prezzo base: €${item.originalPrice.toFixed(2)}</span>
+          <span class="total-price">Totale: €${item.originalPrice.toFixed(2)}</span>
+        </div>
+        <button class="add-to-cart-btn">Conferma</button>
+      </div>
+    `;
+    
+    document.body.appendChild(screen);
+    document.body.classList.add("noscroll");
+    
+    const sectionsContainer = screen.querySelector(".customization-sections");
+    const totalPriceEl = screen.querySelector(".total-price");
+    const addBtn = screen.querySelector(".add-to-cart-btn");
+    const backBtn = screen.querySelector(".back-btn");
+    
+    const customizationState = {};
+    
+    const group = STATE.customizationData[item.customizationGroup];
+    if (group) {
+      group.forEach(section => {
+        const sectionDiv = document.createElement("div");
+        sectionDiv.className = "customization-section";
+        
+        const title = document.createElement("h3");
+        title.textContent = section.name + (section.required ? " *" : "");
+        sectionDiv.appendChild(title);
+        
+        section.options.forEach(opt => {
+          const optDiv = document.createElement("div");
+          optDiv.className = "customization-option";
+          
+          const optLabel = document.createElement("label");
+          optLabel.textContent = opt.name;
+          if (opt.priceModifier !== 0) {
+            optLabel.textContent += ` (+€${opt.priceModifier.toFixed(2)})`;
+          }
+          
+          const controls = document.createElement("div");
+          controls.className = "option-controls";
+          
+          if (section.maxSelections === 1) {
+            const checkbox = document.createElement("input");
+            checkbox.type = "checkbox";
+            checkbox.id = `opt-${opt.id}`;
+            checkbox.className = "radio-checkbox";
+            
+            customizationState[opt.id] = 0;
+            
+            checkbox.addEventListener("change", () => {
+              if (checkbox.checked) {
+                section.options.forEach(o => {
+                  customizationState[o.id] = 0;
+                  const otherCheckbox = document.getElementById(`opt-${o.id}`);
+                  if (otherCheckbox && otherCheckbox !== checkbox) {
+                    otherCheckbox.checked = false;
+                  }
+                });
+                customizationState[opt.id] = 1;
+              } else {
+                customizationState[opt.id] = 0;
+              }
+              this.updateTotalPrice(item, customizationState, totalPriceEl, addBtn, group);
+            });
+            
+            controls.appendChild(checkbox);
+          } else {
+            const minusBtn = document.createElement("button");
+            minusBtn.textContent = "−";
+            minusBtn.className = "counter-btn";
+            
+            const qtySpan = document.createElement("span");
+            qtySpan.textContent = "0";
+            qtySpan.className = "counter-qty";
+            
+            const plusBtn = document.createElement("button");
+            plusBtn.textContent = "+";
+            plusBtn.className = "counter-btn";
+            
+            customizationState[opt.id] = 0;
+            
+            minusBtn.addEventListener("click", () => {
+              if (customizationState[opt.id] > 0) {
+                customizationState[opt.id]--;
+                qtySpan.textContent = customizationState[opt.id];
+                this.updateTotalPrice(item, customizationState, totalPriceEl, addBtn, group);
+              }
+            });
+            
+            plusBtn.addEventListener("click", () => {
+              const currentTotal = section.options.reduce((sum, o) => 
+                sum + (customizationState[o.id] || 0), 0);
+              
+              if (!section.maxSelections || currentTotal < section.maxSelections) {
+                customizationState[opt.id]++;
+                qtySpan.textContent = customizationState[opt.id];
+                this.updateTotalPrice(item, customizationState, totalPriceEl, addBtn, group);
+              }
+            });
+            
+            controls.appendChild(minusBtn);
+            controls.appendChild(qtySpan);
+            controls.appendChild(plusBtn);
+          }
+          
+          optDiv.appendChild(optLabel);
+          optDiv.appendChild(controls);
+          sectionDiv.appendChild(optDiv);
+        });
+        
+        sectionsContainer.appendChild(sectionDiv);
+      });
+    }
+    
+    addBtn.addEventListener("click", () => {
+      // ✅ Filtra customizzazioni con valore > 0
+      const filteredCustomizations = {};
+      for (const [key, value] of Object.entries(customizationState)) {
+        if (value > 0) {
+          filteredCustomizations[key] = value;
+        }
+      }
+      
+      const itemPrice = Utils.calculateItemPrice(item.name, filteredCustomizations);
+      
+      // ✅ Genera chiave univoca
+      const customStr = Object.keys(filteredCustomizations)
+        .sort()
+        .map(k => `${k}:${filteredCustomizations[k]}`)
+        .join(',');
+      const uniqueKey = customStr ? `${item.name}|{${customStr}}` : item.name;
+      
+      // ✅ Cerca se esiste già questa variante
+      const existingIndex = STATE.items.findIndex(i => i.uniqueKey === uniqueKey);
+      
+      if (existingIndex !== -1) {
+        // Incrementa quantità della variante esistente
+        STATE.items[existingIndex].quantity += 1;
+      } else {
+        // Crea nuova variante
+        STATE.items.push({
+          name: item.name,
+          price: itemPrice,
+          originalPrice: item.originalPrice,
+          img: item.img,
+          ingredients: item.ingredients,
+          restaurantId: CONFIG.restaurantId,
+          quantity: 1,
+          category: item.category,
+          isSuggested: false,
+          customizable: item.customizable,
+          customizationGroup: item.customizationGroup,
+          customizations: filteredCustomizations,
+          uniqueKey: uniqueKey
+        });
+        STATE.orderNotes.push("");
+      }
+      
+      DataManager.saveSelected();
+      UI.renderItems();
+      UI.updateTotal();
+      
+      document.body.removeChild(screen);
+      document.body.classList.remove("noscroll");
+    });
+    
+    backBtn.addEventListener("click", () => {
+      document.body.removeChild(screen);
+      document.body.classList.remove("noscroll");
+    });
+    
+    this.updateTotalPrice(item, customizationState, totalPriceEl, addBtn, group);
+  },
+  
+  updateTotalPrice(item, customizationState, totalPriceEl, addBtn, group) {
+    const totalPrice = Utils.calculateItemPrice(item.name, customizationState);
+    totalPriceEl.textContent = `Totale: €${totalPrice.toFixed(2)}`;
+    
+    let allRequiredFilled = true;
+    if (group) {
+      for (const section of group) {
+        if (section.required) {
+          const hasSelection = section.options.some(opt => 
+            customizationState[opt.id] > 0
+          );
+          if (!hasSelection) {
+            allRequiredFilled = false;
+            break;
+          }
+        }
+      }
+    }
+    
+    addBtn.disabled = !allRequiredFilled;
+    if (!allRequiredFilled) {
+      addBtn.classList.add("disabled");
+    } else {
+      addBtn.classList.remove("disabled");
+    }
+  }
+};
+
 // ==================== INIZIALIZZAZIONE ====================
 DataManager.fetchMenu();
 Navigation.init();
 Payment.init();
 Orders.init();
+
 
 
 
