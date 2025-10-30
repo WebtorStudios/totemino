@@ -880,6 +880,11 @@ function openPopup(item) {
   const popupControls = popup.querySelector(".popup-controls");
   const allergenTitle = document.getElementById("titolo-allergeni");
 
+  const scrollY = window.scrollY;
+  document.body.style.position = 'fixed';
+  document.body.style.top = `-${scrollY}px`;
+  document.body.style.width = '100%';
+  
   allergenTitle.style.display = item.allergens.length === 0 ? "none" : "block";
   
   popupImg.src = item.img;
@@ -1014,7 +1019,13 @@ function closePopup() {
   const popup = document.querySelector(".popup");
   if (!popup.classList.contains("hidden")) {
     popup.classList.add("hidden");
+    
+    const scrollY = document.body.style.top;
+    document.body.style.position = '';
+    document.body.style.top = '';
+    document.body.style.width = '';
     document.body.classList.remove("noscroll");
+    window.scrollTo(0, parseInt(scrollY || '0') * -1);
   }
   clearTimeout(allergenPopupTimeout);
   const popupMsg = document.getElementById("allergen-popup");
@@ -1087,6 +1098,7 @@ if (itemsContainer) {
 
 
 loadMenu();
+
 
 
 
