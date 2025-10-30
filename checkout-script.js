@@ -534,9 +534,6 @@ const Popup = {
     controls.querySelector(".popup-plus").onclick = () => {
       if (item.customizable) {
         this.hidePopup(popup);
-        console.log('Item customizable:', item.customizable);
-        console.log('Item customizationGroup:', item.customizationGroup);
-        console.log('CustomizationData:', STATE.customizationData);
         CustomizationScreen.open(item, index);
       } else {
         updateQty(qty + 1);
@@ -1234,6 +1231,7 @@ DataManager.fetchMenu();
 Navigation.init();
 Payment.init();
 Orders.init();
+
 
 
 
