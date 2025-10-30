@@ -316,8 +316,8 @@ class SuggestionsEngine {
       category: suggestion.category
     };
     
-    if (typeof openCustomizationScreen === 'function') {
-      openCustomizationScreen(item);
+    if (typeof CustomizationScreen !== 'undefined' && CustomizationScreen.open) {
+      CustomizationScreen.open(item);
     }
   }
 
