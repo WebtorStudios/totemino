@@ -1091,42 +1091,52 @@ const CustomizationScreen = {
             
             controls.appendChild(checkbox);
           } else {
-            const minusBtn = document.createElement("button");
-            minusBtn.textContent = "−";
-            minusBtn.className = "counter-btn";
-            
-            const qtySpan = document.createElement("span");
-            qtySpan.textContent = "0";
-            qtySpan.className = "counter-qty";
-            
-            const plusBtn = document.createElement("button");
-            plusBtn.textContent = "+";
-            plusBtn.className = "counter-btn";
-            
+            // Radio buttons per quantità
             customizationState[opt.id] = 0;
             
-            minusBtn.addEventListener("click", () => {
-              if (customizationState[opt.id] > 0) {
-                customizationState[opt.id]--;
-                qtySpan.textContent = customizationState[opt.id];
-                this.updateTotalPrice(item, customizationState, totalPriceEl, addBtn, group);
-              }
-            });
+            const maxQty = Math.min(section.maxSelections || 5, 5);
             
-            plusBtn.addEventListener("click", () => {
-              const currentTotal = section.options.reduce((sum, o) => 
-                sum + (customizationState[o.id] || 0), 0);
+            for (let qty = 1; qty <= maxQty; qty++) {
+              const radioBtn = document.createElement("input");
+              radioBtn.type = "checkbox";
+              radioBtn.className = "quantity-radio";
+              radioBtn.id = `opt-${opt.id}-qty-${qty}`;
+              radioBtn.dataset.optionId = opt.id;
+              radioBtn.dataset.quantity = qty;
               
-              if (!section.maxSelections || currentTotal < section.maxSelections) {
-                customizationState[opt.id]++;
-                qtySpan.textContent = customizationState[opt.id];
+              const radioLabel = document.createElement("label");
+              radioLabel.htmlFor = `opt-${opt.id}-qty-${qty}`;
+              radioLabel.className = "quantity-radio-label";
+              radioLabel.textContent = qty;
+              
+              radioBtn.addEventListener("change", () => {
+                if (radioBtn.checked) {
+                  const allRadios = controls.querySelectorAll(`input[data-option-id="${opt.id}"]`);
+                  allRadios.forEach(r => {
+                    if (r !== radioBtn) r.checked = false;
+                  });
+                  
+                  const otherOptionsTotal = section.options
+                    .filter(o => o.id !== opt.id)
+                    .reduce((sum, o) => sum + (customizationState[o.id] || 0), 0);
+                  
+                  const requestedQty = parseInt(qty);
+                  
+                  if (!section.maxSelections || (otherOptionsTotal + requestedQty) <= section.maxSelections) {
+                    customizationState[opt.id] = requestedQty;
+                  } else {
+                    radioBtn.checked = false;
+                    customizationState[opt.id] = 0;
+                  }
+                } else {
+                  customizationState[opt.id] = 0;
+                }
                 this.updateTotalPrice(item, customizationState, totalPriceEl, addBtn, group);
-              }
-            });
-            
-            controls.appendChild(minusBtn);
-            controls.appendChild(qtySpan);
-            controls.appendChild(plusBtn);
+              });
+              
+              controls.appendChild(radioBtn);
+              controls.appendChild(radioLabel);
+            }
           }
           
           optDiv.appendChild(optLabel);
@@ -1238,6 +1248,7 @@ DataManager.fetchMenu();
 Navigation.init();
 Payment.init();
 Orders.init();
+
 
 
 
