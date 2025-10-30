@@ -542,6 +542,10 @@ const Popup = {
   },
 
   showPopup(popup, onClose) {
+    const scrollY = window.scrollY;
+    document.body.style.position = 'fixed';
+    document.body.style.top = `-${scrollY}px`;
+    document.body.style.width = '100%';
     popup.classList.remove("hidden");
     document.body.classList.add("noscroll");
 
@@ -560,7 +564,14 @@ const Popup = {
 
   hidePopup(popup) {
     popup.classList.add("hidden");
+    
+    const scrollY = document.body.style.top;
+    document.body.style.position = '';
+    document.body.style.top = '';
+    document.body.style.width = '';
     document.body.classList.remove("noscroll");
+    
+    window.scrollTo(0, parseInt(scrollY || '0') * -1);
   },
 
   // ✅ MODIFICATO: Mostra popup solo se status = pro o trial attivo
@@ -1244,6 +1255,7 @@ DataManager.fetchMenu();
 Navigation.init();
 Payment.init();
 Orders.init();
+
 
 
 
