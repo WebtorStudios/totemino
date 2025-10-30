@@ -440,7 +440,7 @@ function showCombinedOrderDetails(identifier, orders) {
     return `
       <div class="gpopup-item">
         <div class="item-info">
-          <h4>${formatItemDisplay(item)} ${item.quantity > 1 ? `(x${item.quantity})` : ''}</h4>
+          <h4>${item.quantity > 1 ? `(x${item.quantity})` : ''} ${formatItemDisplay(item)}</h4>
           <div class="item-price">€${(item.price * item.quantity).toFixed(2)}</div>
         </div>
         ${notesHtml}
@@ -747,4 +747,5 @@ window.collapseGroup = collapseGroup;
 window.expandGroup = expandGroup;
 window.showCompleted = showCompleted;
 window.showActive = showActive;
+
 window.loadOrders = loadOrders;
