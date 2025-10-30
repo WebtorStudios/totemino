@@ -413,12 +413,11 @@ input[type="number"]::-webkit-outer-spin-button {
   color: var(--text-primary);
   word-break: normal;
   line-height: 1.25rem;
-  text-overflow: ellipsis;
-  height: 2.6rem; 
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
   overflow: hidden;
+  min-height: 2.5rem;
+  max-height: 2.5rem; 
+  display: flex;
+  align-items: flex-end; 
 }
 
 .items p {
@@ -993,6 +992,7 @@ footer {
 .footer-img a:hover {
   opacity: 0.8;
 }
+
 
 
 
