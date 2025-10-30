@@ -314,6 +314,11 @@ function openCustomizationScreen(item) {
     </div>
   `;
   
+  const scrollY = window.scrollY;
+  document.body.style.position = 'fixed';
+  document.body.style.top = `-${scrollY}px`;
+  document.body.style.width = '100%';
+  
   document.body.appendChild(screen);
   document.body.classList.add("noscroll");
   
@@ -467,13 +472,23 @@ function openCustomizationScreen(item) {
     updateItemButtonUI(item.name);
     
     // Chiudi schermata
+    const scrollY = document.body.style.top;
+    document.body.style.position = '';
+    document.body.style.top = '';
+    document.body.style.width = '';
     document.body.removeChild(screen);
     document.body.classList.remove("noscroll");
+    window.scrollTo(0, parseInt(scrollY || '0') * -1);
   });
   
   backBtn.addEventListener("click", () => {
+    const scrollY = document.body.style.top;
+    document.body.style.position = '';
+    document.body.style.top = '';
+    document.body.style.width = '';
     document.body.removeChild(screen);
     document.body.classList.remove("noscroll");
+    window.scrollTo(0, parseInt(scrollY || '0') * -1);
   });
   
   updateTotalPrice();
@@ -1072,6 +1087,7 @@ if (itemsContainer) {
 
 
 loadMenu();
+
 
 
 
