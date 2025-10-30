@@ -1138,8 +1138,8 @@ const CustomizationScreen = {
       });
     }
     
-    addBtn.addEventListener("click", () => {
-      // ✅ Filtra customizzazioni con valore > 0
+    addBtn.addEventListener("click", async () => {
+      // Filtra customizzazioni con valore > 0
       const filteredCustomizations = {};
       for (const [key, value] of Object.entries(customizationState)) {
         if (value > 0) {
@@ -1149,14 +1149,14 @@ const CustomizationScreen = {
       
       const itemPrice = Utils.calculateItemPrice(item.name, filteredCustomizations);
       
-      // ✅ Genera chiave univoca
+      // Genera chiave univoca
       const customStr = Object.keys(filteredCustomizations)
         .sort()
         .map(k => `${k}:${filteredCustomizations[k]}`)
         .join(',');
       const uniqueKey = customStr ? `${item.name}|{${customStr}}` : item.name;
       
-      // ✅ Cerca se esiste già questa variante
+      // Cerca se esiste già questa variante
       const existingIndex = STATE.items.findIndex(i => i.uniqueKey === uniqueKey);
       
       if (existingIndex !== -1) {
@@ -1185,6 +1185,13 @@ const CustomizationScreen = {
       DataManager.saveSelected();
       UI.renderItems();
       UI.updateTotal();
+      
+      // ✅ REFRESH SUGGERIMENTI
+      if (DataManager.canShowSuggestions() && typeof suggestionsEngine !== 'undefined') {
+        const menuJson = await fetch(`IDs/${CONFIG.restaurantId}/menu.json`).then(r => r.json());
+        await suggestionsEngine.loadMenuData(menuJson, CONFIG.restaurantId);
+        await suggestionsEngine.renderSuggestions(CONFIG.restaurantId);
+      }
       
       document.body.removeChild(screen);
       document.body.classList.remove("noscroll");
