@@ -708,8 +708,8 @@
   word-break: normal;
   line-height: 1.25rem;
   overflow: hidden;
-  min-height: 2.6rem;
-  max-height: 2.6rem; /* Limita a 2 righe */
+  min-height: 2.5rem;
+  max-height: 2.5rem; /* Limita a 2 righe */
   display: flex;
   align-items: flex-end; /* ✅ Allinea il testo in basso */
 }
@@ -740,6 +740,7 @@
   color: var(--text-primary);
   background: var(--btn-secondary);
 }
+
 
 
 
