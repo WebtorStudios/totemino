@@ -702,16 +702,16 @@
 .suggestion-card h4 {
   font-size: 1rem;
   font-weight: 700;
-  margin: 0 1.2rem;
+  margin-left: 1.2rem;
+  margin-right: 1.2rem;
   color: var(--text-primary);
   word-break: normal;
   line-height: 1.25rem;
   overflow: hidden;
-  text-overflow: ellipsis;
-  height: 2.6rem;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
+  min-height: 2.6rem;
+  max-height: 2.6rem; /* Limita a 2 righe */
+  display: flex;
+  align-items: flex-end; /* ✅ Allinea il testo in basso */
 }
 
 .suggestion-card p {
@@ -740,6 +740,7 @@
   color: var(--text-primary);
   background: var(--btn-secondary);
 }
+
 
 
 
