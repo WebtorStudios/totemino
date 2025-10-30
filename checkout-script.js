@@ -1091,52 +1091,33 @@ const CustomizationScreen = {
             
             controls.appendChild(checkbox);
           } else {
-            // Radio buttons per quantità
+            // Checkbox quadrato per selezioni multiple
+            const checkbox = document.createElement("input");
+            checkbox.type = "checkbox";
+            checkbox.id = `opt-${opt.id}`;
+            checkbox.className = "square-checkbox";
+            
             customizationState[opt.id] = 0;
             
-            const maxQty = Math.min(section.maxSelections || 5, 5);
-            
-            for (let qty = 1; qty <= maxQty; qty++) {
-              const radioBtn = document.createElement("input");
-              radioBtn.type = "checkbox";
-              radioBtn.className = "quantity-radio";
-              radioBtn.id = `opt-${opt.id}-qty-${qty}`;
-              radioBtn.dataset.optionId = opt.id;
-              radioBtn.dataset.quantity = qty;
-              
-              const radioLabel = document.createElement("label");
-              radioLabel.htmlFor = `opt-${opt.id}-qty-${qty}`;
-              radioLabel.className = "quantity-radio-label";
-              radioLabel.textContent = qty;
-              
-              radioBtn.addEventListener("change", () => {
-                if (radioBtn.checked) {
-                  const allRadios = controls.querySelectorAll(`input[data-option-id="${opt.id}"]`);
-                  allRadios.forEach(r => {
-                    if (r !== radioBtn) r.checked = false;
-                  });
-                  
-                  const otherOptionsTotal = section.options
-                    .filter(o => o.id !== opt.id)
-                    .reduce((sum, o) => sum + (customizationState[o.id] || 0), 0);
-                  
-                  const requestedQty = parseInt(qty);
-                  
-                  if (!section.maxSelections || (otherOptionsTotal + requestedQty) <= section.maxSelections) {
-                    customizationState[opt.id] = requestedQty;
-                  } else {
-                    radioBtn.checked = false;
-                    customizationState[opt.id] = 0;
-                  }
+            checkbox.addEventListener("change", () => {
+              if (checkbox.checked) {
+                const currentTotal = section.options
+                  .filter(o => o.id !== opt.id)
+                  .reduce((sum, o) => sum + (customizationState[o.id] || 0), 0);
+                
+                if (!section.maxSelections || (currentTotal + 1) <= section.maxSelections) {
+                  customizationState[opt.id] = 1;
                 } else {
+                  checkbox.checked = false;
                   customizationState[opt.id] = 0;
                 }
-                this.updateTotalPrice(item, customizationState, totalPriceEl, addBtn, group);
-              });
-              
-              controls.appendChild(radioBtn);
-              controls.appendChild(radioLabel);
-            }
+              } else {
+                customizationState[opt.id] = 0;
+              }
+              this.updateTotalPrice(item, customizationState, totalPriceEl, addBtn, group);
+            });
+            
+            controls.appendChild(checkbox);
           }
           
           optDiv.appendChild(optLabel);
@@ -1248,6 +1229,7 @@ DataManager.fetchMenu();
 Navigation.init();
 Payment.init();
 Orders.init();
+
 
 
 
