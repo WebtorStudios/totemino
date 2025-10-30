@@ -574,7 +574,7 @@ input[type="number"]::-webkit-outer-spin-button {
 
 .cart-popup-item {
   position: relative;
-  padding: 0.5rem;
+  padding: 0.2rem;
   aspect-ratio: 1;
   overflow: hidden;
 }
@@ -854,7 +854,9 @@ input[type="number"]::-webkit-outer-spin-button {
     width: 90vw;
     max-width: 450px;
   }
-
+  .cart-popup-item {
+    padding: 0.5rem;
+  }
   .cart-popup-badge {
     font-size: 0.9rem;
     width: 1.5rem;
@@ -915,7 +917,9 @@ input[type="number"]::-webkit-outer-spin-button {
   .categories {
     max-width: 1337px;
   }
-  
+  .cart-popup-item {
+    padding: 1rem;
+  }
   .order {
     width: 60vw;
     max-width: 600px;
@@ -992,6 +996,7 @@ footer {
 .footer-img a:hover {
   opacity: 0.8;
 }
+
 
 
 
