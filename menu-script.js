@@ -174,10 +174,19 @@ function saveSelectionToStorage() {
   const arr = [];
   for (const [key, data] of selectedItems) {
     const parsed = parseItemKey(key);
+    
+    // Filtra solo customizzazioni con valore > 0
+    const filteredCustomizations = {};
+    for (const [optKey, optValue] of Object.entries(data.customizations || {})) {
+      if (optValue > 0) {
+        filteredCustomizations[optKey] = optValue;
+      }
+    }
+    
     arr.push(
-      parsed.name,                              // Nome base
-      JSON.stringify(data.customizations || {}), // Customizations
-      data.qty.toString()                        // Quantity
+      parsed.name,
+      JSON.stringify(filteredCustomizations),
+      data.qty.toString()
     );
   }
   localStorage.setItem("totemino_selected", JSON.stringify(arr));
@@ -945,28 +954,19 @@ function openPopup(item) {
     
     plusBtn.addEventListener("click", () => {
       if (item.customizable) {
-        // Aggiungi una unità alla prima variante
-        for (const [key, data] of selectedItems) {
-          const parsed = parseItemKey(key);
-          if (parsed.name === item.name) {
-            const itemPrice = calculateItemPrice(parsed.name, parsed.customizations);
-            data.qty++;
-            total += itemPrice;
-            count += 1;
-            qty++;
-            break;
-          }
-        }
+        // Chiudi popup e apri schermata customizzazione
+        closePopup();
+        openCustomizationScreen(item);
       } else {
         qty++;
         selectedItems.set(itemKey, { qty, customizations: {} });
         total += item.price;
         count += 1;
+        qtyDisplay.textContent = qty;
+        updateCart();
+        saveSelectionToStorage();
+        updateItemButtonUI(item.name);
       }
-      qtyDisplay.textContent = qty;
-      updateCart();
-      saveSelectionToStorage();
-      updateItemButtonUI(item.name);
     });
 
     popupControls.appendChild(minusBtn);
@@ -1079,6 +1079,7 @@ if (itemsContainer) {
 
 
 loadMenu();
+
 
 
 
