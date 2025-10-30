@@ -668,6 +668,7 @@
 }
 
 .suggestion-card {
+  width: 100%;
   border: 5px solid var(--card-border);
   box-shadow: 0 4px 12px var(--shadow-sm);
   border-radius: 1.5rem;
@@ -726,6 +727,7 @@
   color: var(--text-primary);
   background: var(--btn-secondary);
 }
+
 
 
 
