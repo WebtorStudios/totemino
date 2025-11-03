@@ -300,7 +300,7 @@
       <button class="close-popup" onclick="closeMenuTypesPopup()">
         <img src="img/x.png" alt="Chiudi">
       </button>
-      <h2>Gestisci Tipi di Menu</h2>
+      <h2 class="popup-title">Gestisci Tipi di Menu</h2>
       <div id="menu-types-list"></div>
       <div class="add-menu-type-section">
         <input type="text" id="new-menu-type-id" placeholder="ID di una parola (es. bar)" />
@@ -310,6 +310,31 @@
     </div>
   </div>
 
+  <!-- ===== POPUP MODIFICA CATEGORIA ===== -->
+  <div class="popup hidden" id="edit-category-popup">
+    <div class="customization-popup-content">
+      <button class="close-popup" onclick="closeEditCategoryPopup()">
+        <img src="img/x.png" alt="Chiudi">
+      </button>
+      <h2 class="popup-title">Modifica Categoria</h2>
+      
+      <div class="form-field" style="margin-bottom: 2rem;">
+        <h4 style="font-weight:600; font-size:1rem; margin-bottom: 0.5rem;">Nome categoria:</h4>
+        <input type="text" id="category-name-input" placeholder="Nome della categoria">
+      </div>
+
+      <div class="category-items-reorder">
+        <h4 style="font-weight:600; font-size:1rem; margin-bottom: 0.5rem;">Riordina elementi</h4>
+        <div id="draggable-items-list"></div>
+      </div>
+
+      <div class="popup-actions" style="margin-top: 2rem;">
+        <button class="btn-secondary" onclick="closeEditCategoryPopup()">Annulla</button>
+        <button class="btn-primary" onclick="saveCategoryChanges()">Salva Modifiche</button>
+      </div>
+    </div>
+  </div>
+  
   <!-- ===== SCRIPT FINALI ===== -->
   <script src="auth-protection.js"></script>
   <script src="theme.js"></script>

@@ -8,6 +8,8 @@ let currentEditingIndex = null;
 let isAddingNew = false;
 let uploadedImageName = null;
 let hasUnsavedChanges = false;
+let editingCategoryName = null;
+let editingCategoryItems = [];
 let availableMenuTypes = [];
 let currentMenuTypeFilter = '';
 let restaurantSettings = {
@@ -446,23 +448,33 @@ function createCategorySection(category, categoryIndex) {
   title.textContent = category;
   
   const buttonsContainer = document.createElement('div');
-  
+
   const addBtn = document.createElement('button');
   addBtn.className = 'add-item-btn';
   addBtn.innerHTML = '+';
   addBtn.title = 'Aggiungi nuovo elemento';
   addBtn.onclick = () => openEditPopup(null, category);
-
+  
+  const editCategoryBtn = document.createElement('button');
+  editCategoryBtn.className = 'edit-category-btn';
+  editCategoryBtn.innerHTML = '<img src="img/edit.png">';
+  editCategoryBtn.title = 'Modifica categoria';
+  editCategoryBtn.onclick = (e) => {
+    e.stopPropagation();
+    openEditCategoryPopup(category);
+  };
+  
   const deleteBtn = document.createElement('button');
   deleteBtn.className = 'delete-category-btn';
   deleteBtn.innerHTML = '<img src="img/delete.png">';
   deleteBtn.title = 'Elimina categoria';
   deleteBtn.onclick = (e) => {
-   e.stopPropagation();
-   deleteCategoryConfirm(category);
+    e.stopPropagation();
+    deleteCategoryConfirm(category);
   };
   
   buttonsContainer.appendChild(deleteBtn);
+  buttonsContainer.appendChild(editCategoryBtn);
   buttonsContainer.appendChild(addBtn);
   
   header.appendChild(title);
@@ -1352,6 +1364,100 @@ function clearMenuTypeFilter() {
     filterSelect.value = '';
   }
   renderMenuSections();
+}
+
+// ===== FUNZIONI MODIFICA CATEGORIA =====
+function openEditCategoryPopup(categoryName) {
+  editingCategoryName = categoryName;
+  editingCategoryItems = [...(menuData[categoryName] || [])];
+  
+  document.getElementById('category-name-input').value = categoryName;
+  renderDraggableItems();
+  document.getElementById('edit-category-popup').classList.remove('hidden');
+}
+
+function closeEditCategoryPopup() {
+  document.getElementById('edit-category-popup').classList.add('hidden');
+  editingCategoryName = null;
+  editingCategoryItems = [];
+}
+
+function renderDraggableItems() {
+  const container = document.getElementById('draggable-items-list');
+  container.innerHTML = '';
+  
+  editingCategoryItems.forEach((item, index) => {
+    const itemDiv = document.createElement('div');
+    itemDiv.className = 'draggable-item';
+    itemDiv.dataset.index = index;
+    
+    itemDiv.innerHTML = `
+      <div class="reorder-buttons">
+        <button class="reorder-btn" onclick="moveItemUp(${index})" ${index === 0 ? 'disabled' : ''}>
+          <img src="img/arrow-up.png" alt="Su">
+        </button>
+        <button class="reorder-btn" onclick="moveItemDown(${index})" ${index === editingCategoryItems.length - 1 ? 'disabled' : ''}>
+          <img src="img/arrow-down.png" alt="Giù">
+        </button>
+      </div>
+      <img src="${item.image || 'img/placeholder.png'}" alt="${item.name}" class="draggable-item-image">
+      <div class="draggable-item-info">
+        <p class="draggable-item-name">${item.name}</p>
+        <p class="draggable-item-price">€${item.price.toFixed(2)}</p>
+      </div>
+    `;
+    
+    container.appendChild(itemDiv);
+  });
+}
+
+function moveItemUp(index) {
+  if (index === 0) return;
+  
+  const temp = editingCategoryItems[index];
+  editingCategoryItems[index] = editingCategoryItems[index - 1];
+  editingCategoryItems[index - 1] = temp;
+  
+  renderDraggableItems();
+}
+
+function moveItemDown(index) {
+  if (index === editingCategoryItems.length - 1) return;
+  
+  const temp = editingCategoryItems[index];
+  editingCategoryItems[index] = editingCategoryItems[index + 1];
+  editingCategoryItems[index + 1] = temp;
+  
+  renderDraggableItems();
+}
+
+function saveCategoryChanges() {
+  const newCategoryName = document.getElementById('category-name-input').value.trim();
+  
+  if (!newCategoryName) {
+    showNotification('Inserisci un nome per la categoria', 'error');
+    return;
+  }
+  
+  if (newCategoryName !== editingCategoryName && categories.includes(newCategoryName)) {
+    showNotification('Esiste già una categoria con questo nome', 'error');
+    return;
+  }
+  
+  if (newCategoryName !== editingCategoryName) {
+    delete menuData[editingCategoryName];
+    const categoryIndex = categories.indexOf(editingCategoryName);
+    if (categoryIndex !== -1) {
+      categories[categoryIndex] = newCategoryName;
+    }
+  }
+  
+  menuData[newCategoryName] = editingCategoryItems;
+  
+  hasUnsavedChanges = true;
+  closeEditCategoryPopup();
+  renderMenuSections();
+  showNotification('Categoria aggiornata! Ricorda di salvare il menu.', 'success');
 }
 
 window.getRestaurantSettings = () => restaurantSettings;
