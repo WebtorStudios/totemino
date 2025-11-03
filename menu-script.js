@@ -108,63 +108,88 @@ function getCustomizationLabel(customizations) {
 
 function updateItemButtonUI(itemName) {
   const buttons = itemsContainer.querySelectorAll("button");
+  
   buttons.forEach(btn => {
     const titleEl = btn.querySelector("h3");
     if (!titleEl) return;
+    
     const baseName = titleEl.getAttribute('data-item-name');
     if (baseName !== itemName) return;
+    
     const item = findItemByName(itemName);
     if (!item) return;
-    // Conta TUTTE le varianti di questo item
-    let totalQty = 0;
-    for (const [key, data] of selectedItems) {
-      const parsed = parseItemKey(key);
-      if (parsed.name === itemName) {
-        totalQty += data.qty;
-      }
-    }
-    // ✅ Aggiorna il titolo
-    if (totalQty > 1) {
-      titleEl.textContent = `${itemName} (x${totalQty})`;
-    } else {
-      titleEl.textContent = itemName;
-    }
-    if (totalQty > 0) {
-      btn.classList.add("selected");
-    } else {
-      btn.classList.remove("selected");
-    }
+    
     const priceEl = btn.querySelector("p");
-    if (priceEl && item.customizable) {
-      if (totalQty > 0) {
-        // Calcola il prezzo totale di tutte le varianti
-        let totalPrice = 0;
-        for (const [key, data] of selectedItems) {
-          const parsed = parseItemKey(key);
-          if (parsed.name === itemName) {
-            totalPrice += calculateItemPrice(parsed.name, parsed.customizations) * data.qty;
-          }
-        }
-        priceEl.textContent = `€${totalPrice.toFixed(2)}`;
-        priceEl.classList.remove("customizable-price");
-      } else {
-        if (item.price < 0.01) {
-          priceEl.textContent = "Seleziona";
-        } else {
-          priceEl.textContent = `€${item.price.toFixed(2)}`;
-        }
-        priceEl.classList.add("customizable-price");
-      }
-    } else if (priceEl) {
-      if (item.price < 0.01) {
-        priceEl.textContent = "Gratis";
-      } else {
-        priceEl.textContent = `€${item.price.toFixed(2)}`;
-      }
-    }
+    if (!priceEl) return;
+    
+    // Calcola quantità totale di tutte le varianti
+    const totalQty = calculateTotalQuantityForItem(itemName);
+    
+    // Aggiorna titolo
+    titleEl.textContent = totalQty > 1 ? `${itemName} (x${totalQty})` : itemName;
+    
+    // Aggiorna classe selected
+    btn.classList.toggle("selected", totalQty > 0);
+    
+    // Aggiorna prezzo
+    updatePriceElement(priceEl, item, itemName, totalQty);
   });
 }
 
+function calculateTotalQuantityForItem(itemName) {
+  let total = 0;
+  for (const [key, data] of selectedItems) {
+    const parsed = parseItemKey(key);
+    if (parsed.name === itemName) {
+      total += data.qty;
+    }
+  }
+  return total;
+}
+
+function updatePriceElement(priceEl, item, itemName, totalQty) {
+  if (item.customizable) {
+    updateCustomizableItemPrice(priceEl, item, itemName, totalQty);
+  } else {
+    updateStandardItemPrice(priceEl, item);
+  }
+}
+
+function updateCustomizableItemPrice(priceEl, item, itemName, totalQty) {
+  if (totalQty > 0) {
+    // Item selezionato: mostra prezzo totale di tutte le varianti
+    const totalPrice = calculateTotalPriceForAllVariants(itemName);
+    priceEl.textContent = `€${totalPrice.toFixed(2)}`;
+    priceEl.classList.remove("customizable-price");
+  } else {
+    // Item non selezionato: mostra prezzo base + indicazione
+    if (item.price < 0.01) {
+      priceEl.textContent = "Seleziona";
+    } else {
+      priceEl.textContent = `€${item.price.toFixed(2)} + Modifica`;
+    }
+    priceEl.classList.add("customizable-price");
+  }
+}
+
+function calculateTotalPriceForAllVariants(itemName) {
+  let total = 0;
+  for (const [key, data] of selectedItems) {
+    const parsed = parseItemKey(key);
+    if (parsed.name === itemName) {
+      total += calculateItemPrice(parsed.name, parsed.customizations) * data.qty;
+    }
+  }
+  return total;
+}
+
+function updateStandardItemPrice(priceEl, item) {
+  if (item.price < 0.01) {
+    priceEl.textContent = "Gratis";
+  } else {
+    priceEl.textContent = `€${item.price.toFixed(2)}`;
+  }
+}
 
 // Carica immagini allergeni
 for (let i = 1; i <= 14; i++) {
@@ -688,7 +713,6 @@ function renderItems(category) {
 
   setTimeout(() => {
     itemsContainer.innerHTML = "";
-
     const items = window.menuData[category] || [];
 
     items.forEach(item => {
@@ -712,58 +736,18 @@ function renderItems(category) {
       const img = document.createElement("img");
       img.src = item.img;
       img.alt = item.displayName;
-      img.onerror = () => {
-        img.src = 'img/placeholder.png';
-      };
+      img.onerror = () => { img.src = 'img/placeholder.png'; };
       
       const title = document.createElement("h3");
       title.setAttribute('data-item-name', item.name);
-      
-      // Conta TUTTE le varianti di questo item
-      let totalQty = 0;
-      for (const [key, data] of selectedItems) {
-        const parsed = parseItemKey(key);
-        if (parsed.name === item.name) {
-          totalQty += data.qty;
-        }
-      }
-      
-      if (totalQty > 1) {
-        title.textContent = `${item.displayName} (x${totalQty})`;
-      } else {
-        title.textContent = item.displayName;
-      }
+      title.textContent = item.displayName;
 
       const price = document.createElement("p");
-      if (item.customizable) {
-        if (totalQty > 0) {
-          let totalPrice = 0;
-          for (const [key, data] of selectedItems) {
-            const parsed = parseItemKey(key);
-            if (parsed.name === item.name) {
-              totalPrice += calculateItemPrice(parsed.name, parsed.customizations) * data.qty;
-            }
-          }
-          price.textContent = `€${totalPrice.toFixed(2)}`;
-        } else {
-          if (item.price < 0.01) {
-            price.textContent = "Seleziona";
-          } else {
-            price.textContent = `€${item.price.toFixed(2)} + Modifica`;
-          }
-          price.classList.add("customizable-price");
-        }
-      } else {
-        price.textContent = `€${item.price.toFixed(2)}`;
-      }
+      price.textContent = `€${item.price.toFixed(2)}`;
 
       btn.appendChild(img);
       btn.appendChild(title);
       btn.appendChild(price);
-
-      if (totalQty > 0) {
-        btn.classList.add("selected");
-      }
 
       btn.addEventListener("click", (event) => {
         if (event.target.closest(".info-btn")) return;
@@ -778,7 +762,6 @@ function renderItems(category) {
           }
       
           if (isItemSelected) {
-            // Rimuovi TUTTE le varianti
             const keysToRemove = [];
             for (const [key, data] of selectedItems) {
               const parsed = parseItemKey(key);
@@ -803,7 +786,6 @@ function renderItems(category) {
               selectedItems.delete(itemKey);
               total -= item.price;
               count -= 1;
-              btn.classList.remove("selected");
             } else {
               data.qty--;
               total -= item.price;
@@ -813,7 +795,6 @@ function renderItems(category) {
             selectedItems.set(itemKey, { qty: 1, customizations: {} });
             total += item.price;
             count += 1;
-            btn.classList.add("selected");
           }
           updateCart();
           saveSelectionToStorage();
@@ -827,6 +808,9 @@ function renderItems(category) {
       });
 
       itemsContainer.appendChild(btn);
+      
+      // ✅ Aggiorna l'UI del bottone dopo averlo aggiunto al DOM
+      updateItemButtonUI(item.name);
     });
 
     itemsContainer.classList.remove("fade-out-left", "fade-out-right");
@@ -1101,6 +1085,7 @@ if (itemsContainer) {
 
 
 loadMenu();
+
 
 
 
