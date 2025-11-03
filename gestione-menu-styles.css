@@ -1162,8 +1162,8 @@
   color: white;
   border: none;
   border-radius: 50%;
-  width: 3rem;
-  height: 3rem;
+  width: 2.8rem;
+  height: 2.8rem;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1175,10 +1175,5 @@
 }
 
 .btn-group-id-display:hover {
-  filter: brightness(110%);
-  transform: scale(1.05);
-}
-
-.btn-group-id-display:active {
-  transform: scale(0.95);
+  filter: brightness(90%);
 }
