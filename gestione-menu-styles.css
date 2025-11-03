@@ -1162,14 +1162,14 @@
   color: white;
   border: none;
   border-radius: 50%;
-  width: 2.5rem;
-  height: 2.5rem;
+  width: 2.4rem;
+  height: 2.4rem;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   transition: all 0.2s ease;
-  font-size: 1.2rem;
+  font-size: 1rem;
   font-weight: bold;
   flex-shrink: 0;
 }
@@ -1177,4 +1177,5 @@
 .btn-group-id-display:hover {
   filter: brightness(90%);
 }
+
 
