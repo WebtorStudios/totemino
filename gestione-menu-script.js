@@ -834,6 +834,81 @@ function openCurrentGroupOrSelection() {
   }
 }
 
+function editExistingGroup(groupId) {
+  // Carica i dati del gruppo e apri il popup di modifica
+  if (window.editCustomizationGroup) {
+    window.editCustomizationGroup(groupId);
+  } else {
+    showNotification('Sistema di customizzazione non disponibile', 'error');
+  }
+}
+
+function openGroupSelectionPopup() {
+  // Verifica che il sistema di customizzazione sia caricato
+  if (!window.loadCustomizationGroups) {
+    showNotification('Sistema di customizzazione non disponibile', 'error');
+    return;
+  }
+  
+  // Carica e renderizza i gruppi disponibili
+  const groups = window.loadCustomizationGroups ? window.loadCustomizationGroups() : [];
+  const groupsList = document.getElementById('groups-list');
+  
+  if (!groupsList) return;
+  
+  groupsList.innerHTML = '';
+  
+  if (groups.length === 0) {
+    groupsList.innerHTML = '<p style="text-align: center; opacity: 0.7; padding: 2rem;">Nessun gruppo disponibile. Crea il primo!</p>';
+  } else {
+    groups.forEach(group => {
+      const groupCard = document.createElement('div');
+      groupCard.className = 'group-selection-card';
+      groupCard.innerHTML = `
+        <h3>${group.id}</h3>
+        <p>${group.sections ? group.sections.length : 0} sezioni</p>
+      `;
+      groupCard.onclick = () => selectGroup(group.id);
+      groupsList.appendChild(groupCard);
+    });
+  }
+  
+  document.getElementById('group-selection-popup').classList.remove('hidden');
+}
+
+function closeGroupSelectionPopup() {
+  document.getElementById('group-selection-popup').classList.add('hidden');
+}
+
+function selectGroup(groupId) {
+  const groupInput = document.getElementById('customization-group-id');
+  const btnDisplay = document.getElementById('btn-group-id-display');
+  
+  if (groupInput) {
+    groupInput.value = groupId;
+  }
+  
+  // Aggiorna immediatamente il display del pulsante
+  if (btnDisplay) {
+    btnDisplay.textContent = groupId;
+  }
+  
+  closeGroupSelectionPopup();
+  showNotification(`Gruppo "${groupId}" selezionato`, 'success');
+}
+
+function createNewGroup() {
+  // Chiudi il popup di selezione se aperto
+  closeGroupSelectionPopup();
+  
+  // Apri il popup di creazione
+  if (window.openCustomizationGroupPopup) {
+    window.openCustomizationGroupPopup();
+  } else {
+    showNotification('Sistema di customizzazione non disponibile', 'error');
+  }
+}
+
 function fillEditForm(item) {
   document.getElementById('item-name').value = item.name;
   document.getElementById('item-price').value = item.price;
@@ -1483,6 +1558,7 @@ function saveCategoryChanges() {
 }
 
 window.getRestaurantSettings = () => restaurantSettings;
+
 
 
 
