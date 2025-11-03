@@ -828,7 +828,7 @@ function openCurrentGroupOrSelection() {
   const groupId = groupInput ? groupInput.value : null;
   
   if (groupId) {
-    editExistingGroup(groupId);
+    editGroup(groupId);
   } else {
     openGroupSelectionPopup();
   }
@@ -1483,3 +1483,4 @@ function saveCategoryChanges() {
 }
 
 window.getRestaurantSettings = () => restaurantSettings;
+
