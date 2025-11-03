@@ -159,6 +159,10 @@ function updateItemButtonUI(itemName) {
           : `€${item.price.toFixed(2)}`;
         priceEl.classList.add("customizable-price");
       }
+    } else {
+      priceEl.textContent = item.price < 0.01 
+          ? "Gratis" 
+          : `€${item.price.toFixed(2)}`;
     }
   });
 }
@@ -1098,6 +1102,7 @@ if (itemsContainer) {
 
 
 loadMenu();
+
 
 
 
