@@ -219,6 +219,10 @@ function selectGroup(groupId) {
   checkbox.checked = true;
   groupInput.value = groupId;
   
+  // Aggiorna subito il display del numero gruppo
+  updateGroupIdButton();
+  updateCustomizationVisibility();
+  
   closeGroupSelectionPopup();
   showNotification(`Gruppo ${groupId} selezionato`, 'success');
 }
