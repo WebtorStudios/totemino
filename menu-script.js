@@ -111,13 +111,10 @@ function updateItemButtonUI(itemName) {
   buttons.forEach(btn => {
     const titleEl = btn.querySelector("h3");
     if (!titleEl) return;
-
     const baseName = titleEl.getAttribute('data-item-name');
     if (baseName !== itemName) return;
-
     const item = findItemByName(itemName);
     if (!item) return;
-
     // Conta TUTTE le varianti di questo item
     let totalQty = 0;
     for (const [key, data] of selectedItems) {
@@ -126,20 +123,17 @@ function updateItemButtonUI(itemName) {
         totalQty += data.qty;
       }
     }
-
     // ✅ Aggiorna il titolo
     if (totalQty > 1) {
       titleEl.textContent = `${itemName} (x${totalQty})`;
     } else {
       titleEl.textContent = itemName;
     }
-
     if (totalQty > 0) {
       btn.classList.add("selected");
     } else {
       btn.classList.remove("selected");
     }
-
     const priceEl = btn.querySelector("p");
     if (priceEl && item.customizable) {
       if (totalQty > 0) {
@@ -154,15 +148,19 @@ function updateItemButtonUI(itemName) {
         priceEl.textContent = `€${totalPrice.toFixed(2)}`;
         priceEl.classList.remove("customizable-price");
       } else {
-        priceEl.textContent = item.price < 0.01 
-          ? "Seleziona" 
-          : `€${item.price.toFixed(2)}`;
+        if (item.price < 0.01) {
+          priceEl.textContent = "Seleziona";
+        } else {
+          priceEl.textContent = `€${item.price.toFixed(2)}`;
+        }
         priceEl.classList.add("customizable-price");
       }
     } else if (priceEl) {
-      priceEl.textContent = item.price < 0.01 
-          ? "Gratis" 
-          : `€${item.price.toFixed(2)}`;
+      if (item.price < 0.01) {
+        priceEl.textContent = "Gratis";
+      } else {
+        priceEl.textContent = `€${item.price.toFixed(2)}`;
+      }
     }
   });
 }
@@ -1103,6 +1101,7 @@ if (itemsContainer) {
 
 
 loadMenu();
+
 
 
 
