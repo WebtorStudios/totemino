@@ -807,8 +807,30 @@ function updateCustomizationVisibility() {
   
   if (checkbox.checked) {
     controls.style.display = 'flex';
+    updateGroupIdButton();
   } else {
     controls.style.display = 'none';
+  }
+}
+
+function updateGroupIdButton() {
+  const groupInput = document.getElementById('customization-group-id');
+  const btnDisplay = document.getElementById('btn-group-id-display');
+  
+  if (groupInput && btnDisplay) {
+    const groupId = groupInput.value;
+    btnDisplay.textContent = groupId || '-';
+  }
+}
+
+function openCurrentGroupOrSelection() {
+  const groupInput = document.getElementById('customization-group-id');
+  const groupId = groupInput ? groupInput.value : null;
+  
+  if (groupId) {
+    editExistingGroup(groupId);
+  } else {
+    openGroupSelectionPopup();
   }
 }
 
@@ -1461,6 +1483,7 @@ function saveCategoryChanges() {
 }
 
 window.getRestaurantSettings = () => restaurantSettings;
+
 
 
 
