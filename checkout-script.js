@@ -272,6 +272,7 @@ const DataManager = {
     });
   
     await CopertoManager.loadCopertoPrice();
+    CopertoManager.addCopertoIfNeeded();
     UI.renderItems();
     UI.updateTotal();
     this.applyCheckoutMethods();
@@ -319,7 +320,9 @@ const DataManager = {
     const arr = [];
     
     STATE.items.forEach(item => {
-      // ✅ CORRETTO: solo name, customizations, quantity
+      // ✅ Escludi il coperto dal salvataggio
+      if (item.isCoperto) return;
+      
       arr.push(
         item.name,
         JSON.stringify(item.customizations || {}),
@@ -1255,6 +1258,7 @@ DataManager.fetchMenu();
 Navigation.init();
 Payment.init();
 Orders.init();
+
 
 
 
