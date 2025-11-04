@@ -902,11 +902,18 @@ async function processImageFile(file) {
     // Converti il file in base64
     const base64Data = await fileToBase64(file);
     
+    // 🔧 Ottieni l'URL della vecchia immagine (se esiste)
+    let oldImageUrl = null;
+    if (currentEditingItem && currentEditingItem.image) {
+      oldImageUrl = currentEditingItem.image;
+    }
+    
     // Prepara i dati per l'upload
     const uploadData = {
       fileName: file.name,
       fileData: base64Data,
-      restaurantId: restaurantId
+      restaurantId: restaurantId,
+      oldImageUrl: oldImageUrl // 🔧 Invia la vecchia immagine da eliminare
     };
     
     // Invia il file al server
@@ -1494,6 +1501,7 @@ function saveCategoryChanges() {
 }
 
 window.getRestaurantSettings = () => restaurantSettings;
+
 
 
 
