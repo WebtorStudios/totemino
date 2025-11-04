@@ -922,7 +922,7 @@ app.get('/api/restaurant-status/:restaurantId', async (req, res) => {
 
 // ==================== ADMIN PROTECTED ROUTES ====================
 app.post('/upload-image', requireAuth, async (req, res) => {
-  const { fileName, fileData, restaurantId } = req.body;
+  const { fileName, fileData, restaurantId, oldImageUrl } = req.body;
   
   if (req.session.user.restaurantId !== restaurantId) {
     return res.status(403).json({ success: false, message: 'Accesso non autorizzato' });
@@ -933,7 +933,7 @@ app.post('/upload-image', requireAuth, async (req, res) => {
   }
   
   try {
-    const { S3Client, PutObjectCommand, ListObjectsV2Command, DeleteObjectCommand } = require('@aws-sdk/client-s3');
+    const { S3Client, PutObjectCommand, ListObjectsV2Command, DeleteObjectCommand, HeadObjectCommand } = require('@aws-sdk/client-s3');
     const s3Client = new S3Client({ region: 'eu-west-3' });
     
     const base64Data = fileData.replace(/^data:image\/[a-z]+;base64,/, '');
@@ -941,29 +941,43 @@ app.post('/upload-image', requireAuth, async (req, res) => {
     
     const fileNameParts = fileName.split('.');
     const extension = fileNameParts.pop();
-    const baseName = fileNameParts.join('.');
+    let baseName = fileNameParts.join('.');
     
-    const prefix = `${restaurantId}/img/${baseName}`;
-    const listParams = {
-      Bucket: 'totemino',
-      Prefix: prefix
-    };
-    
-    const existingFiles = await s3Client.send(new ListObjectsV2Command(listParams));
-    
-    if (existingFiles.Contents && existingFiles.Contents.length > 0) {
-      for (const file of existingFiles.Contents) {
+    // 1. Se c'è una vecchia immagine per questo elemento, eliminala
+    if (oldImageUrl) {
+      const oldKey = oldImageUrl.replace('https://totemino.s3.eu-west-3.amazonaws.com/', '');
+      try {
         await s3Client.send(new DeleteObjectCommand({
           Bucket: 'totemino',
-          Key: file.Key
+          Key: oldKey
         }));
+      } catch (err) {
+        console.log(`⚠️ Vecchia immagine non trovata o già eliminata: ${oldKey}`);
       }
     }
     
-    const timestamp = Date.now();
-    const newFileName = `${baseName}_${timestamp}.${extension}`;
-    const s3Key = `${restaurantId}/img/${newFileName}`;
+    // 2. Controlla se esiste già un file con questo nome
+    let finalFileName = `${baseName}.${extension}`;
+    let s3Key = `${restaurantId}/img/${finalFileName}`;
+    let counter = 1;
     
+    while (true) {
+      try {
+        await s3Client.send(new HeadObjectCommand({
+          Bucket: 'totemino',
+          Key: s3Key
+        }));
+        // Il file esiste, prova con un nuovo nome
+        finalFileName = `${baseName}_${counter}.${extension}`;
+        s3Key = `${restaurantId}/img/${finalFileName}`;
+        counter++;
+      } catch (err) {
+        // Il file non esiste, possiamo usare questo nome
+        break;
+      }
+    }
+    
+    // 3. Carica la nuova immagine
     const uploadParams = {
       Bucket: 'totemino',
       Key: s3Key,
@@ -975,7 +989,7 @@ app.post('/upload-image', requireAuth, async (req, res) => {
     
     const imageUrl = `https://totemino.s3.eu-west-3.amazonaws.com/${s3Key}`;
     
-    res.json({ success: true, fileName: newFileName, imageUrl });
+    res.json({ success: true, fileName: finalFileName, imageUrl });
     
   } catch (error) {
     console.error('❌ Errore upload immagine:', error);
@@ -1438,6 +1452,7 @@ app.listen(PORT, () => {
   console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
 
 });
+
 
 
 
