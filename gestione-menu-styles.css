@@ -11,6 +11,14 @@
   margin-bottom: 1.5rem;
 }
 
+body.popup-open {
+  overflow: hidden;
+  position: fixed;
+  width: 100%;
+  left: 0;
+  right: 0;
+}
+
 /* ===== LAYOUT PRINCIPALE ===== */
 .management-container {
   max-width: 1200px;
@@ -1177,5 +1185,6 @@
 .btn-group-id-display:hover {
   filter: brightness(90%);
 }
+
 
 
