@@ -684,7 +684,6 @@ function openEditPopup(item = null, category = null, itemIndex = null) {
   const title = document.getElementById('popup-title');
   const deleteBtn = document.getElementById('delete-item');
   
-  // Reset form
   resetEditForm();
   
   if (isAddingNew) {
@@ -696,10 +695,8 @@ function openEditPopup(item = null, category = null, itemIndex = null) {
     fillEditForm(item);
   }
   
-  // Genera griglia allergeni
   generateAllergensGrid();
   
-  // Se stiamo modificando, seleziona gli allergeni esistenti
   if (item && item.allergens) {
     setTimeout(() => {
       item.allergens.forEach(allergenId => {
@@ -713,26 +710,30 @@ function openEditPopup(item = null, category = null, itemIndex = null) {
   
   popup.classList.remove('hidden');
   
-  // Salva la posizione e blocca lo scroll
   const scrollY = window.scrollY;
-  document.body.dataset.scrollY = scrollY;
+  document.body.dataset.scrollY = scrollY.toString();
+  
   document.body.style.position = 'fixed';
   document.body.style.top = `-${scrollY}px`;
+  document.body.style.left = '0';
+  document.body.style.right = '0';
   document.body.style.width = '100%';
-  document.body.style.overflow = 'hidden';
 }
 
 function closeEditPopup() {
   const popup = document.getElementById('edit-popup');
   popup.classList.add('hidden');
   
-  // Ripristina completamente lo scroll
-  const scrollY = parseInt(document.body.dataset.scrollY || '0');
+  const scrollY = document.body.dataset.scrollY ? parseInt(document.body.dataset.scrollY, 10) : 0;
+  
   document.body.style.removeProperty('position');
   document.body.style.removeProperty('top');
+  document.body.style.removeProperty('left');
+  document.body.style.removeProperty('right');
   document.body.style.removeProperty('width');
-  document.body.style.removeProperty('overflow');
+  
   delete document.body.dataset.scrollY;
+  
   window.scrollTo(0, scrollY);
   
   currentEditingItem = null;
@@ -742,13 +743,11 @@ function closeEditPopup() {
 }
 
 function handlePopupClose() {
-  // Se stiamo aggiungendo un nuovo elemento e tutti i campi sono vuoti, agisci come annulla
   if (isAddingNew && areAllFieldsEmpty()) {
     closeEditPopup();
     return;
   }
   
-  // Altrimenti, salva e chiudi
   if (validateAndSaveItem()) {
     closeEditPopup();
   }
@@ -1483,4 +1482,5 @@ function saveCategoryChanges() {
 }
 
 window.getRestaurantSettings = () => restaurantSettings;
+
 
