@@ -684,6 +684,7 @@ function openEditPopup(item = null, category = null, itemIndex = null) {
   const title = document.getElementById('popup-title');
   const deleteBtn = document.getElementById('delete-item');
   
+  // Reset form
   resetEditForm();
   
   if (isAddingNew) {
@@ -695,8 +696,10 @@ function openEditPopup(item = null, category = null, itemIndex = null) {
     fillEditForm(item);
   }
   
+  // Genera griglia allergeni
   generateAllergensGrid();
   
+  // Se stiamo modificando, seleziona gli allergeni esistenti
   if (item && item.allergens) {
     setTimeout(() => {
       item.allergens.forEach(allergenId => {
@@ -708,30 +711,24 @@ function openEditPopup(item = null, category = null, itemIndex = null) {
     }, 100);
   }
   
-  popup.classList.remove('hidden');
-  
-  const scrollY = window.scrollY;
-  document.body.dataset.scrollY = scrollY.toString();
-  
-  document.body.style.position = 'fixed';
+  // ✅ FIX: Salva scroll PRIMA di mostrare il popup
+  const scrollY = window.pageYOffset || document.documentElement.scrollTop;
+  document.body.dataset.scrollY = scrollY;
   document.body.style.top = `-${scrollY}px`;
-  document.body.style.left = '0';
-  document.body.style.right = '0';
-  document.body.style.width = '100%';
+  document.body.classList.add('popup-open');
+  
+  popup.classList.remove('hidden');
 }
 
 function closeEditPopup() {
   const popup = document.getElementById('edit-popup');
   popup.classList.add('hidden');
   
-  const scrollY = document.body.dataset.scrollY ? parseInt(document.body.dataset.scrollY, 10) : 0;
+  // ✅ FIX: Ripristina scroll correttamente
+  const scrollY = parseInt(document.body.dataset.scrollY || '0', 10);
   
-  document.body.style.removeProperty('position');
-  document.body.style.removeProperty('top');
-  document.body.style.removeProperty('left');
-  document.body.style.removeProperty('right');
-  document.body.style.removeProperty('width');
-  
+  document.body.classList.remove('popup-open');
+  document.body.style.top = '';
   delete document.body.dataset.scrollY;
   
   window.scrollTo(0, scrollY);
@@ -1394,11 +1391,26 @@ function openEditCategoryPopup(categoryName) {
   
   document.getElementById('category-name-input').value = categoryName;
   renderDraggableItems();
+  
+  const scrollY = window.pageYOffset || document.documentElement.scrollTop;
+  document.body.dataset.scrollY = scrollY;
+  document.body.style.top = `-${scrollY}px`;
+  document.body.classList.add('popup-open');
+  
   document.getElementById('edit-category-popup').classList.remove('hidden');
 }
 
 function closeEditCategoryPopup() {
   document.getElementById('edit-category-popup').classList.add('hidden');
+  
+  const scrollY = parseInt(document.body.dataset.scrollY || '0', 10);
+  
+  document.body.classList.remove('popup-open');
+  document.body.style.top = '';
+  delete document.body.dataset.scrollY;
+  
+  window.scrollTo(0, scrollY);
+  
   editingCategoryName = null;
   editingCategoryItems = [];
 }
@@ -1482,5 +1494,6 @@ function saveCategoryChanges() {
 }
 
 window.getRestaurantSettings = () => restaurantSettings;
+
 
 
