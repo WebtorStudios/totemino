@@ -322,55 +322,89 @@ class SuggestionsEngine {
   }
 
   addSuggestionToOrder(suggestion, restaurantId) {
-    const currentSelected = JSON.parse(localStorage.getItem("totemino_selected") || "[]");
-    const currentNotes = JSON.parse(localStorage.getItem("totemino_notes") || "[]");
-    const suggestedItems = JSON.parse(localStorage.getItem("totemino_suggested_items") || "[]");
-    
-    let itemExists = false;
-    
-    if (currentSelected.length % 3 === 0 && currentSelected.length > 0) {
-      for (let i = 0; i < currentSelected.length; i += 3) {
-        if (currentSelected[i] === suggestion.name) {
-          const currentQty = parseInt(currentSelected[i + 2]) || 0;
-          currentSelected[i + 2] = (currentQty + 1).toString();
-          itemExists = true;
-          break;
-        }
+  const currentSelected = JSON.parse(localStorage.getItem("totemino_selected") || "[]");
+  const currentNotes = JSON.parse(localStorage.getItem("totemino_notes") || "[]");
+  const suggestedItems = JSON.parse(localStorage.getItem("totemino_suggested_items") || "[]");
+  
+  let itemExists = false;
+  
+  if (currentSelected.length % 3 === 0 && currentSelected.length > 0) {
+    for (let i = 0; i < currentSelected.length; i += 3) {
+      if (currentSelected[i] === suggestion.name) {
+        const currentQty = parseInt(currentSelected[i + 2]) || 0;
+        currentSelected[i + 2] = (currentQty + 1).toString();
+        itemExists = true;
+        break;
       }
     }
+  }
+  
+  if (!itemExists) {
+    // ✅ INSERISCI IN CIMA invece che in fondo
+    currentSelected.unshift(suggestion.name, "{}", "1");
+    currentNotes.unshift("");
+  }
+  
+  if (!suggestedItems.includes(suggestion.name)) {
+    suggestedItems.push(suggestion.name);
+  }
+  
+  localStorage.setItem("totemino_selected", JSON.stringify(currentSelected));
+  localStorage.setItem("totemino_notes", JSON.stringify(currentNotes));
+  localStorage.setItem("totemino_suggested_items", JSON.stringify(suggestedItems));
+  
+  let total = 0;
+  for (let i = 0; i < currentSelected.length; i += 3) {
+    const itemName = currentSelected[i];
+    const qty = parseInt(currentSelected[i + 2]) || 1;
     
-    if (!itemExists) {
-      currentSelected.push(suggestion.name, "{}", "1");
-      currentNotes.push("");
+    for (const category in this.menuData) {
+      const item = this.menuData[category].find(it => it.name === itemName);
+      if (item) {
+        total += item.price * qty;
+        break;
+      }
     }
+  }
+  
+  const count = currentSelected.length / 3;
+  localStorage.setItem("totemino_total", total.toFixed(2));
+  localStorage.setItem("totemino_count", count.toString());
+  
+  if (typeof STATE !== 'undefined' && typeof UI !== 'undefined' && typeof DataManager !== 'undefined') {
+    // Ricarica items nello STATE
+    const selectedMap = DataManager.loadSelectedItems();
+    STATE.items = [];
     
-    if (!suggestedItems.includes(suggestion.name)) {
-      suggestedItems.push(suggestion.name);
-    }
-    
-    localStorage.setItem("totemino_selected", JSON.stringify(currentSelected));
-    localStorage.setItem("totemino_notes", JSON.stringify(currentNotes));
-    localStorage.setItem("totemino_suggested_items", JSON.stringify(suggestedItems));
-    
-    let total = 0;
-    for (let i = 0; i < currentSelected.length; i += 3) {
-      const itemName = currentSelected[i];
-      const qty = parseInt(currentSelected[i + 2]) || 1;
+    for (const [key, data] of selectedMap) {
+      const keyName = key.includes('|') ? key.split('|')[0] : key;
       
       for (const category in this.menuData) {
-        const item = this.menuData[category].find(it => it.name === itemName);
-        if (item) {
-          total += item.price * qty;
+        const menuItem = this.menuData[category].find(i => i.name === keyName);
+        if (menuItem) {
+          STATE.items.push({
+            name: menuItem.name,
+            price: menuItem.price,
+            img: menuItem.imagePath,
+            ingredients: menuItem.description ? menuItem.description.split(",").map(s => s.trim()) : [],
+            customizable: menuItem.customizable || false,
+            customizationGroup: menuItem.customizationGroup || null,
+            restaurantId: restaurantId,
+            quantity: data.qty,
+            category: category,
+            isSuggested: suggestedItems.includes(keyName),
+            customizations: data.customizations || {},
+            uniqueKey: key
+          });
           break;
         }
       }
     }
     
-    const count = currentSelected.length / 3;
-    localStorage.setItem("totemino_total", total.toFixed(2));
-    localStorage.setItem("totemino_count", count.toString());
+    UI.renderItems();
+    UI.updateTotal();
     
-    window.location.reload();
+    this.renderSuggestions(restaurantId).catch(console.error);
   }
 }
 
@@ -392,3 +426,4 @@ async function initializeSuggestions(menuData, restaurantId) {
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = { SuggestionsEngine, initializeSuggestions };
 }
+
