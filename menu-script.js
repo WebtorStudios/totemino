@@ -75,8 +75,9 @@ function calculateItemPrice(itemName, customizations = {}) {
     if (group) {
       group.forEach(section => {
         section.options.forEach(opt => {
-          if (customizations[opt.id]) {
-            price += opt.priceModifier * customizations[opt.id];
+          const qty = customizations[opt.id] || 0;
+          if (qty > 0) {
+            price += opt.priceModifier * qty;
           }
         });
       });
@@ -355,6 +356,7 @@ function openCustomizationScreen(item) {
   const addBtn = screen.querySelector(".add-to-cart-btn");
   const backBtn = screen.querySelector(".back-btn");
   
+  // Stato delle customizzazioni - inizializza tutto a 0
   const customizationState = {};
   
   // Carica le sezioni di customizzazione
@@ -368,6 +370,11 @@ function openCustomizationScreen(item) {
       title.textContent = section.name + (section.required ? " *" : "");
       sectionDiv.appendChild(title);
       
+      // Inizializza stato per tutte le opzioni di questa sezione
+      section.options.forEach(opt => {
+        customizationState[opt.id] = 0;
+      });
+      
       section.options.forEach(opt => {
         const optDiv = document.createElement("div");
         optDiv.className = "customization-option";
@@ -375,34 +382,36 @@ function openCustomizationScreen(item) {
         const optLabel = document.createElement("label");
         optLabel.textContent = opt.name;
         if (opt.priceModifier !== 0) {
-          optLabel.textContent += ` (+€${opt.priceModifier.toFixed(2)})`;
+          const sign = opt.priceModifier > 0 ? '+' : '';
+          optLabel.textContent += ` (${sign}€${opt.priceModifier.toFixed(2)})`;
         }
         
         const controls = document.createElement("div");
         controls.className = "option-controls";
         
         if (section.maxSelections === 1) {
-          // Radio button per selezione singola
+          // Radio button simulato con checkbox
           const checkbox = document.createElement("input");
           checkbox.type = "checkbox";
           checkbox.id = `opt-${opt.id}`;
           checkbox.className = "radio-checkbox";
           
-          if (customizationState[opt.id] === undefined) {
-            customizationState[opt.id] = 0;
-          }
-          
           checkbox.addEventListener("change", () => {
             if (checkbox.checked) {
+              // Deseleziona tutte le altre opzioni della sezione
               section.options.forEach(o => {
-                customizationState[o.id] = 0;
-                const otherCheckbox = document.getElementById(`opt-${o.id}`);
-                if (otherCheckbox && otherCheckbox !== checkbox) {
-                  otherCheckbox.checked = false;
+                if (o.id !== opt.id) {
+                  customizationState[o.id] = 0;
+                  const otherCheckbox = document.getElementById(`opt-${o.id}`);
+                  if (otherCheckbox) {
+                    otherCheckbox.checked = false;
+                  }
                 }
               });
+              // Seleziona questa opzione
               customizationState[opt.id] = 1;
             } else {
+              // Deseleziona questa opzione
               customizationState[opt.id] = 0;
             }
             updateTotalPrice();
@@ -416,21 +425,21 @@ function openCustomizationScreen(item) {
           checkbox.id = `opt-${opt.id}`;
           checkbox.className = "square-checkbox";
           
-          customizationState[opt.id] = 0;
-          
           checkbox.addEventListener("change", () => {
             if (checkbox.checked) {
-              // Verifica se aggiungere questa opzione supera il limite
-              const currentTotal = section.options
+              // Calcola quante opzioni sono già selezionate (escludendo questa)
+              const currentSelections = section.options
                 .filter(o => o.id !== opt.id)
                 .reduce((sum, o) => sum + (customizationState[o.id] || 0), 0);
               
-              if (!section.maxSelections || (currentTotal + 1) <= section.maxSelections) {
+              // Verifica se possiamo aggiungere questa selezione
+              if (!section.maxSelections || (currentSelections < section.maxSelections)) {
                 customizationState[opt.id] = 1;
               } else {
-                // Supera il limite, deseleziona
+                // Limite raggiunto, deseleziona
                 checkbox.checked = false;
                 customizationState[opt.id] = 0;
+                showNotification(`Massimo ${section.maxSelections} selezioni per questa sezione`, 'warning');
               }
             } else {
               customizationState[opt.id] = 0;
@@ -451,6 +460,7 @@ function openCustomizationScreen(item) {
   }
   
   function updateTotalPrice() {
+    // Calcola il prezzo totale con le customizzazioni correnti
     const totalPrice = calculateItemPrice(item.name, customizationState);
     totalPriceEl.textContent = `Totale: €${totalPrice.toFixed(2)}`;
     
@@ -470,6 +480,7 @@ function openCustomizationScreen(item) {
       }
     }
     
+    // Abilita/disabilita il pulsante Conferma
     addBtn.disabled = !allRequiredFilled;
     if (!allRequiredFilled) {
       addBtn.classList.add("disabled");
@@ -479,16 +490,25 @@ function openCustomizationScreen(item) {
   }
   
   addBtn.addEventListener("click", () => {
-    const itemKey = generateItemKey(item.name, customizationState);
-    const itemPrice = calculateItemPrice(item.name, customizationState);
+    // Crea una copia pulita delle customizzazioni (solo valori > 0)
+    const cleanCustomizations = {};
+    for (const [key, value] of Object.entries(customizationState)) {
+      if (value > 0) {
+        cleanCustomizations[key] = value;
+      }
+    }
     
+    const itemKey = generateItemKey(item.name, cleanCustomizations);
+    const itemPrice = calculateItemPrice(item.name, cleanCustomizations);
+    
+    // Aggiungi o incrementa l'item
     if (selectedItems.has(itemKey)) {
       const data = selectedItems.get(itemKey);
       data.qty++;
     } else {
       selectedItems.set(itemKey, {
         qty: 1,
-        customizations: { ...customizationState }
+        customizations: { ...cleanCustomizations }
       });
     }
     
@@ -519,9 +539,9 @@ function openCustomizationScreen(item) {
     window.scrollTo(0, parseInt(scrollY || '0') * -1);
   });
   
+  // Aggiorna prezzo iniziale e stato del pulsante
   updateTotalPrice();
 }
-
 // === MENU ===
 async function loadMenu() {
   const params = new URLSearchParams(window.location.search);
@@ -753,6 +773,7 @@ function renderItems(category) {
         if (event.target.closest(".info-btn")) return;
       
         if (item.customizable) {
+          // Item customizzabile
           let isItemSelected = false;
           for (const [key] of selectedItems) {
             if (parseItemKey(key).name === item.name) {
@@ -762,12 +783,14 @@ function renderItems(category) {
           }
       
           if (isItemSelected) {
+            // Item già selezionato: rimuovi TUTTE le varianti
             const keysToRemove = [];
             for (const [key, data] of selectedItems) {
               const parsed = parseItemKey(key);
               if (parsed.name === item.name) {
                 keysToRemove.push(key);
-                total -= calculateItemPrice(parsed.name, parsed.customizations) * data.qty;
+                const itemPrice = calculateItemPrice(parsed.name, parsed.customizations);
+                total -= itemPrice * data.qty;
                 count -= data.qty;
               }
             }
@@ -776,9 +799,11 @@ function renderItems(category) {
             saveSelectionToStorage();
             updateItemButtonUI(item.name);
           } else {
+            // Item non selezionato: apri customizzazione
             openCustomizationScreen(item);
           }
         } else {
+          // Item normale (non customizzabile)
           const itemKey = item.name;
           if (selectedItems.has(itemKey)) {
             let data = selectedItems.get(itemKey);
@@ -1085,6 +1110,7 @@ if (itemsContainer) {
 
 
 loadMenu();
+
 
 
 
