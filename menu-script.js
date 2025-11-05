@@ -485,7 +485,7 @@ function openCustomizationScreen(item) {
     }
   }
   
-addBtn.addEventListener("click", () => {
+  addBtn.addEventListener("click", () => {
     const cleanCustomizations = {};
     for (const [key, value] of Object.entries(customizationState)) {
       if (value > 0) {
@@ -496,33 +496,19 @@ addBtn.addEventListener("click", () => {
     const itemKey = generateItemKey(item.name, cleanCustomizations);
     const itemPrice = calculateItemPrice(item.name, cleanCustomizations);
     
+    // âœ… MODIFICATO: Inserisci SEMPRE in cima
     if (selectedItems.has(itemKey)) {
       const data = selectedItems.get(itemKey);
       data.qty++;
-      total += itemPrice;
-      count += 1;
     } else {
-      const newMap = new Map();
-      
-      newMap.set(itemKey, {
+      selectedItems = prependToMap(selectedItems, itemKey, {
         qty: 1,
         customizations: { ...cleanCustomizations }
       });
-      
-      for (const [key, value] of selectedItems) {
-        if (key !== "Coperto") {
-          newMap.set(key, value);
-        }
-      }
-      
-      if (selectedItems.has("Coperto")) {
-        newMap.set("Coperto", selectedItems.get("Coperto"));
-      }
-      
-      selectedItems = newMap;
-      total += itemPrice;
-      count += 1;
     }
+    
+    total += itemPrice;
+    count += 1;
     
     updateCart();
     saveSelectionToStorage();
@@ -1123,6 +1109,7 @@ if (itemsContainer) {
 
 
 loadMenu();
+
 
 
 
