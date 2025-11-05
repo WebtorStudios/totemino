@@ -407,6 +407,7 @@ async function saveCustomizationGroup() {
       return;
     }
     
+    const sectionId = name.toLowerCase().replace(/\s+/g, '-');
     const options = [];
     const optionElements = section.querySelectorAll('.customization-option');
     
@@ -426,14 +427,14 @@ async function saveCustomizationGroup() {
       }
       
       options.push({
-        id: optionName.toLowerCase().replace(/\s+/g, '-'),
+        id: `${sectionId}.${optionName.toLowerCase().replace(/\s+/g, '-')}`,
         name: optionName,
         priceModifier: priceModifier
       });
     }
     
     groupData.push({
-      id: name.toLowerCase().replace(/\s+/g, '-'),
+      id: sectionId,
       name: name,
       required: requiredInput.checked,
       maxSelections: parseInt(maxSelectionsInput.value) || 1,
@@ -441,7 +442,6 @@ async function saveCustomizationGroup() {
     });
   }
   
-  // Salva il gruppo
   if (currentEditingGroupId === null) {
     const newGroupId = getNextGroupId();
     customizationData[newGroupId] = groupData;
