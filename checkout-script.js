@@ -669,7 +669,7 @@ const Popup = {
     return card;
   },
 
-  setupSuggestionsButton(popup, selectedSuggestions) {
+ setupSuggestionsButton(popup, selectedSuggestions) {
     const oldBtn = document.getElementById("suggestions-action-btn");
     const newBtn = oldBtn.cloneNode(true);
     oldBtn.replaceWith(newBtn);
@@ -695,25 +695,28 @@ const Popup = {
     });
   
     newBtn.onclick = () => {
+      // ✅ MARCA SUBITO I SUGGERIMENTI COME MOSTRATI
+      STATE.suggestionsShown = true;
+      
       if (selectedSuggestions.size > 0) {
-        // Array temporaneo per i nuovi item
-        const newItems = [];
-        const newNotes = [];
-        
         selectedSuggestions.forEach(itemName => {
           for (const category in STATE.menuData) {
             const menuItem = STATE.menuData[category].find(i => i.name === itemName);
             if (menuItem) {
               const existingItem = STATE.items.find(i => 
                 i.name === itemName && 
-                (!i.customizations || Object.keys(i.customizations).length === 0)
+                (!i.customizations || Object.keys(i.customizations).length === 0) &&
+                !i.isCoperto
               );
               
               if (existingItem) {
                 existingItem.quantity += 1;
                 existingItem.isSuggested = true;
               } else {
-                newItems.push({
+                // ✅ Trova l'indice del coperto
+                const copertoIndex = STATE.items.findIndex(i => i.isCoperto);
+                
+                const newItem = {
                   ...menuItem,
                   restaurantId: CONFIG.restaurantId,
                   quantity: 1,
@@ -721,17 +724,22 @@ const Popup = {
                   isSuggested: true,
                   customizations: {},
                   uniqueKey: itemName
-                });
-                newNotes.push("");
+                };
+                
+                // ✅ Se c'è il coperto, inserisci PRIMA di esso
+                if (copertoIndex !== -1) {
+                  STATE.items.splice(copertoIndex, 0, newItem);
+                  STATE.orderNotes.splice(copertoIndex, 0, "");
+                } else {
+                  // Altrimenti aggiungi in cima
+                  STATE.items.unshift(newItem);
+                  STATE.orderNotes.unshift("");
+                }
               }
               break;
             }
           }
         });
-  
-        // Aggiungi i nuovi item IN CIMA
-        STATE.items = [...newItems, ...STATE.items];
-        STATE.orderNotes = [...newNotes, ...STATE.orderNotes];
   
         DataManager.saveSelected();
         this.hidePopup(popup);
@@ -745,7 +753,7 @@ const Popup = {
         }
       } else {
         this.hidePopup(popup);
-        this.skipSuggestions();
+        Navigation.switchToStep(1);
       }
     };
   },
@@ -1305,6 +1313,7 @@ DataManager.fetchMenu();
 Navigation.init();
 Payment.init();
 Orders.init();
+
 
 
 
