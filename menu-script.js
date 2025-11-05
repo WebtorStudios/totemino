@@ -27,6 +27,16 @@ let quantityPopupTimeout = null;
 let currentPopupItem = null;
 let customizationData = {};
 
+//helper
+function prependToMap(map, key, value) {
+  const newMap = new Map();
+  newMap.set(key, value);
+  for (const [k, v] of map) {
+    newMap.set(k, v);
+  }
+  return newMap;
+}
+
 // Carica customization.json
 async function loadCustomizations() {
   try {
@@ -356,10 +366,8 @@ function openCustomizationScreen(item) {
   const addBtn = screen.querySelector(".add-to-cart-btn");
   const backBtn = screen.querySelector(".back-btn");
   
-  // Stato delle customizzazioni - inizializza tutto a 0
   const customizationState = {};
   
-  // Carica le sezioni di customizzazione
   const group = customizationData[item.customizationGroup];
   if (group) {
     group.forEach(section => {
@@ -370,7 +378,6 @@ function openCustomizationScreen(item) {
       title.textContent = section.name + (section.required ? " *" : "");
       sectionDiv.appendChild(title);
       
-      // Inizializza stato per tutte le opzioni di questa sezione
       section.options.forEach(opt => {
         customizationState[opt.id] = 0;
       });
@@ -390,7 +397,6 @@ function openCustomizationScreen(item) {
         controls.className = "option-controls";
         
         if (section.maxSelections === 1) {
-          // Radio button simulato con checkbox
           const checkbox = document.createElement("input");
           checkbox.type = "checkbox";
           checkbox.id = `opt-${opt.id}`;
@@ -398,7 +404,6 @@ function openCustomizationScreen(item) {
           
           checkbox.addEventListener("change", () => {
             if (checkbox.checked) {
-              // Deseleziona tutte le altre opzioni della sezione
               section.options.forEach(o => {
                 if (o.id !== opt.id) {
                   customizationState[o.id] = 0;
@@ -408,10 +413,8 @@ function openCustomizationScreen(item) {
                   }
                 }
               });
-              // Seleziona questa opzione
               customizationState[opt.id] = 1;
             } else {
-              // Deseleziona questa opzione
               customizationState[opt.id] = 0;
             }
             updateTotalPrice();
@@ -419,7 +422,6 @@ function openCustomizationScreen(item) {
           
           controls.appendChild(checkbox);
         } else {
-          // Checkbox quadrato per selezioni multiple
           const checkbox = document.createElement("input");
           checkbox.type = "checkbox";
           checkbox.id = `opt-${opt.id}`;
@@ -427,19 +429,16 @@ function openCustomizationScreen(item) {
           
           checkbox.addEventListener("change", () => {
             if (checkbox.checked) {
-              // Calcola quante opzioni sono già selezionate (escludendo questa)
               const currentSelections = section.options
                 .filter(o => o.id !== opt.id)
                 .reduce((sum, o) => sum + (customizationState[o.id] || 0), 0);
               
-              // Verifica se possiamo aggiungere questa selezione
               if (!section.maxSelections || (currentSelections < section.maxSelections)) {
                 customizationState[opt.id] = 1;
               } else {
-                // Limite raggiunto, deseleziona
                 checkbox.checked = false;
                 customizationState[opt.id] = 0;
-                showNotification(`Massimo ${section.maxSelections} selezioni per questa sezione`, 'warning');
+                alert(`Massimo ${section.maxSelections} selezioni per questa sezione`);
               }
             } else {
               customizationState[opt.id] = 0;
@@ -460,11 +459,9 @@ function openCustomizationScreen(item) {
   }
   
   function updateTotalPrice() {
-    // Calcola il prezzo totale con le customizzazioni correnti
     const totalPrice = calculateItemPrice(item.name, customizationState);
     totalPriceEl.textContent = `Totale: €${totalPrice.toFixed(2)}`;
     
-    // Verifica se tutte le sezioni required sono compilate
     let allRequiredFilled = true;
     if (group) {
       for (const section of group) {
@@ -480,7 +477,6 @@ function openCustomizationScreen(item) {
       }
     }
     
-    // Abilita/disabilita il pulsante Conferma
     addBtn.disabled = !allRequiredFilled;
     if (!allRequiredFilled) {
       addBtn.classList.add("disabled");
@@ -490,7 +486,6 @@ function openCustomizationScreen(item) {
   }
   
   addBtn.addEventListener("click", () => {
-    // Crea una copia pulita delle customizzazioni (solo valori > 0)
     const cleanCustomizations = {};
     for (const [key, value] of Object.entries(customizationState)) {
       if (value > 0) {
@@ -501,22 +496,15 @@ function openCustomizationScreen(item) {
     const itemKey = generateItemKey(item.name, cleanCustomizations);
     const itemPrice = calculateItemPrice(item.name, cleanCustomizations);
     
-    // Aggiungi o incrementa l'item
+    // ✅ MODIFICATO: Inserisci SEMPRE in cima
     if (selectedItems.has(itemKey)) {
       const data = selectedItems.get(itemKey);
       data.qty++;
     } else {
-      const newMap = new Map();
-      newMap.set(itemKey, {
+      selectedItems = prependToMap(selectedItems, itemKey, {
         qty: 1,
         customizations: { ...cleanCustomizations }
       });
-      
-      for (const [key, value] of selectedItems) {
-        newMap.set(key, value);
-      }
-      
-      selectedItems = newMap;
     }
     
     total += itemPrice;
@@ -526,7 +514,6 @@ function openCustomizationScreen(item) {
     saveSelectionToStorage();
     updateItemButtonUI(item.name);
     
-    // Chiudi schermata
     const scrollY = document.body.style.top;
     document.body.style.position = '';
     document.body.style.top = '';
@@ -546,9 +533,9 @@ function openCustomizationScreen(item) {
     window.scrollTo(0, parseInt(scrollY || '0') * -1);
   });
   
-  // Aggiorna prezzo iniziale e stato del pulsante
   updateTotalPrice();
 }
+
 // === MENU ===
 async function loadMenu() {
   const params = new URLSearchParams(window.location.search);
@@ -780,7 +767,6 @@ function renderItems(category) {
         if (event.target.closest(".info-btn")) return;
       
         if (item.customizable) {
-          // Item customizzabile
           let isItemSelected = false;
           for (const [key] of selectedItems) {
             if (parseItemKey(key).name === item.name) {
@@ -790,7 +776,6 @@ function renderItems(category) {
           }
       
           if (isItemSelected) {
-            // Item già selezionato: rimuovi TUTTE le varianti
             const keysToRemove = [];
             for (const [key, data] of selectedItems) {
               const parsed = parseItemKey(key);
@@ -806,11 +791,10 @@ function renderItems(category) {
             saveSelectionToStorage();
             updateItemButtonUI(item.name);
           } else {
-            // Item non selezionato: apri customizzazione
             openCustomizationScreen(item);
           }
         } else {
-          // Item normale (non customizzabile)
+          // ✅ MODIFICATO: Item normale - inserisci in cima
           const itemKey = item.name;
           if (selectedItems.has(itemKey)) {
             let data = selectedItems.get(itemKey);
@@ -824,16 +808,10 @@ function renderItems(category) {
               count -= 1;
             }
           } else {
-            // ✅ Crea nuova Map con il nuovo item in cima
-            const newMap = new Map();
-            newMap.set(itemKey, { qty: 1, customizations: {} });
-            
-            // ✅ Aggiungi tutti gli item esistenti dopo
-            for (const [key, value] of selectedItems) {
-              newMap.set(key, value);
-            }
-            
-            selectedItems = newMap;
+            selectedItems = prependToMap(selectedItems, itemKey, {
+              qty: 1,
+              customizations: {}
+            });
             total += item.price;
             count += 1;
           }
@@ -849,8 +827,6 @@ function renderItems(category) {
       });
 
       itemsContainer.appendChild(btn);
-      
-      // ✅ Aggiorna l'UI del bottone dopo averlo aggiunto al DOM
       updateItemButtonUI(item.name);
     });
 
@@ -995,12 +971,19 @@ function openPopup(item) {
     
     plusBtn.addEventListener("click", () => {
       if (item.customizable) {
-        // Chiudi popup e apri schermata customizzazione
         closePopup();
         openCustomizationScreen(item);
       } else {
         qty++;
-        selectedItems.set(itemKey, { qty, customizations: {} });
+        // ✅ MODIFICATO: Se è un nuovo item, inserisci in cima
+        if (selectedItems.has(itemKey)) {
+          selectedItems.set(itemKey, { qty, customizations: {} });
+        } else {
+          selectedItems = prependToMap(selectedItems, itemKey, {
+            qty,
+            customizations: {}
+          });
+        }
         total += item.price;
         count += 1;
         qtyDisplay.textContent = qty;
@@ -1126,6 +1109,7 @@ if (itemsContainer) {
 
 
 loadMenu();
+
 
 
 
