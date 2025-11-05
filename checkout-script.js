@@ -696,20 +696,24 @@ const Popup = {
   
     newBtn.onclick = () => {
       if (selectedSuggestions.size > 0) {
+        // Array temporaneo per i nuovi item
+        const newItems = [];
+        const newNotes = [];
+        
         selectedSuggestions.forEach(itemName => {
           for (const category in STATE.menuData) {
             const menuItem = STATE.menuData[category].find(i => i.name === itemName);
             if (menuItem) {
               const existingItem = STATE.items.find(i => 
                 i.name === itemName && 
-                !i.customizations || Object.keys(i.customizations).length === 0
+                (!i.customizations || Object.keys(i.customizations).length === 0)
               );
               
               if (existingItem) {
                 existingItem.quantity += 1;
                 existingItem.isSuggested = true;
               } else {
-                STATE.items.push({
+                newItems.push({
                   ...menuItem,
                   restaurantId: CONFIG.restaurantId,
                   quantity: 1,
@@ -718,16 +722,27 @@ const Popup = {
                   customizations: {},
                   uniqueKey: itemName
                 });
-                STATE.orderNotes.push("");
+                newNotes.push("");
               }
               break;
             }
           }
         });
   
+        // Aggiungi i nuovi item IN CIMA
+        STATE.items = [...newItems, ...STATE.items];
+        STATE.orderNotes = [...newNotes, ...STATE.orderNotes];
+  
         DataManager.saveSelected();
-        localStorage.setItem(CONFIG.storageKeys.showRiepilogo, "true");
-        window.location.reload();
+        this.hidePopup(popup);
+        UI.renderItems();
+        UI.updateTotal();
+        Navigation.switchToStep(1);
+        
+        // Refresh suggerimenti se disponibili
+        if (DataManager.canShowSuggestions() && typeof suggestionsEngine !== 'undefined') {
+          suggestionsEngine.renderSuggestions(CONFIG.restaurantId).catch(console.error);
+        }
       } else {
         this.hidePopup(popup);
         this.skipSuggestions();
@@ -1290,6 +1305,7 @@ DataManager.fetchMenu();
 Navigation.init();
 Payment.init();
 Orders.init();
+
 
 
 
