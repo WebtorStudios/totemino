@@ -506,10 +506,17 @@ function openCustomizationScreen(item) {
       const data = selectedItems.get(itemKey);
       data.qty++;
     } else {
-      selectedItems.set(itemKey, {
+      const newMap = new Map();
+      newMap.set(itemKey, {
         qty: 1,
         customizations: { ...cleanCustomizations }
       });
+      
+      for (const [key, value] of selectedItems) {
+        newMap.set(key, value);
+      }
+      
+      selectedItems = newMap;
     }
     
     total += itemPrice;
@@ -817,7 +824,16 @@ function renderItems(category) {
               count -= 1;
             }
           } else {
-            selectedItems.set(itemKey, { qty: 1, customizations: {} });
+            // ✅ Crea nuova Map con il nuovo item in cima
+            const newMap = new Map();
+            newMap.set(itemKey, { qty: 1, customizations: {} });
+            
+            // ✅ Aggiungi tutti gli item esistenti dopo
+            for (const [key, value] of selectedItems) {
+              newMap.set(key, value);
+            }
+            
+            selectedItems = newMap;
             total += item.price;
             count += 1;
           }
@@ -1110,6 +1126,7 @@ if (itemsContainer) {
 
 
 loadMenu();
+
 
 
 
