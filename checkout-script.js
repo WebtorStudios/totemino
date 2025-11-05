@@ -83,28 +83,40 @@ const Utils = {
   },
 
   getCustomizationLabel(customizations) {
-  const labels = [];
-  for (const [key, qty] of Object.entries(customizations)) {
-    if (qty > 0) {
-      let found = false; // ✅ Flag per interrompere la ricerca
-      
-      for (const groupId in STATE.customizationData) {
-        if (found) break; // ✅ Esci dal loop esterno
+    const labels = [];
+    
+    for (const [key, qty] of Object.entries(customizations)) {
+      if (qty > 0) {
+        let found = false;
         
-        const group = STATE.customizationData[groupId];
-        for (const section of group) {
-          const opt = section.options.find(o => o.id === key);
-          if (opt) {
-            labels.push(qty > 1 ? `${opt.name} x${qty}` : opt.name);
-            found = true; // ✅ Marca come trovato
-            break; // ✅ Esci dal loop interno
+        for (const groupId in STATE.customizationData) {
+          if (found) break;
+          
+          const group = STATE.customizationData[groupId];
+          for (const section of group) {
+            const opt = section.options.find(o => o.id === key);
+            if (opt) {
+              // ✅ Filtra titoli "Seleziona/Scegli"
+              const sectionName = section.name;
+              const shouldShowSection = !/^(seleziona|scegli)/i.test(sectionName);
+              
+              const optionName = qty > 1 ? `${opt.name} x${qty}` : opt.name;
+              
+              if (shouldShowSection) {
+                labels.push(`${sectionName} ${optionName}`);
+              } else {
+                labels.push(optionName);
+              }
+              
+              found = true;
+              break;
+            }
           }
         }
       }
     }
-  }
-  return labels.length > 0 ? ` (${labels.join(', ')})` : '';
-},
+    return labels.length > 0 ? ` (${labels.join(', ')})` : '';
+  },
 
   calculateItemPrice(itemName, customizations = {}) {
     // Trova l'item base
@@ -1278,6 +1290,7 @@ DataManager.fetchMenu();
 Navigation.init();
 Payment.init();
 Orders.init();
+
 
 
 
