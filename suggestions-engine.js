@@ -340,9 +340,24 @@ class SuggestionsEngine {
     }
     
     if (!itemExists) {
-      // ✅ INSERISCI IN CIMA invece che in fondo
-      currentSelected.unshift(suggestion.name, "{}", "1");
-      currentNotes.unshift("");
+      // ✅ Trova la posizione del coperto (se esiste)
+      let copertoIndex = -1;
+      for (let i = 0; i < currentSelected.length; i += 3) {
+        if (currentSelected[i] === "Coperto") {
+          copertoIndex = i;
+          break;
+        }
+      }
+      
+      if (copertoIndex !== -1) {
+        // ✅ Inserisci PRIMA del coperto
+        currentSelected.splice(copertoIndex, 0, suggestion.name, "{}", "1");
+        currentNotes.splice(copertoIndex / 3, 0, "");
+      } else {
+        // ✅ Altrimenti inserisci in cima
+        currentSelected.unshift(suggestion.name, "{}", "1");
+        currentNotes.unshift("");
+      }
     }
     
     if (!suggestedItems.includes(suggestion.name)) {
@@ -427,5 +442,6 @@ async function initializeSuggestions(menuData, restaurantId) {
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = { SuggestionsEngine, initializeSuggestions };
 }
+
 
 
