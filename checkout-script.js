@@ -183,13 +183,14 @@ const DataManager = {
     
     const selectedMap = new Map();
     
+    // ✅ Supporta formato nuovo (con customizzazioni)
     if (saved.length > 0 && saved.length % 3 === 0) {
       for (let i = 0; i < saved.length; i += 3) {
         const name = saved[i];
         const customizations = JSON.parse(saved[i + 1] || '{}');
         const qty = Math.max(parseInt(saved[i + 2]) || 1, 1);
         
-        // ✅ Genera chiave univoca per customizzazioni diverse
+        // Genera chiave univoca
         const customStr = Object.keys(customizations)
           .sort()
           .map(k => `${k}:${customizations[k]}`)
@@ -199,6 +200,7 @@ const DataManager = {
         selectedMap.set(key, { qty, customizations });
       }
     } else {
+      // ✅ Formato vecchio (senza customizzazioni)
       for (let i = 0; i < saved.length; i += 2) {
         const name = saved[i];
         const qty = Math.max(parseInt(saved[i + 1]) || 1, 1);
@@ -508,12 +510,14 @@ const Popup = {
     const updateQty = (newQty) => {
       qty = newQty;
       controls.querySelector(".popup-qty").textContent = qty;
-      item.quantity = qty;
+      
+      // ✅ Aggiorna l'oggetto nello STATE
       STATE.items[index].quantity = qty;
       
+      // ✅ Ricalcola il prezzo se ha customizzazioni
       if (item.customizations && Object.keys(item.customizations).length > 0) {
-        item.price = Utils.calculateItemPrice(item.name, item.customizations);
-        STATE.items[index].price = item.price;
+        const newPrice = Utils.calculateItemPrice(item.name, item.customizations);
+        STATE.items[index].price = newPrice;
       }
       
       DataManager.saveSelected();
@@ -525,20 +529,29 @@ const Popup = {
       if (qty > 1) {
         updateQty(qty - 1);
       } else {
+        // ✅ Rimuovi l'item e chiudi popup
         STATE.items.splice(index, 1);
         STATE.orderNotes.splice(index, 1);
         DataManager.saveSelected();
         this.hidePopup(popup);
-        window.location.reload();
+        UI.renderItems();
+        UI.updateTotal();
+        
+        // ✅ Refresh suggerimenti se disponibili
+        if (DataManager.canShowSuggestions() && typeof suggestionsEngine !== 'undefined') {
+          suggestionsEngine.renderSuggestions(CONFIG.restaurantId).catch(console.error);
+        }
       }
     };
   
-    // ✅ Se customizzabile, apri la schermata di customizzazione
+    // ✅ CORRETTA: Gestione pulsante "+"
     controls.querySelector(".popup-plus").onclick = () => {
       if (item.customizable) {
+        // Chiudi popup e apri customizzazione
         this.hidePopup(popup);
         CustomizationScreen.open(item);
       } else {
+        // Item normale: incrementa quantità
         updateQty(qty + 1);
       }
     };
@@ -577,13 +590,10 @@ const Popup = {
     window.scrollTo(0, parseInt(scrollY || '0') * -1);
   },
 
-  // ✅ MODIFICATO: Mostra popup solo se status = pro o trial attivo
   async showSuggestionsPopup() {
     if (STATE.suggestionsShown) return;
 
-    // ✅ CONTROLLA SE I SUGGERIMENTI SONO DISPONIBILI
     if (!DataManager.canShowSuggestions()) {
-      
       this.skipSuggestions();
       return;
     }
@@ -658,19 +668,17 @@ const Popup = {
       newBtn.style.opacity = "1";
     }, 2500);
   
-    // Funzione per mostrare il bottone immediatamente
     const showButtonNow = () => {
       clearTimeout(buttonTimeout);
       newBtn.style.opacity = "1";
     };
   
-    // Ascolta i click sulle card per mostrare il bottone
     const cards = popup.querySelectorAll('.suggestion-card');
     cards.forEach(card => {
       const originalOnClick = card.onclick;
       card.onclick = function(e) {
         originalOnClick.call(this, e);
-        showButtonNow(); // Mostra il bottone quando si clicca una card
+        showButtonNow();
       };
     });
   
@@ -680,7 +688,10 @@ const Popup = {
           for (const category in STATE.menuData) {
             const menuItem = STATE.menuData[category].find(i => i.name === itemName);
             if (menuItem) {
-              const existingItem = STATE.items.find(i => i.name === itemName);
+              const existingItem = STATE.items.find(i => 
+                i.name === itemName && 
+                !i.customizations || Object.keys(i.customizations).length === 0
+              );
               
               if (existingItem) {
                 existingItem.quantity += 1;
@@ -691,7 +702,9 @@ const Popup = {
                   restaurantId: CONFIG.restaurantId,
                   quantity: 1,
                   category: category,
-                  isSuggested: true
+                  isSuggested: true,
+                  customizations: {},
+                  uniqueKey: itemName
                 });
                 STATE.orderNotes.push("");
               }
@@ -1039,8 +1052,8 @@ const CustomizationScreen = {
       </div>
       <div class="customization-footer">
         <div class="price-display">
-          <span class="base-price">Prezzo base: €${item.originalPrice.toFixed(2)}</span>
-          <span class="total-price">Totale: €${item.originalPrice.toFixed(2)}</span>
+          <span class="base-price">Prezzo base: €${(item.originalPrice || item.price).toFixed(2)}</span>
+          <span class="total-price">Totale: €${(item.originalPrice || item.price).toFixed(2)}</span>
         </div>
         <button class="add-to-cart-btn">Conferma</button>
       </div>
@@ -1059,6 +1072,7 @@ const CustomizationScreen = {
     const addBtn = screen.querySelector(".add-to-cart-btn");
     const backBtn = screen.querySelector(".back-btn");
     
+    // ✅ Inizializza stato vuoto
     const customizationState = {};
     
     const group = STATE.customizationData[item.customizationGroup];
@@ -1071,6 +1085,11 @@ const CustomizationScreen = {
         title.textContent = section.name + (section.required ? " *" : "");
         sectionDiv.appendChild(title);
         
+        // ✅ Inizializza tutte le opzioni a 0
+        section.options.forEach(opt => {
+          customizationState[opt.id] = 0;
+        });
+        
         section.options.forEach(opt => {
           const optDiv = document.createElement("div");
           optDiv.className = "customization-option";
@@ -1078,27 +1097,30 @@ const CustomizationScreen = {
           const optLabel = document.createElement("label");
           optLabel.textContent = opt.name;
           if (opt.priceModifier !== 0) {
-            optLabel.textContent += ` (+€${opt.priceModifier.toFixed(2)})`;
+            const sign = opt.priceModifier > 0 ? '+' : '';
+            optLabel.textContent += ` (${sign}€${opt.priceModifier.toFixed(2)})`;
           }
           
           const controls = document.createElement("div");
           controls.className = "option-controls";
           
           if (section.maxSelections === 1) {
+            // Radio checkbox
             const checkbox = document.createElement("input");
             checkbox.type = "checkbox";
             checkbox.id = `opt-${opt.id}`;
             checkbox.className = "radio-checkbox";
             
-            customizationState[opt.id] = 0;
-            
             checkbox.addEventListener("change", () => {
               if (checkbox.checked) {
+                // Deseleziona tutte le altre opzioni
                 section.options.forEach(o => {
-                  customizationState[o.id] = 0;
-                  const otherCheckbox = document.getElementById(`opt-${o.id}`);
-                  if (otherCheckbox && otherCheckbox !== checkbox) {
-                    otherCheckbox.checked = false;
+                  if (o.id !== opt.id) {
+                    customizationState[o.id] = 0;
+                    const otherCheckbox = document.getElementById(`opt-${o.id}`);
+                    if (otherCheckbox) {
+                      otherCheckbox.checked = false;
+                    }
                   }
                 });
                 customizationState[opt.id] = 1;
@@ -1110,25 +1132,25 @@ const CustomizationScreen = {
             
             controls.appendChild(checkbox);
           } else {
-            // Checkbox quadrato per selezioni multiple
+            // Checkbox quadrato multiplo
             const checkbox = document.createElement("input");
             checkbox.type = "checkbox";
             checkbox.id = `opt-${opt.id}`;
             checkbox.className = "square-checkbox";
             
-            customizationState[opt.id] = 0;
-            
             checkbox.addEventListener("change", () => {
               if (checkbox.checked) {
-                const currentTotal = section.options
+                // Calcola selezioni correnti
+                const currentSelections = section.options
                   .filter(o => o.id !== opt.id)
                   .reduce((sum, o) => sum + (customizationState[o.id] || 0), 0);
                 
-                if (!section.maxSelections || (currentTotal + 1) <= section.maxSelections) {
+                if (!section.maxSelections || (currentSelections < section.maxSelections)) {
                   customizationState[opt.id] = 1;
                 } else {
                   checkbox.checked = false;
                   customizationState[opt.id] = 0;
+                  alert(`Massimo ${section.maxSelections} selezioni per questa sezione`);
                 }
               } else {
                 customizationState[opt.id] = 0;
@@ -1148,6 +1170,7 @@ const CustomizationScreen = {
       });
     }
     
+    // ✅ PULSANTE CONFERMA CORRETTO
     addBtn.addEventListener("click", async () => {
       // Filtra customizzazioni con valore > 0
       const filteredCustomizations = {};
@@ -1166,7 +1189,7 @@ const CustomizationScreen = {
         .join(',');
       const uniqueKey = customStr ? `${item.name}|{${customStr}}` : item.name;
       
-      // Cerca se esiste già questa variante
+      // ✅ Cerca se esiste già questa ESATTA variante
       const existingIndex = STATE.items.findIndex(i => i.uniqueKey === uniqueKey);
       
       if (existingIndex !== -1) {
@@ -1177,7 +1200,7 @@ const CustomizationScreen = {
         STATE.items.push({
           name: item.name,
           price: itemPrice,
-          originalPrice: item.originalPrice,
+          originalPrice: item.originalPrice || item.price,
           img: item.img,
           ingredients: item.ingredients,
           restaurantId: CONFIG.restaurantId,
@@ -1196,13 +1219,12 @@ const CustomizationScreen = {
       UI.renderItems();
       UI.updateTotal();
       
-      // ✅ REFRESH SUGGERIMENTI
+      // ✅ Refresh suggerimenti
       if (DataManager.canShowSuggestions() && typeof suggestionsEngine !== 'undefined') {
-        const menuJson = await fetch(`IDs/${CONFIG.restaurantId}/menu.json`).then(r => r.json());
-        await suggestionsEngine.loadMenuData(menuJson, CONFIG.restaurantId);
-        await suggestionsEngine.renderSuggestions(CONFIG.restaurantId);
+        suggestionsEngine.renderSuggestions(CONFIG.restaurantId).catch(console.error);
       }
       
+      // Chiudi schermata
       const scrollY = document.body.style.top;
       document.body.style.position = '';
       document.body.style.top = '';
@@ -1222,6 +1244,7 @@ const CustomizationScreen = {
       window.scrollTo(0, parseInt(scrollY || '0') * -1);
     });
     
+    // ✅ Aggiorna prezzo iniziale
     this.updateTotalPrice(item, customizationState, totalPriceEl, addBtn, group);
   },
   
@@ -1229,6 +1252,7 @@ const CustomizationScreen = {
     const totalPrice = Utils.calculateItemPrice(item.name, customizationState);
     totalPriceEl.textContent = `Totale: €${totalPrice.toFixed(2)}`;
     
+    // Verifica sezioni required
     let allRequiredFilled = true;
     if (group) {
       for (const section of group) {
@@ -1245,11 +1269,7 @@ const CustomizationScreen = {
     }
     
     addBtn.disabled = !allRequiredFilled;
-    if (!allRequiredFilled) {
-      addBtn.classList.add("disabled");
-    } else {
-      addBtn.classList.remove("disabled");
-    }
+    addBtn.classList.toggle("disabled", !allRequiredFilled);
   }
 };
 
@@ -1258,6 +1278,7 @@ DataManager.fetchMenu();
 Navigation.init();
 Payment.init();
 Orders.init();
+
 
 
 
