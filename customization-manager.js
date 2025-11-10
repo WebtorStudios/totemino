@@ -1,291 +1,175 @@
-// ===== GESTIONE CUSTOMIZZAZIONI =====
+// ===== STATE =====
+let customData = {};
+let editingGroupId = null;
 
-let customizationData = {};
-let currentEditingGroupId = null;
-
-/**
- * Carica il file customization.json
- */
+// ===== INIT =====
 async function loadCustomizations() {
   try {
-    const response = await fetch(`IDs/${restaurantId}/customization.json`);
-    if (response.ok) {
-      customizationData = await response.json();
-      
-    } else {
-      customizationData = createDefaultCustomizations();
-      
-      await saveCustomizations();
-    }
-  } catch (error) {
-    
-    customizationData = createDefaultCustomizations();
+    const res = await fetch(`/IDs/${restaurantId}/customization.json`);
+    customData = res.ok ? await res.json() : createDefaults();
+    if (!res.ok) await saveCustomizations();
+  } catch (err) {
+    customData = createDefaults();
     await saveCustomizations();
   }
 }
 
-/**
- * Crea struttura di customizzazione di default con 2 gruppi di esempio
- */
-function createDefaultCustomizations() {
+function createDefaults() {
   return {
     "1": [
       {
-        "id": "carne",
-        "name": "Scegli la carne",
-        "required": true,
-        "maxSelections": 1,
-        "options": [
-          {
-            "id": "manzo",
-            "name": "Manzo",
-            "priceModifier": 0
-          },
-          {
-            "id": "pollo",
-            "name": "Pollo",
-            "priceModifier": -1
-          },
-          {
-            "id": "vegetariano",
-            "name": "Burger Vegetariano",
-            "priceModifier": 0.5
-          }
+        id: "carne",
+        name: "Scegli la carne",
+        required: true,
+        maxSelections: 1,
+        options: [
+          { id: "manzo", name: "Manzo", priceModifier: 0 },
+          { id: "pollo", name: "Pollo", priceModifier: -1 },
+          { id: "vegetariano", name: "Burger Vegetariano", priceModifier: 0.5 }
         ]
       },
       {
-        "id": "contorno",
-        "name": "Scegli il contorno",
-        "required": false,
-        "maxSelections": 2,
-        "options": [
-          {
-            "id": "patatine",
-            "name": "Patatine Fritte",
-            "priceModifier": 0
-          },
-          {
-            "id": "insalata",
-            "name": "Insalata",
-            "priceModifier": 0
-          },
-          {
-            "id": "onion-rings",
-            "name": "Onion Rings",
-            "priceModifier": 1.5
-          }
+        id: "contorno",
+        name: "Scegli il contorno",
+        required: false,
+        maxSelections: 2,
+        options: [
+          { id: "patatine", name: "Patatine Fritte", priceModifier: 0 },
+          { id: "insalata", name: "Insalata", priceModifier: 0 },
+          { id: "onion-rings", name: "Onion Rings", priceModifier: 1.5 }
         ]
       }
     ],
     "2": [
       {
-        "id": "salsa",
-        "name": "Scegli la salsa",
-        "required": false,
-        "maxSelections": 3,
-        "options": [
-          {
-            "id": "ketchup",
-            "name": "Ketchup",
-            "priceModifier": 0
-          },
-          {
-            "id": "mayo",
-            "name": "Maionese",
-            "priceModifier": 0
-          },
-          {
-            "id": "bbq",
-            "name": "BBQ",
-            "priceModifier": 0.5
-          },
-          {
-            "id": "piccante",
-            "name": "Salsa Piccante",
-            "priceModifier": 0.5
-          }
+        id: "salsa",
+        name: "Scegli la salsa",
+        required: false,
+        maxSelections: 3,
+        options: [
+          { id: "ketchup", name: "Ketchup", priceModifier: 0 },
+          { id: "mayo", name: "Maionese", priceModifier: 0 },
+          { id: "bbq", name: "BBQ", priceModifier: 0.5 },
+          { id: "piccante", name: "Salsa Piccante", priceModifier: 0.5 }
         ]
       }
     ]
   };
 }
 
-/**
- * Salva le customizzazioni sul server
- */
 async function saveCustomizations() {
   try {
-    const response = await fetch(`/save-customizations/${restaurantId}`, {
+    const res = await fetch(`/save-customizations/${restaurantId}`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ customizations: customizationData })
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ customizations: customData })
     });
     
-    const result = await response.json();
+    const result = await res.json();
+    if (!result.success) throw new Error(result.message);
     
-    if (result.success) {
-      showNotification('Customizzazioni salvate con successo!', 'success');
-      return true;
-    } else {
-      throw new Error(result.message || 'Errore durante il salvataggio');
-    }
-  } catch (error) {
-    console.error('Errore salvataggio customizzazioni:', error);
-    showNotification('Errore nel salvataggio delle customizzazioni', 'error');
+    notify('Customizzazioni salvate!', 'success');
+    return true;
+  } catch (err) {
+    console.error(err);
+    notify('Errore salvataggio customizzazioni', 'error');
     return false;
   }
 }
 
-/**
- * Ottiene il prossimo ID gruppo disponibile
- */
 function getNextGroupId() {
-  const existingIds = Object.keys(customizationData).map(id => parseInt(id));
-  if (existingIds.length === 0) return 1;
-  return Math.max(...existingIds) + 1;
+  const ids = Object.keys(customData).map(id => parseInt(id));
+  return ids.length ? Math.max(...ids) + 1 : 1;
 }
 
-/**
- * Apre il popup di selezione gruppo
- */
+// ===== GROUPS LIST =====
 function openGroupSelectionPopup() {
-  const popup = document.getElementById('group-selection-popup');
   renderGroupsList();
-  popup.classList.remove('hidden');
+  document.getElementById('group-selection-popup').classList.remove('hidden');
   document.body.classList.add('noscroll');
 }
 
-/**
- * Chiude il popup di selezione gruppo
- */
 function closeGroupSelectionPopup() {
-  const popup = document.getElementById('group-selection-popup');
-  popup.classList.add('hidden');
+  document.getElementById('group-selection-popup').classList.add('hidden');
   document.body.classList.remove('noscroll');
 }
 
-/**
- * Renderizza la lista dei gruppi disponibili
- */
 function renderGroupsList() {
   const container = document.getElementById('groups-list');
-  container.innerHTML = '';
+  const groups = Object.keys(customData).sort((a, b) => parseInt(a) - parseInt(b));
   
-  const groups = Object.keys(customizationData).sort((a, b) => parseInt(a) - parseInt(b));
-  
-  if (groups.length === 0) {
-    container.innerHTML = '<p class="no-groups-message">Nessun gruppo disponibile. Creane uno nuovo!</p>';
-    return;
-  }
-  
-  groups.forEach(groupId => {
-    const group = customizationData[groupId];
-    const card = document.createElement('div');
-    card.className = 'group-card';
-    
-    const sectionsPreview = group.map(s => s.name).join(', ');
-    
-    card.innerHTML = `
-      <div class="group-card-header">
-        <h3>Gruppo ${groupId}</h3>
-        <div class="group-card-actions">
-          <button class="group-edit-btn" onclick="editGroup('${groupId}')">
-            <img src="img/edit.png" alt="Modifica">
-          </button>
-          <button class="group-delete-btn" onclick="deleteGroup('${groupId}')">
-            <img src="img/delete.png" alt="Elimina">
-          </button>
-        </div>
-      </div>
-      <p class="group-sections">${sectionsPreview}</p>
-      <button class="btn-primary select-group-btn" onclick="selectGroup('${groupId}')">
-        Seleziona Gruppo
-      </button>
-    `;
-    
-    container.appendChild(card);
-  });
+  container.innerHTML = !groups.length 
+    ? '<p class="no-groups-message">Nessun gruppo disponibile. Creane uno nuovo!</p>'
+    : groups.map(id => {
+        const sections = customData[id].map(s => s.name).join(', ');
+        return `
+          <div class="group-card">
+            <div class="group-card-header">
+              <h3>Gruppo ${id}</h3>
+              <div class="group-card-actions">
+                <button class="group-edit-btn" onclick="editGroup('${id}')">
+                  <img src="img/edit.png" alt="Modifica">
+                </button>
+                <button class="group-delete-btn" onclick="deleteGroup('${id}')">
+                  <img src="img/delete.png" alt="Elimina">
+                </button>
+              </div>
+            </div>
+            <p class="group-sections">${sections}</p>
+            <button class="btn-primary select-group-btn" onclick="selectGroup('${id}')">
+              Seleziona Gruppo
+            </button>
+          </div>
+        `;
+      }).join('');
 }
 
-/**
- * Seleziona un gruppo per l'item corrente
- */
 function selectGroup(groupId) {
   const checkbox = document.getElementById('item-customizable');
-  const groupInput = document.getElementById('customization-group-id');
+  const input = document.getElementById('customization-group-id');
   
   checkbox.checked = true;
-  groupInput.value = groupId;
+  input.value = groupId;
   
-  // Aggiorna subito il display del numero gruppo
   updateGroupIdButton();
   updateCustomizationVisibility();
-  
   closeGroupSelectionPopup();
-  showNotification(`Gruppo ${groupId} selezionato`, 'success');
+  notify(`Gruppo ${groupId} selezionato`, 'success');
 }
 
-/**
- * Apre il popup di gestione gruppo customizzazione
- */
+// ===== GROUP EDITOR =====
 function openCustomizationGroupPopup(groupId = null) {
-  currentEditingGroupId = groupId;
-  const popup = document.getElementById('customization-popup');
-  const title = document.getElementById('customization-popup-title');
+  editingGroupId = groupId;
   
-  if (groupId === null) {
-    title.textContent = 'Crea Nuovo Gruppo Customizzazione';
-    resetCustomizationForm();
-  } else {
-    title.textContent = `Modifica Gruppo ${groupId}`;
-    loadCustomizationGroup(groupId);
-  }
+  document.getElementById('customization-popup-title').textContent = 
+    groupId ? `Modifica Gruppo ${groupId}` : 'Crea Nuovo Gruppo Customizzazione';
   
-  popup.classList.remove('hidden');
+  groupId ? loadCustomizationGroup(groupId) : resetCustomizationForm();
+  
+  document.getElementById('customization-popup').classList.remove('hidden');
   document.body.classList.add('noscroll');
 }
 
-/**
- * Chiude il popup di gestione gruppo
- */
 function closeCustomizationGroupPopup() {
-  const popup = document.getElementById('customization-popup');
-  popup.classList.add('hidden');
+  document.getElementById('customization-popup').classList.add('hidden');
   document.body.classList.remove('noscroll');
-  currentEditingGroupId = null;
+  editingGroupId = null;
 }
 
-/**
- * Reset del form di customizzazione
- */
 function resetCustomizationForm() {
   document.getElementById('customization-sections-container').innerHTML = '';
   addCustomizationSection();
 }
 
-/**
- * Carica un gruppo di customizzazione nel form
- */
 function loadCustomizationGroup(groupId) {
   const container = document.getElementById('customization-sections-container');
   container.innerHTML = '';
   
-  const sections = customizationData[groupId] || [];
-  
-  if (sections.length === 0) {
-    addCustomizationSection();
-  } else {
-    sections.forEach(section => {
-      addCustomizationSection(section);
-    });
-  }
+  const sections = customData[groupId] || [];
+  sections.length ? sections.forEach(s => addCustomizationSection(s)) : addCustomizationSection();
 }
 
-/**
- * Aggiunge una nuova sezione di customizzazione
- */
+// ===== SECTIONS =====
 function addCustomizationSection(data = null) {
   const container = document.getElementById('customization-sections-container');
   const sectionId = `section-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
@@ -317,9 +201,7 @@ function addCustomizationSection(data = null) {
     
     <div class="options-container">
       <h4>Opzioni:</h4>
-      <div class="options-list" data-section-id="${sectionId}">
-        <!-- Le opzioni verranno aggiunte qui -->
-      </div>
+      <div class="options-list" data-section-id="${sectionId}"></div>
       <button class="btn-secondary add-option-btn" onclick="addCustomizationOption('${sectionId}')">
         + Aggiungi Opzione
       </button>
@@ -328,30 +210,20 @@ function addCustomizationSection(data = null) {
   
   container.appendChild(section);
   
-  if (data?.options && data.options.length > 0) {
-    data.options.forEach(option => {
-      addCustomizationOption(sectionId, option);
-    });
+  if (data?.options?.length) {
+    data.options.forEach(opt => addCustomizationOption(sectionId, opt));
   } else {
     addCustomizationOption(sectionId);
   }
 }
 
-/**
- * Rimuove una sezione di customizzazione
- */
 function removeCustomizationSection(sectionId) {
-  const section = document.querySelector(`[data-section-id="${sectionId}"]`);
-  if (section) {
-    section.remove();
-  }
+  document.querySelector(`[data-section-id="${sectionId}"]`)?.remove();
 }
 
-/**
- * Aggiunge un'opzione a una sezione
- */
+// ===== OPTIONS =====
 function addCustomizationOption(sectionId, data = null) {
-  const optionsList = document.querySelector(`.options-list[data-section-id="${sectionId}"]`);
+  const list = document.querySelector(`.options-list[data-section-id="${sectionId}"]`);
   const optionId = `option-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
   
   const option = document.createElement('div');
@@ -369,128 +241,130 @@ function addCustomizationOption(sectionId, data = null) {
     </button>
   `;
   
-  optionsList.appendChild(option);
+  list.appendChild(option);
 }
 
-/**
- * Rimuove un'opzione
- */
 function removeCustomizationOption(optionId) {
-  const option = document.querySelector(`[data-option-id="${optionId}"]`);
-  if (option) {
-    option.remove();
-  }
+  document.querySelector(`[data-option-id="${optionId}"]`)?.remove();
 }
 
-/**
- * Salva il gruppo di customizzazione corrente
- */
+// ===== SAVE GROUP =====
 async function saveCustomizationGroup() {
   const sections = document.querySelectorAll('.customization-section');
   
-  if (sections.length === 0) {
-    showNotification('Aggiungi almeno una sezione', 'error');
+  if (!sections.length) {
+    notify('Aggiungi almeno una sezione', 'error');
     return;
   }
   
   const groupData = [];
   
   for (const section of sections) {
-    const nameInput = section.querySelector('.section-name-input');
-    const requiredInput = section.querySelector('.section-required');
-    const maxSelectionsInput = section.querySelector('.section-max-selections');
-    
-    const name = nameInput.value.trim();
+    const name = section.querySelector('.section-name-input').value.trim();
     if (!name) {
-      showNotification('Ogni sezione deve avere un nome', 'error');
-      nameInput.focus();
+      notify('Ogni sezione deve avere un nome', 'error');
+      section.querySelector('.section-name-input').focus();
       return;
     }
     
     const sectionId = name.toLowerCase().replace(/\s+/g, '-');
-    const options = [];
     const optionElements = section.querySelectorAll('.customization-option');
     
-    if (optionElements.length === 0) {
-      showNotification(`La sezione "${name}" deve avere almeno un'opzione`, 'error');
+    if (!optionElements.length) {
+      notify(`"${name}" deve avere almeno un'opzione`, 'error');
       return;
     }
     
-    for (const optionEl of optionElements) {
-      const optionName = optionEl.querySelector('.option-name-input').value.trim();
-      const priceModifier = parseFloat(optionEl.querySelector('.option-price-modifier').value) || 0;
-      
-      if (!optionName) {
-        showNotification('Ogni opzione deve avere un nome', 'error');
-        optionEl.querySelector('.option-name-input').focus();
+    const options = [];
+    for (const optEl of optionElements) {
+      const optName = optEl.querySelector('.option-name-input').value.trim();
+      if (!optName) {
+        notify('Ogni opzione deve avere un nome', 'error');
+        optEl.querySelector('.option-name-input').focus();
         return;
       }
       
       options.push({
-        id: `${sectionId}.${optionName.toLowerCase().replace(/\s+/g, '-')}`,
-        name: optionName,
-        priceModifier: priceModifier
+        id: `${sectionId}.${optName.toLowerCase().replace(/\s+/g, '-')}`,
+        name: optName,
+        priceModifier: parseFloat(optEl.querySelector('.option-price-modifier').value) || 0
       });
     }
     
     groupData.push({
       id: sectionId,
       name: name,
-      required: requiredInput.checked,
-      maxSelections: parseInt(maxSelectionsInput.value) || 1,
+      required: section.querySelector('.section-required').checked,
+      maxSelections: parseInt(section.querySelector('.section-max-selections').value) || 1,
       options: options
     });
   }
   
-  if (currentEditingGroupId === null) {
-    const newGroupId = getNextGroupId();
-    customizationData[newGroupId] = groupData;
-    showNotification(`Gruppo ${newGroupId} creato!`, 'success');
+  if (editingGroupId === null) {
+    const newId = getNextGroupId();
+    customData[newId] = groupData;
+    notify(`Gruppo ${newId} creato!`, 'success');
   } else {
-    customizationData[currentEditingGroupId] = groupData;
-    showNotification(`Gruppo ${currentEditingGroupId} aggiornato!`, 'success');
+    customData[editingGroupId] = groupData;
+    notify(`Gruppo ${editingGroupId} aggiornato!`, 'success');
   }
   
-  const saved = await saveCustomizations();
-  if (saved) {
+  if (await saveCustomizations()) {
     closeCustomizationGroupPopup();
     renderGroupsList();
   }
 }
 
-/**
- * Modifica un gruppo esistente
- */
 function editGroup(groupId) {
   closeGroupSelectionPopup();
   openCustomizationGroupPopup(groupId);
 }
 
-/**
- * Elimina un gruppo
- */
 async function deleteGroup(groupId) {
-  const confirmDelete = confirm(`Sei sicuro di voler eliminare il Gruppo ${groupId}?\n\nGli elementi del menu che usano questo gruppo non saranno più customizzabili.`);
+  if (!confirm(`Sei sicuro di voler eliminare il Gruppo ${groupId}?\n\nGli elementi che lo usano non saranno più customizzabili.`)) return;
   
-  if (confirmDelete) {
-    delete customizationData[groupId];
-    const saved = await saveCustomizations();
-    if (saved) {
-      showNotification(`Gruppo ${groupId} eliminato`, 'success');
-      renderGroupsList();
-    }
+  delete customData[groupId];
+  if (await saveCustomizations()) {
+    notify(`Gruppo ${groupId} eliminato`, 'success');
+    renderGroupsList();
   }
 }
 
-/**
- * Crea un nuovo gruppo
- */
 function createNewGroup() {
   closeGroupSelectionPopup();
   openCustomizationGroupPopup(null);
 }
 
-// Export per uso in gestione-menu-script.js
+// ===== UTILS (chiamate da gestione-menu-script.js) =====
+function updateCustomizationVisibility() {
+  const checkbox = document.getElementById('item-customizable');
+  const controls = document.getElementById('customization-controls');
+  
+  if (checkbox?.checked) {
+    controls.style.display = 'flex';
+    updateGroupIdButton();
+  } else if (controls) {
+    controls.style.display = 'none';
+  }
+}
+
+function updateGroupIdButton() {
+  const groupInput = document.getElementById('customization-group-id');
+  const btnDisplay = document.getElementById('btn-group-id-display');
+  
+  if (groupInput && btnDisplay) {
+    btnDisplay.textContent = groupInput.value || '-';
+  }
+}
+
+function openCurrentGroupOrSelection() {
+  const groupInput = document.getElementById('customization-group-id');
+  const groupId = groupInput?.value;
+  
+  groupId ? editGroup(groupId) : openGroupSelectionPopup();
+}
+
+// ===== EXPORTS =====
 window.loadCustomizations = loadCustomizations;
 window.openGroupSelectionPopup = openGroupSelectionPopup;
 window.closeGroupSelectionPopup = closeGroupSelectionPopup;
@@ -505,3 +379,6 @@ window.removeCustomizationOption = removeCustomizationOption;
 window.selectGroup = selectGroup;
 window.editGroup = editGroup;
 window.deleteGroup = deleteGroup;
+window.updateCustomizationVisibility = updateCustomizationVisibility;
+window.updateGroupIdButton = updateGroupIdButton;
+window.openCurrentGroupOrSelection = openCurrentGroupOrSelection;

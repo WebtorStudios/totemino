@@ -46,96 +46,28 @@
   <!-- ===== SEZIONE PRINCIPALE ===== -->
   <div class="management-container">
 
-    <!-- ===== IMPOSTAZIONI COPERTO ===== -->
-    <div class="coperto-settings-section">
-      <div class="coperto-header">
-        <h2>Impostazioni di Base</h2>
-      </div>
-      <div class="coperto-content">
-        <div class="coperto-field">
-          <label for="coperto-price">Prezzo del Coperto (€):</label>
-          <div class="coperto-input-group">
-            <input type="number" id="coperto-price" step="0.10" min="0" placeholder="0.00">
-            <button class="coperto-save-btn" id="save-coperto">Salva</button>
-          </div>
-          <p class="coperto-description">
-            Il coperto verrà aggiunto automaticamente agli ordini una volta per ciascun utente. 
-            <br>Imposta 0 per disabilitare il coperto.
-          </p>
-        </div>
-      </div>
-    </div>
-
-    <!-- ===== METODI DI CHECKOUT ===== -->
-    <div class="checkout-methods-section">
-      <div class="coperto-header">
-        <h2>Metodi di Checkout</h2>
-      </div>
-      <div class="coperto-content">
-        <div class="checkout-methods-grid">
-
-          <label class="checkout-method-card">
-            <input type="checkbox" id="method-table" checked>
-            <div class="method-card-content">
-              <img class="theme-img" data-light="img/service-table_light.png" data-dark="img/service-table_dark.png" alt="Servizio al Tavolo">
-              <h3>Servizio al Tavolo</h3>
-              <p>Il cliente inserisce il numero del tavolo</p>
-            </div>
-            <span class="checkmark-circle"></span>
-          </label>
-
-          <label class="checkout-method-card">
-            <input type="checkbox" id="method-pickup" checked>
-            <div class="method-card-content">
-              <img class="theme-img" data-light="img/service-pickup_light.png" data-dark="img/service-pickup_dark.png" alt="Ritiro al Banco">
-              <h3>Ritiro al Banco</h3>
-              <p>Ordine con numero di ritiro automatico</p>
-            </div>
-            <span class="checkmark-circle"></span>
-          </label>
-
-          <label class="checkout-method-card">
-            <input type="checkbox" id="method-show" checked>
-            <div class="method-card-content">
-              <img class="theme-img" data-light="img/service-show_light.png" data-dark="img/service-show_dark.png" alt="Mostra Ordine">
-              <h3>Mostra Ordine</h3>
-              <p>Visualizza un riepilogo dell'ordine senza completarlo</p>
-            </div>
-            <span class="checkmark-circle"></span>
-          </label>
-        </div>
-
-        <button class="coperto-save-btn" id="save-checkout-methods" style="margin-top: 1rem;">Salva Metodi</button>
-        <p class="coperto-description">
-          Seleziona quali metodi di completamento ordine mostrare ai clienti nella pagina checkout.
-        </p>
-      </div>
-    </div>
-
     <!-- ===== TIPI DI MENU ===== -->
-    <div class="menu-types-section">
+    <div class="menu-types-manager-section">
       <div class="coperto-settings-section">
         <div class="coperto-header">
-          <h2>Tipi di Menu</h2>
+          <h2>Gestisci Tipi di Menu</h2>
         </div>
-        <div class="coperto-content">
-          <div class="coperto-field">
-            <label for="menu-type-filter">Filtra elementi per tipo:</label>
-            <div class="coperto-input-group">
-              <select id="menu-type-filter">
-                <option value="">Tutti gli elementi</option>
-              </select>
-              <button class="coperto-save-btn" onclick="openMenuTypesManager()">Gestisci Menu</button>
-            </div>
-            <p class="coperto-description">
-              Crea e gestisci i diversi tipi di menu (es. Ristorante, Bar, Karaoke).<br>
-              Gli elementi possono apparire in più menu contemporaneamente.
-            </p>
-          </div>
+        <div class="menu-types-cards-container" id="menu-types-cards">
+          <!-- Le card verranno generate qui -->
         </div>
+        <button class="btn-primary" style="margin: 2rem auto; display: block;" onclick="openAddMenuTypePopup()">
+          + Aggiungi Nuovo Tipo Menu
+        </button>
       </div>
     </div>
-    
+
+    <!-- ===== FILTRO MENU ===== -->
+    <div class="filter-group">
+      <label for="menu-type-filter">Filtra gli elementi:</label>
+      <select id="menu-type-filter" class="dropdown">
+        <option value="default">Menu Intero</option>
+      </select>
+    </div>
 
     <!-- ===== SEZIONI MENU ===== -->
     <div class="menu-sections" id="menu-sections"></div>
@@ -216,11 +148,6 @@
           <button type="button" class="btn-group-id-display" id="btn-group-id-display" onclick="openCurrentGroupOrSelection()">-</button>
           <button type="button" class="btn-choose-group" onclick="openGroupSelectionPopup()">Scegli Gruppo</button>
           <button type="button" class="btn-add-group" onclick="createNewGroup()">+ Aggiungi Gruppo</button>
-          <div id="selected-group-display" style="display: none;">
-            <span class="customization-group-display">
-              Gruppo: <span id="selected-group-number"></span>
-            </span>
-          </div>
         </div>
       </div>
 
@@ -290,25 +217,124 @@
     </div>
   </div>
 
+  <!-- ===== POPUP MODIFICA TIPO MENU ===== -->
+  <div class="popup hidden" id="edit-menu-type-popup">
+    <div class="customization-popup-content">
+      <button class="close-popup" onclick="closeEditMenuTypePopup()">
+        <img src="img/x.png" alt="Chiudi">
+      </button>
+      <h2 class="popup-title">Modifica Tipo Menu</h2>
+      
+      <input type="hidden" id="editing-menu-type-id">
+      
+      <div class="form-field" style="margin-bottom: 1.5rem;">
+        <label for="menu-type-name-edit">Nome visualizzato:</label>
+        <input type="text" id="menu-type-name-edit" placeholder="Es. Menu Bar">
+      </div>
+
+      <div class="form-field" style="margin-bottom: 1.5rem;">
+        <label for="menu-type-coperto-edit">Prezzo Coperto (€):</label>
+        <input type="number" id="menu-type-coperto-edit" step="0.01" min="0" placeholder="0.00">
+      </div>
+
+      <div class="form-field" style="margin-bottom: 1.5rem;">
+        <label>Metodi di Checkout disponibili:</label>
+        <p style="font-size: 0.85rem; opacity: 0.7; margin: 0.3rem 0 0.5rem;">Deseleziona tutti per abilitare solo la visualizzazione del menu</p>
+        <div class="checkout-methods-simple">
+          <label class="checkbox-label">
+            <input type="checkbox" id="edit-method-table">
+            <span class="checkmark"></span>
+            <span class="checkbox-text">Servizio al Tavolo</span>
+          </label>
+          <label class="checkbox-label">
+            <input type="checkbox" id="edit-method-pickup">
+            <span class="checkmark"></span>
+            <span class="checkbox-text">Ritiro al Banco</span>
+          </label>
+          <label class="checkbox-label">
+            <input type="checkbox" id="edit-method-show">
+            <span class="checkmark"></span>
+            <span class="checkbox-text">Mostra Ordine</span>
+          </label>
+        </div>
+      </div>
+
+      <div style="margin-bottom: 1.5rem;">
+        <label class="checkbox-label">
+          <input type="checkbox" id="menu-type-visibility-edit">
+          <span class="checkmark"></span>
+          <span class="checkbox-text">Menu visibile pubblicamente</span>
+        </label>
+      </div>
+
+      <div class="popup-actions" style="margin-top: 2rem;">
+        <button class="btn-danger" onclick="deleteMenuTypeFromPopup()">Elimina</button>
+        <button class="btn-secondary" onclick="closeEditMenuTypePopup()">Annulla</button>
+        <button class="btn-primary" onclick="saveMenuTypeChanges()">Salva</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== POPUP AGGIUNGI TIPO MENU ===== -->
+  <div class="popup hidden" id="add-menu-type-popup">
+    <div class="customization-popup-content">
+      <button class="close-popup" onclick="closeAddMenuTypePopup()">
+        <img src="img/x.png" alt="Chiudi">
+      </button>
+      <h2 class="popup-title">Nuovo Tipo Menu</h2>
+      
+      <input type="hidden" id="new-menu-type-id">
+
+      <div class="form-field" style="margin-bottom: 1.5rem;">
+        <label for="new-menu-type-name">Nome visualizzato:</label>
+        <input type="text" id="new-menu-type-name" placeholder="Es. Menu Bar" oninput="autoGenerateId()">
+      </div>
+
+      <div class="form-field" style="margin-bottom: 1.5rem;">
+        <label for="new-menu-type-coperto">Prezzo Coperto (€):</label>
+        <input type="number" id="new-menu-type-coperto" step="0.01" min="0" placeholder="0.00" value="0.00">
+      </div>
+
+      <div class="form-field" style="margin-bottom: 1.5rem;">
+        <label>Metodi di Checkout disponibili:</label>
+        <p style="font-size: 0.85rem; opacity: 0.7; margin: 0.3rem 0 0.5rem;">Deseleziona tutti per abilitare solo la visualizzazione del menu</p>
+        <div class="checkout-methods-simple">
+          <label class="checkbox-label">
+            <input type="checkbox" id="new-method-table" checked>
+            <span class="checkmark"></span>
+            <span class="checkbox-text">Servizio al Tavolo</span>
+          </label>
+          <label class="checkbox-label">
+            <input type="checkbox" id="new-method-pickup" checked>
+            <span class="checkmark"></span>
+            <span class="checkbox-text">Ritiro al Banco</span>
+          </label>
+          <label class="checkbox-label">
+            <input type="checkbox" id="new-method-show" checked>
+            <span class="checkmark"></span>
+            <span class="checkbox-text">Mostra Ordine</span>
+          </label>
+        </div>
+      </div>
+
+      <div style="margin-bottom: 1.5rem;">
+        <label class="checkbox-label">
+          <input type="checkbox" id="new-menu-type-visibility" checked>
+          <span class="checkmark"></span>
+          <span class="checkbox-text">Menu visibile pubblicamente</span>
+        </label>
+      </div>
+
+      <div class="popup-actions" style="margin-top: 2rem;">
+        <button class="btn-secondary" onclick="closeAddMenuTypePopup()">Annulla</button>
+        <button class="btn-primary" onclick="createNewMenuType()">Crea</button>
+      </div>
+    </div>
+  </div>
+
   <!-- ===== NOTIFICA SALVATAGGIO ===== -->
   <div class="notification hidden" id="save-notification">
     <span>Menu salvato con successo!</span>
-  </div>
-
-  <!-- ===== POPUP TIPI DI MENU ===== -->
-  <div class="popup hidden" id="menu-types-popup">
-    <div class="customization-popup-content">
-      <button class="close-popup" onclick="closeMenuTypesPopup()">
-        <img src="img/x.png" alt="Chiudi">
-      </button>
-      <h2 class="popup-title">Gestisci Tipi di Menu</h2>
-      <div id="menu-types-list"></div>
-      <div class="add-menu-type-section">
-        <input type="text" id="new-menu-type-id" placeholder="ID di una parola (es. bar)" />
-        <input type="text" id="new-menu-type-name" placeholder="Nome visualizzato (es. Menu Bar)" />
-        <button class="btn-primary" onclick="addNewMenuType()">+ Aggiungi Tipo Menu</button>
-      </div>
-    </div>
   </div>
 
   <!-- ===== POPUP MODIFICA CATEGORIA ===== -->
@@ -343,4 +369,3 @@
   <script src="customization-manager.js"></script>
 </body>
 </html>
-

@@ -26,6 +26,7 @@ let quantityPopup = null;
 let quantityPopupTimeout = null;
 let currentPopupItem = null;
 let customizationData = {};
+let isViewOnlyMode = false;
 
 //helper
 function prependToMap(map, key, value) {
@@ -333,6 +334,52 @@ document.addEventListener("click", (e) => {
 function openCustomizationScreen(item) {
   const screen = document.createElement("div");
   screen.className = "customization-screen";
+  
+  // ✅ NUOVO: Per item non customizzabili in view-only mode, crea vista semplificata
+  if (isViewOnlyMode && !item.customizable) {
+    screen.innerHTML = `
+      <div class="customization-header">
+        <h2>${item.displayName}</h2>
+        <button class="back-btn">
+          <img src="img/x.png" alt="Chiudi">
+        </button>
+      </div>
+      <div class="customization-content">
+        ${item.img ? `<img src="${item.img}" alt="${item.displayName}" onerror="this.src='img/placeholder.png'">` : ""}
+        <div class="customization-sections">
+          <div class="customization-section">
+            <h3>${item.displayName}</h3>
+            <div class="customization-option">
+              <label>Prezzo: €${item.price.toFixed(2)}</label>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+    
+    const scrollY = window.scrollY;
+    document.body.style.position = 'fixed';
+    document.body.style.top = `-${scrollY}px`;
+    document.body.style.width = '100%';
+    
+    document.body.appendChild(screen);
+    document.body.classList.add("noscroll");
+    
+    const backBtn = screen.querySelector(".back-btn");
+    backBtn.addEventListener("click", () => {
+      const scrollY = document.body.style.top;
+      document.body.style.position = '';
+      document.body.style.top = '';
+      document.body.style.width = '';
+      document.body.removeChild(screen);
+      document.body.classList.remove("noscroll");
+      window.scrollTo(0, parseInt(scrollY || '0') * -1);
+    });
+    
+    return;
+  }
+  
+  // Vista normale/customizzabile
   screen.innerHTML = `
     <div class="customization-header">
       <h2>Modifica ${item.displayName}</h2>
@@ -344,7 +391,7 @@ function openCustomizationScreen(item) {
       ${item.img ? `<img src="${item.img}" alt="${item.displayName}" onerror="this.src='img/placeholder.png'">` : ""}
       <div class="customization-sections"></div>
     </div>
-    <div class="customization-footer">
+    <div class="customization-footer" ${isViewOnlyMode ? 'style="display: none;"' : ''}>
       <div class="price-display">
         <span class="base-price">Prezzo base: €${item.price.toFixed(2)}</span>
         <span class="total-price">Totale: €${item.price.toFixed(2)}</span>
@@ -395,6 +442,11 @@ function openCustomizationScreen(item) {
         
         const controls = document.createElement("div");
         controls.className = "option-controls";
+        
+        // ✅ NUOVO: Nascondi controlli in view-only mode
+        if (isViewOnlyMode) {
+          controls.style.display = 'none';
+        }
         
         if (section.maxSelections === 1) {
           const checkbox = document.createElement("input");
@@ -459,6 +511,9 @@ function openCustomizationScreen(item) {
   }
   
   function updateTotalPrice() {
+    // ✅ NUOVO: Salta aggiornamento prezzi in view-only mode
+    if (isViewOnlyMode) return;
+    
     const totalPrice = calculateItemPrice(item.name, customizationState);
     totalPriceEl.textContent = `Totale: €${totalPrice.toFixed(2)}`;
     
@@ -485,43 +540,45 @@ function openCustomizationScreen(item) {
     }
   }
   
-  addBtn.addEventListener("click", () => {
-    const cleanCustomizations = {};
-    for (const [key, value] of Object.entries(customizationState)) {
-      if (value > 0) {
-        cleanCustomizations[key] = value;
+  // ✅ NUOVO: Disabilita addBtn in view-only mode
+  if (!isViewOnlyMode && addBtn) {
+    addBtn.addEventListener("click", () => {
+      const cleanCustomizations = {};
+      for (const [key, value] of Object.entries(customizationState)) {
+        if (value > 0) {
+          cleanCustomizations[key] = value;
+        }
       }
-    }
-    
-    const itemKey = generateItemKey(item.name, cleanCustomizations);
-    const itemPrice = calculateItemPrice(item.name, cleanCustomizations);
-    
-    // âœ… MODIFICATO: Inserisci SEMPRE in cima
-    if (selectedItems.has(itemKey)) {
-      const data = selectedItems.get(itemKey);
-      data.qty++;
-    } else {
-      selectedItems = prependToMap(selectedItems, itemKey, {
-        qty: 1,
-        customizations: { ...cleanCustomizations }
-      });
-    }
-    
-    total += itemPrice;
-    count += 1;
-    
-    updateCart();
-    saveSelectionToStorage();
-    updateItemButtonUI(item.name);
-    
-    const scrollY = document.body.style.top;
-    document.body.style.position = '';
-    document.body.style.top = '';
-    document.body.style.width = '';
-    document.body.removeChild(screen);
-    document.body.classList.remove("noscroll");
-    window.scrollTo(0, parseInt(scrollY || '0') * -1);
-  });
+      
+      const itemKey = generateItemKey(item.name, cleanCustomizations);
+      const itemPrice = calculateItemPrice(item.name, cleanCustomizations);
+      
+      if (selectedItems.has(itemKey)) {
+        const data = selectedItems.get(itemKey);
+        data.qty++;
+      } else {
+        selectedItems = prependToMap(selectedItems, itemKey, {
+          qty: 1,
+          customizations: { ...cleanCustomizations }
+        });
+      }
+      
+      total += itemPrice;
+      count += 1;
+      
+      updateCart();
+      saveSelectionToStorage();
+      updateItemButtonUI(item.name);
+      
+      const scrollY = document.body.style.top;
+      document.body.style.position = '';
+      document.body.style.top = '';
+      document.body.style.width = '';
+      document.body.removeChild(screen);
+      document.body.classList.remove("noscroll");
+      window.scrollTo(0, parseInt(scrollY || '0') * -1);
+    });
+  }
   
   backBtn.addEventListener("click", () => {
     const scrollY = document.body.style.top;
@@ -533,7 +590,9 @@ function openCustomizationScreen(item) {
     window.scrollTo(0, parseInt(scrollY || '0') * -1);
   });
   
-  updateTotalPrice();
+  if (!isViewOnlyMode) {
+    updateTotalPrice();
+  }
 }
 
 // === MENU ===
@@ -565,15 +624,23 @@ async function loadMenu() {
   let menuTypeFilter = null;
   
   if (requestedType) {
-    // Controlla se il type esiste nei menu types configurati
-    const typeExists = availableMenuTypes.some(t => t.id === requestedType);
+    const typeConfig = availableMenuTypes.find(t => t.id === requestedType);
     
-    if (typeExists) {
+    if (typeConfig) {
       menuTypeFilter = requestedType;
+      
+      // ✅ NUOVO: Controlla se è view-only mode
+      const checkoutMethods = typeConfig.checkoutMethods || {};
+      if (!checkoutMethods.table && !checkoutMethods.pickup && !checkoutMethods.show) {
+        isViewOnlyMode = true;
+        
+        // Nascondi l'order bar in view-only mode
+        const orderBar = document.querySelector('.order');
+        if (orderBar) orderBar.style.display = 'none';
+      }
       
     } else {
       console.warn(`⚠️ Menu type "${requestedType}" non trovato, mostro tutto il menu`);
-      // Opzionale: rimuovi il parametro dall'URL
       const newUrl = new URL(window.location.href);
       newUrl.searchParams.delete('type');
       window.history.replaceState({}, '', newUrl);
@@ -766,6 +833,13 @@ function renderItems(category) {
       btn.addEventListener("click", (event) => {
         if (event.target.closest(".info-btn")) return;
       
+        // ✅ NUOVO: In view-only mode apri sempre customization screen
+        if (isViewOnlyMode) {
+          openCustomizationScreen(item);
+          return;
+        }
+      
+        // Comportamento normale (resto invariato)
         if (item.customizable) {
           let isItemSelected = false;
           for (const [key] of selectedItems) {
@@ -794,7 +868,6 @@ function renderItems(category) {
             openCustomizationScreen(item);
           }
         } else {
-          // ✅ MODIFICATO: Item normale - inserisci in cima
           const itemKey = item.name;
           if (selectedItems.has(itemKey)) {
             let data = selectedItems.get(itemKey);
@@ -820,10 +893,15 @@ function renderItems(category) {
           updateItemButtonUI(item.name);
         }
       });
-
+      
+      // ✅ NUOVO: Modifica anche il click su info-btn
       infoBtn.addEventListener("click", (e) => {
         e.stopPropagation();
-        openPopup(item);
+        if (isViewOnlyMode) {
+          openCustomizationScreen(item);
+        } else {
+          openPopup(item);
+        }
       });
 
       itemsContainer.appendChild(btn);
