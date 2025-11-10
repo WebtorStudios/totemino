@@ -480,7 +480,8 @@ async function saveItem() {
   if (!preview.classList.contains('hidden')) {
     image = uploadedImage || currentEdit.item?.image || '';
   }
-  
+
+  const isCustomizable = document.getElementById('item-customizable').checked;
   const itemData = {
     name,
     price,
@@ -490,8 +491,8 @@ async function saveItem() {
     isNew: document.getElementById('item-new').checked,
     visible: !document.getElementById('hide-item').checked,
     menuType: selectedTypes,
-    customizable: document.getElementById('item-customizable').checked,
-    customizationGroup: document.getElementById('customization-group-id').value || null
+    customizable: isCustomizable,
+    customizationGroup: isCustomizable ? (document.getElementById('customization-group-id').value || null) : null
   };
   
   if (currentEdit.index === null) {
