@@ -436,18 +436,21 @@ function openCustomizationScreen(item) {
         optLabel.style.display = 'flex';
         optLabel.style.justifyContent = 'space-between';
         optLabel.style.alignItems = 'center';
-        optLabel.style.width = '100%';
-
+        optLabel.style.flex = '1';
+        optLabel.style.gap = '1rem';
+        
         const optName = document.createElement("span");
         optName.textContent = opt.name;
-
+        optName.style.flex = '1';
+        
         const optPrice = document.createElement("span");
         if (opt.priceModifier !== 0) {
           const sign = opt.priceModifier > 0 ? '+' : '';
           optPrice.textContent = `(${sign}€${opt.priceModifier.toFixed(2)})`;
           optPrice.style.fontWeight = '600';
+          optPrice.style.whiteSpace = 'nowrap';
         }
-
+        
         optLabel.appendChild(optName);
         if (opt.priceModifier !== 0) {
           optLabel.appendChild(optPrice);
