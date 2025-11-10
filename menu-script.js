@@ -347,10 +347,11 @@ function openCustomizationScreen(item) {
       <div class="customization-content">
         ${item.img ? `<img src="${item.img}" alt="${item.displayName}" onerror="this.src='img/placeholder.png'">` : ""}
         <div style="background: var(--btn-secondary); color: var(--text-primary); padding: 1rem; border-radius: 1rem; margin-bottom: 1rem;">
-          <div style="display: flex; justify-content: space-between; align-items: center;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
             <span style="font-weight: 600;">${item.displayName}</span>
             <span style="font-weight: 700;">€${item.price.toFixed(2)}</span>
           </div>
+          ${item.ingredients && item.ingredients.length > 0 ? `<div style="font-size: 0.9rem; line-height: 1.5; white-space: pre-line; opacity: 0.9;">${item.ingredients.join(", ")}</div>` : ""}
         </div>
         <div class="customization-sections"></div>
       </div>
@@ -389,21 +390,22 @@ function openCustomizationScreen(item) {
     <div class="customization-content">
       ${item.img ? `<img src="${item.img}" alt="${item.displayName}" onerror="this.src='img/placeholder.png'">` : ""}
       <div style="background: var(--btn-secondary); color: var(--text-primary); padding: 1rem; border-radius: 1rem; margin-bottom: 1rem;">
-        <div style="display: flex; justify-content: space-between; align-items: center;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
           <span style="font-weight: 600;">${item.displayName}</span>
           <span style="font-weight: 700;">€${item.price.toFixed(2)}</span>
         </div>
+        ${item.ingredients && item.ingredients.length > 0 ? `<div style="font-size: 0.9rem; line-height: 1.5; white-space: pre-line; opacity: 0.9;">${item.ingredients.join(", ")}</div>` : ""}
       </div>
       <div class="customization-sections"></div>
+    </div>
+    <div class="customization-footer" ${isViewOnlyMode ? 'style="display: none;"' : ''}>
+      <div class="price-display">
+        <span class="base-price">Prezzo base: €${item.price.toFixed(2)}</span>
+        <span class="total-price">Totale: €${item.price.toFixed(2)}</span>
       </div>
-      <div class="customization-footer" ${isViewOnlyMode ? 'style="display: none;"' : ''}>
-        <div class="price-display">
-          <span class="base-price">Prezzo base: €${item.price.toFixed(2)}</span>
-          <span class="total-price">Totale: €${item.price.toFixed(2)}</span>
-        </div>
-        <button class="add-to-cart-btn">Conferma</button>
-      </div>
-    `;
+      <button class="add-to-cart-btn">Conferma</button>
+    </div>
+  `;
   
   const scrollY = window.scrollY;
   document.body.style.position = 'fixed';
