@@ -346,14 +346,13 @@ function openCustomizationScreen(item) {
       </div>
       <div class="customization-content">
         ${item.img ? `<img src="${item.img}" alt="${item.displayName}" onerror="this.src='img/placeholder.png'">` : ""}
-        <div class="customization-sections">
-          <div class="customization-section">
-            <h3>${item.displayName}</h3>
-            <div class="customization-option">
-              <label>Prezzo: €${item.price.toFixed(2)}</label>
-            </div>
+        <div style="background: var(--btn-secondary); color: var(--text-primary); padding: 1rem; border-radius: 1rem; margin-bottom: 1rem;">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <span style="font-weight: 600;">${item.displayName}</span>
+            <span style="font-weight: 700;">€${item.price.toFixed(2)}</span>
           </div>
         </div>
+        <div class="customization-sections"></div>
       </div>
     `;
     
@@ -389,16 +388,22 @@ function openCustomizationScreen(item) {
     </div>
     <div class="customization-content">
       ${item.img ? `<img src="${item.img}" alt="${item.displayName}" onerror="this.src='img/placeholder.png'">` : ""}
-      <div class="customization-sections"></div>
-    </div>
-    <div class="customization-footer" ${isViewOnlyMode ? 'style="display: none;"' : ''}>
-      <div class="price-display">
-        <span class="base-price">Prezzo base: €${item.price.toFixed(2)}</span>
-        <span class="total-price">Totale: €${item.price.toFixed(2)}</span>
+      <div style="background: var(--btn-secondary); color: var(--text-primary); padding: 1rem; border-radius: 1rem; margin-bottom: 1rem;">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <span style="font-weight: 600;">${item.displayName}</span>
+          <span style="font-weight: 700;">€${item.price.toFixed(2)}</span>
+        </div>
       </div>
-      <button class="add-to-cart-btn">Conferma</button>
-    </div>
-  `;
+      <div class="customization-sections"></div>
+      </div>
+      <div class="customization-footer" ${isViewOnlyMode ? 'style="display: none;"' : ''}>
+        <div class="price-display">
+          <span class="base-price">Prezzo base: €${item.price.toFixed(2)}</span>
+          <span class="total-price">Totale: €${item.price.toFixed(2)}</span>
+        </div>
+        <button class="add-to-cart-btn">Conferma</button>
+      </div>
+    `;
   
   const scrollY = window.scrollY;
   document.body.style.position = 'fixed';
@@ -434,10 +439,24 @@ function openCustomizationScreen(item) {
         optDiv.className = "customization-option";
         
         const optLabel = document.createElement("label");
-        optLabel.textContent = opt.name;
+        optLabel.style.display = 'flex';
+        optLabel.style.justifyContent = 'space-between';
+        optLabel.style.alignItems = 'center';
+        optLabel.style.width = '100%';
+
+        const optName = document.createElement("span");
+        optName.textContent = opt.name;
+
+        const optPrice = document.createElement("span");
         if (opt.priceModifier !== 0) {
           const sign = opt.priceModifier > 0 ? '+' : '';
-          optLabel.textContent += ` (${sign}€${opt.priceModifier.toFixed(2)})`;
+          optPrice.textContent = `(${sign}€${opt.priceModifier.toFixed(2)})`;
+          optPrice.style.fontWeight = '600';
+        }
+
+        optLabel.appendChild(optName);
+        if (opt.priceModifier !== 0) {
+          optLabel.appendChild(optPrice);
         }
         
         const controls = document.createElement("div");
