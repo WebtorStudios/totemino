@@ -449,6 +449,7 @@ function openCustomizationScreen(item) {
           optPrice.textContent = `(${sign}€${opt.priceModifier.toFixed(2)})`;
           optPrice.style.fontWeight = '600';
           optPrice.style.whiteSpace = 'nowrap';
+          optPrice.style.marginRight = '0.5rem';
         }
         
         optLabel.appendChild(optName);
@@ -1203,6 +1204,7 @@ if (itemsContainer) {
 
 
 loadMenu();
+
 
 
 
