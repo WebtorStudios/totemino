@@ -445,8 +445,7 @@ function openCustomizationScreen(item) {
         
         const optPrice = document.createElement("span");
         if (opt.priceModifier !== 0) {
-          const sign = opt.priceModifier > 0 ? '+' : '';
-          optPrice.textContent = `(${sign}€${opt.priceModifier.toFixed(2)})`;
+          optPrice.textContent = `€ ${opt.priceModifier.toFixed(2)}`;
           optPrice.style.fontWeight = '600';
           optPrice.style.whiteSpace = 'nowrap';
           optPrice.style.marginRight = '0.5rem';
@@ -1204,6 +1203,7 @@ if (itemsContainer) {
 
 
 loadMenu();
+
 
 
 
