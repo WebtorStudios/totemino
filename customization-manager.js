@@ -78,8 +78,10 @@ async function saveCustomizations() {
 }
 
 function getNextGroupId() {
-  const ids = Object.keys(customData).map(id => parseInt(id));
-  return ids.length ? Math.max(...ids) + 1 : 1;
+  const ids = Object.keys(customData).map(id => parseInt(id)).filter(n => !isNaN(n));
+  let newId = 1;
+  while (ids.includes(newId)) newId++;
+  return newId;
 }
 
 // ===== GROUPS LIST =====
