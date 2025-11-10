@@ -347,10 +347,6 @@ function openCustomizationScreen(item) {
       <div class="customization-content">
         ${item.img ? `<img src="${item.img}" alt="${item.displayName}" onerror="this.src='img/placeholder.png'">` : ""}
         <div style="background: var(--btn-secondary); color: var(--text-primary); padding: 1rem; border-radius: 1rem; margin-bottom: 1rem;">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
-            <span style="font-weight: 600;">${item.displayName}</span>
-            <span style="font-weight: 700;">€${item.price.toFixed(2)}</span>
-          </div>
           ${item.ingredients && item.ingredients.length > 0 ? `<div style="font-size: 0.9rem; line-height: 1.5; white-space: pre-line; opacity: 0.9;">${item.ingredients.join(", ")}</div>` : ""}
         </div>
         <div class="customization-sections"></div>
@@ -390,10 +386,6 @@ function openCustomizationScreen(item) {
     <div class="customization-content">
       ${item.img ? `<img src="${item.img}" alt="${item.displayName}" onerror="this.src='img/placeholder.png'">` : ""}
       <div style="background: var(--btn-secondary); color: var(--text-primary); padding: 1rem; border-radius: 1rem; margin-bottom: 1rem;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
-          <span style="font-weight: 600;">${item.displayName}</span>
-          <span style="font-weight: 700;">€${item.price.toFixed(2)}</span>
-        </div>
         ${item.ingredients && item.ingredients.length > 0 ? `<div style="font-size: 0.9rem; line-height: 1.5; white-space: pre-line; opacity: 0.9;">${item.ingredients.join(", ")}</div>` : ""}
       </div>
       <div class="customization-sections"></div>
