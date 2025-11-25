@@ -1,14 +1,5 @@
 // ==================== CONFIGURAZIONE ====================
 const CONFIG = {
-  elements: {
-    list: document.getElementById("checkout-list"),
-    total: document.getElementById("checkout-total"),
-    backBtn: document.getElementById("back-to-menu"),
-    navCategories: document.getElementById("checkout-nav"),
-    nextBtn: document.querySelector(".next"),
-    stepButtons: document.querySelectorAll(".categories button"),
-    pill: document.querySelector(".categories .pill")
-  },
   restaurantId: new URLSearchParams(window.location.search).get("id") || "",
   storageKeys: {
     userId: "totemino_user_id",
@@ -19,9 +10,55 @@ const CONFIG = {
     theme: "totemino_theme",
     showRiepilogo: "totemino_show_riepilogo",
     suggestionStats: "totemino_suggestion_stats",
-    suggestedItems: "totemino_suggested_items"
+    suggestedItems: "totemino_suggested_items",
+    lastCoperto: "totemino_last_coperto"
   }
 };
+
+async function initializeViewMode() {
+  const params = new URLSearchParams(window.location.search);
+  const restaurantId = params.get("id");
+  let requestedType = params.get("type");
+
+  if (!restaurantId) return;
+
+  try {
+    const settingsRes = await fetch(`IDs/${restaurantId}/menuTypes.json`);
+    if (!settingsRes.ok) return;
+
+    const settings = await settingsRes.json();
+    const allTypes = settings.menuTypes?.map(t => t.id) || [];
+
+    // Se il type non esiste o non è valido → redirect a default
+    if (!requestedType || !allTypes.includes(requestedType)) {
+      params.set("type", "default");
+      window.location.search = params.toString();
+      return; // fermo l'esecuzione
+    }
+
+    // type è valido → prendo la configurazione
+    const typeConfig = settings.menuTypes?.find(t => t.id === requestedType);
+
+    if (typeConfig) {
+      const checkoutMethods = typeConfig.checkoutMethods || {};
+      const hasAnyCheckout =
+        checkoutMethods.table ||
+        checkoutMethods.delivery ||
+        checkoutMethods.takeaway ||
+        checkoutMethods.show;
+
+      if (!hasAnyCheckout) {
+        window.isViewOnlyMode = true;
+        document.documentElement.classList.add("view-only");
+      }
+    }
+  } catch (e) {
+    console.warn("Errore caricamento settings:", e);
+  }
+}
+
+initializeViewMode();
+
 
 // ==================== STATO GLOBALE ====================
 const STATE = {
@@ -30,15 +67,12 @@ const STATE = {
   menuData: {},
   selectedCategories: new Set(),
   suggestionsShown: false,
-  selectedPaymentMethod: null,
-  restaurantStatus: null,
+  restaurantStatus: 'free',
   isTrialActive: false,
-  checkoutMethods: {
-    table: true,
-    pickup: true,
-    showOrder: true
-  },
-  customizationData: {} 
+  customizationData: {},
+  currentMenuType: null,
+  settings: null,
+  copertoPrice: 0
 };
 
 // ==================== UTILITY ====================
@@ -53,7 +87,11 @@ const Utils = {
   },
 
   loadFromStorage(key, defaultValue = []) {
-    return JSON.parse(localStorage.getItem(key) || JSON.stringify(defaultValue));
+    try {
+      return JSON.parse(localStorage.getItem(key) || JSON.stringify(defaultValue));
+    } catch {
+      return defaultValue;
+    }
   },
    
   saveToStorage(key, value) {
@@ -61,56 +99,39 @@ const Utils = {
   },
 
   clearStorageKeepUser() {
-    const theme = localStorage.getItem(CONFIG.storageKeys.theme);
-    const userId = localStorage.getItem(CONFIG.storageKeys.userId);
-    const cookieConsent = localStorage.getItem('totemino_cookie_consent');
-    const lastCoperto = localStorage.getItem('totemino_last_coperto');
+    const keep = ['userId', 'theme'].map(k => CONFIG.storageKeys[k]);
+    const preserved = keep.reduce((acc, key) => {
+      const val = localStorage.getItem(key);
+      if (val) acc[key] = val;
+      return acc;
+    }, {});
     
     localStorage.clear();
-    
-    if (userId) localStorage.setItem(CONFIG.storageKeys.userId, userId);
-    if (theme) localStorage.setItem(CONFIG.storageKeys.theme, theme);
-    if (cookieConsent) localStorage.setItem('totemino_cookie_consent', cookieConsent);
-    if (lastCoperto) localStorage.setItem('totemino_last_coperto', lastCoperto);
-  },
-
-  getImagePath(item) {
-    return item.img;
+    Object.entries(preserved).forEach(([k, v]) => localStorage.setItem(k, v));
   },
 
   handleImageError(img) {
-    img.onerror = () => { img.src = 'img/placeholder.png'; };
+    img.onerror = () => img.src = 'img/placeholder.png';
   },
 
   getCustomizationLabel(customizations) {
+    if (!customizations || Object.keys(customizations).length === 0) return '';
     const labels = [];
-    
     for (const [key, qty] of Object.entries(customizations)) {
-      if (qty > 0) {
-        let found = false;
-        
-        for (const groupId in STATE.customizationData) {
-          if (found) break;
-          
-          const group = STATE.customizationData[groupId];
-          for (const section of group) {
-            const opt = section.options.find(o => o.id === key);
-            if (opt) {
-              // ✅ Filtra titoli "Seleziona/Scegli"
-              const sectionName = section.name;
-              const shouldShowSection = !/^(seleziona|scegli)/i.test(sectionName);
-              
-              const optionName = qty > 1 ? `${opt.name} x${qty}` : opt.name;
-              
-              if (shouldShowSection) {
-                labels.push(`${sectionName} ${optionName}`);
-              } else {
-                labels.push(optionName);
-              }
-              
-              found = true;
-              break;
-            }
+      if (qty <= 0) continue;
+      
+      let found = false;
+      for (const groupId in STATE.customizationData) {
+        if (found) break;
+        const group = STATE.customizationData[groupId];
+        for (const section of group) {
+          const opt = section.options.find(o => o.id === key);
+          if (opt) {
+            const shouldShowSection = !/^(seleziona|scegli)/i.test(section.name);
+            const optionName = qty > 1 ? `${opt.name} x${qty}` : opt.name;
+            labels.push(shouldShowSection ? `${section.name} ${optionName}` : optionName);
+            found = true;
+            break;
           }
         }
       }
@@ -119,21 +140,16 @@ const Utils = {
   },
 
   calculateItemPrice(itemName, customizations = {}) {
-    // Trova l'item base
     let baseItem = null;
     for (const category in STATE.menuData) {
-      const found = STATE.menuData[category].find(i => i.name === itemName);
-      if (found) {
-        baseItem = found;
-        break;
-      }
+      baseItem = STATE.menuData[category].find(i => i.name === itemName);
+      if (baseItem) break;
     }
     
     if (!baseItem) return 0;
     
     let price = baseItem.price;
     
-    // Aggiungi i modificatori
     if (baseItem.customizable && baseItem.customizationGroup) {
       const group = STATE.customizationData[baseItem.customizationGroup];
       if (group) {
@@ -148,12 +164,25 @@ const Utils = {
     }
     
     return price;
+  },
+
+  // Gestione scroll unificata per popup
+  lockScroll() {
+    const scrollY = window.scrollY;
+    document.body.style.cssText = `position: fixed; top: -${scrollY}px; width: 100%`;
+    document.body.classList.add("noscroll");
+    return scrollY;
+  },
+
+  unlockScroll(scrollY = 0) {
+    document.body.style.cssText = '';
+    document.body.classList.remove("noscroll");
+    window.scrollTo(0, scrollY);
   }
 };
 
 // ==================== GESTIONE DATI ====================
 const DataManager = {
-  // ✅ Carica lo status del ristorante
   async loadRestaurantStatus() {
     try {
       const response = await fetch('/api/restaurant-status/' + CONFIG.restaurantId);
@@ -161,30 +190,19 @@ const DataManager = {
         const data = await response.json();
         STATE.restaurantStatus = data.status;
         STATE.isTrialActive = data.isTrialActive || false;
-        
-      
-        if (!this.canShowSuggestions()) {
-          const wrapper = document.querySelector('.suggestions-wrapper');
-          if (wrapper) {
-            wrapper.style.cssText = 'opacity: 0';
-          }
-        }
         return true;
       }
     } catch (error) {
-      console.error('❌ Errore caricamento status:', error);
+      console.error('Errore caricamento status:', error);
     }
+    
     STATE.restaurantStatus = 'free';
     STATE.isTrialActive = false;
-  
     const wrapper = document.querySelector('.suggestions-wrapper');
-    if (wrapper) {
-      wrapper.style.cssText = 'opacity: 0 !important; pointer-events: none; display: none !important;';
-    }
+    if (wrapper) wrapper.style.display = 'none';
     return false;
   },
 
-  // ✅ Verifica se i suggerimenti sono disponibili
   canShowSuggestions() {
     return STATE.restaurantStatus === 'pro' || STATE.isTrialActive;
   },
@@ -194,74 +212,78 @@ const DataManager = {
     STATE.orderNotes = Utils.loadFromStorage(CONFIG.storageKeys.notes);
     
     const selectedMap = new Map();
+    const isNewFormat = saved.length > 0 && saved.length % 3 === 0;
+    const step = isNewFormat ? 3 : 2;
     
-    // ✅ Supporta formato nuovo (con customizzazioni)
-    if (saved.length > 0 && saved.length % 3 === 0) {
-      for (let i = 0; i < saved.length; i += 3) {
-        const name = saved[i];
-        const customizations = JSON.parse(saved[i + 1] || '{}');
-        const qty = Math.max(parseInt(saved[i + 2]) || 1, 1);
-        
-        // Genera chiave univoca
-        const customStr = Object.keys(customizations)
-          .sort()
-          .map(k => `${k}:${customizations[k]}`)
-          .join(',');
-        const key = customStr ? `${name}|{${customStr}}` : name;
-        
-        selectedMap.set(key, { qty, customizations });
-      }
-    } else {
-      // ✅ Formato vecchio (senza customizzazioni)
-      for (let i = 0; i < saved.length; i += 2) {
-        const name = saved[i];
-        const qty = Math.max(parseInt(saved[i + 1]) || 1, 1);
-        selectedMap.set(name, { qty, customizations: {} });
-      }
+    for (let i = 0; i < saved.length; i += step) {
+      const name = saved[i];
+      const customizations = isNewFormat ? JSON.parse(saved[i + 1] || '{}') : {};
+      const qty = Math.max(parseInt(saved[i + (isNewFormat ? 2 : 1)]) || 1, 1);
+      
+      const key = isNewFormat && Object.keys(customizations).length > 0
+        ? `${name}|{${Object.keys(customizations).sort().map(k => `${k}:${customizations[k]}`).join(',')}}`
+        : name;
+      
+      selectedMap.set(key, { qty, customizations });
     }
     
     return selectedMap;
   },
 
   async fetchMenu() {
-    await Promise.all([
-      this.loadRestaurantStatus(),
-      this.loadCheckoutMethods()
-    ]);
+    await this.loadRestaurantStatus();
   
-    const [menuJson, customizationData] = await Promise.all([
+    const params = new URLSearchParams(window.location.search);
+    const requestedType = params.get('type');
+  
+    const [menuJson, customizationData, settings] = await Promise.all([
       fetch(`IDs/${CONFIG.restaurantId}/menu.json`).then(r => r.json()),
-      fetch(`IDs/${CONFIG.restaurantId}/customization.json`)
-        .then(r => r.json())
-        .catch(e => {
-          console.warn("customization.json non trovato:", e);
-          return {};
-        })
+      fetch(`IDs/${CONFIG.restaurantId}/customization.json`).then(r => r.json()).catch(() => ({})),
+      fetch(`IDs/${CONFIG.restaurantId}/menuTypes.json`).then(r => r.json()).catch(() => ({ menuTypes: [] }))
     ]);
   
     STATE.customizationData = customizationData;
+    STATE.settings = settings;
+  
+    const availableMenuTypes = settings.menuTypes || [];
+    let menuTypeFilter = null;
+  
+    // Se manca il type, usa 'default' ma NON reindirizzare
+    if (!requestedType || requestedType === 'default' || requestedType === 'view' || requestedType === 'readonly') {
+      menuTypeFilter = 'default';
+    } else {
+      const typeConfig = availableMenuTypes.find(t => t.id === requestedType);
+      if (typeConfig) {
+        menuTypeFilter = requestedType;
+      } else {
+        // Type non valido, reindirizza a default
+        const newUrl = new URL(window.location.href);
+        newUrl.searchParams.set('type', 'default');
+        window.location.replace(newUrl.toString());
+        return;
+      }
+    }
+  
+    STATE.currentMenuType = menuTypeFilter;
   
     const selectedMap = this.loadSelectedItems();
     const suggestedItems = Utils.loadFromStorage(CONFIG.storageKeys.suggestedItems, []);
   
     menuJson.categories.forEach(category => {
-      STATE.menuData[category.name] = [];
-  
-      category.items.forEach(item => {
-        if (!item.visible) return;
-  
-        const itemData = {
+      STATE.menuData[category.name] = category.items
+        .filter(item => item.visible)
+        .map(item => ({
           name: item.name,
           price: item.price,
           img: item.imagePath,
           ingredients: item.description.split(",").map(s => s.trim()).filter(Boolean),
           customizable: item.customizable || false,
           customizationGroup: item.customizationGroup || null
-        };
+        }));
   
-        STATE.menuData[category.name].push(itemData);
+      category.items.forEach(item => {
+        if (!item.visible) return;
   
-        // ✅ Controlla TUTTE le varianti di questo item
         for (const [key, data] of selectedMap) {
           const keyName = key.includes('|') ? key.split('|')[0] : key;
           
@@ -269,7 +291,7 @@ const DataManager = {
             const effectivePrice = Utils.calculateItemPrice(item.name, data.customizations);
             
             STATE.items.push({
-              ...itemData,
+              ...STATE.menuData[category.name].find(i => i.name === item.name),
               price: effectivePrice,
               originalPrice: item.price,
               restaurantId: CONFIG.restaurantId,
@@ -277,7 +299,7 @@ const DataManager = {
               category: category.name,
               isSuggested: suggestedItems.includes(item.name),
               customizations: data.customizations,
-              uniqueKey: key // ✅ Mantieni la chiave univoca
+              uniqueKey: key
             });
             STATE.selectedCategories.add(category.name);
           }
@@ -285,226 +307,148 @@ const DataManager = {
       });
     });
   
-    await CopertoManager.loadCopertoPrice();
-    CopertoManager.addCopertoIfNeeded();
+    await this.loadCopertoPrice();
+    this.addCopertoIfNeeded();
     UI.renderItems();
     UI.updateTotal();
-    this.applyCheckoutMethods();
   
     if (this.canShowSuggestions() && typeof initializeSuggestions !== 'undefined') {
       initializeSuggestions(menuJson, CONFIG.restaurantId).catch(console.error);
     }
   },
-  
-  async loadCheckoutMethods() {
+
+  async loadCopertoPrice() {
     try {
-      const response = await fetch(`IDs/${CONFIG.restaurantId}/settings.json`);
-      if (response.ok) {
-        const settings = await response.json();
-        if (settings.checkoutMethods) {
-          STATE.checkoutMethods = settings.checkoutMethods;
-          
-          this.applyCheckoutMethods();
-        }
-      }
-    } catch (error) {
+      if (!STATE.settings) return;
       
+      const menuType = STATE.settings.menuTypes?.find(mt => mt.id === STATE.currentMenuType);
+      STATE.copertoPrice = menuType ? parseFloat(menuType.copertoPrice) || 0 : 0;
+    } catch (error) {
+      console.error('Errore caricamento coperto:', error);
+      STATE.copertoPrice = 0;
     }
   },
 
-  applyCheckoutMethods() {
-    const tableMethod = document.getElementById('service-table');
-    const pickupMethod = document.getElementById('service-pickup');
-    const showMethod = document.getElementById('service-show');
+  canAddCoperto() {
+    if (STATE.copertoPrice <= 0) return false;
     
-    if (tableMethod) {
-      tableMethod.style.display = STATE.checkoutMethods.table ? '' : 'none';
-    }
+    const lastCoperto = localStorage.getItem(CONFIG.storageKeys.lastCoperto);
+    if (!lastCoperto) return true;
     
-    if (pickupMethod) {
-      pickupMethod.style.display = STATE.checkoutMethods.pickup ? '' : 'none';
-    }
-    
-    if (showMethod) {
-      showMethod.style.display = STATE.checkoutMethods.show ? '' : 'none';
+    const hoursPassed = (Date.now() - parseInt(lastCoperto, 10)) / (1000 * 60 * 60);
+    return hoursPassed >= 4;
+  },
+
+  addCopertoIfNeeded() {
+    if (STATE.items.some(item => item.isCoperto) || !this.canAddCoperto()) return;
+
+    STATE.items.push({
+      name: 'Coperto',
+      price: STATE.copertoPrice,
+      img: '../../img/coperto.png',
+      ingredients: ['Servizio al tavolo'],
+      restaurantId: CONFIG.restaurantId,
+      quantity: 1,
+      category: 'Servizi',
+      isCoperto: true
+    });
+    STATE.orderNotes.push('');
+  },
+  
+  removeCoperto() {
+    const copertoIndex = STATE.items.findIndex(item => item.isCoperto);
+    if (copertoIndex !== -1) {
+      STATE.items.splice(copertoIndex, 1);
+      STATE.orderNotes.splice(copertoIndex, 1);
     }
   },
 
   saveSelected() {
-    const arr = [];
-    
-    STATE.items.forEach(item => {
-      // ✅ Escludi il coperto dal salvataggio
-      if (item.isCoperto) return;
-      
-      arr.push(
-        item.name,
-        JSON.stringify(item.customizations || {}),
-        item.quantity.toString()
-      );
-    });
+    const arr = STATE.items
+      .filter(item => !item.isCoperto)
+      .flatMap(item => [item.name, JSON.stringify(item.customizations || {}), item.quantity.toString()]);
     
     Utils.saveToStorage(CONFIG.storageKeys.selected, arr);
     Utils.saveToStorage(CONFIG.storageKeys.notes, STATE.orderNotes);
-    
-    const suggestedItems = STATE.items
-      .filter(item => item.isSuggested)
-      .map(item => item.name);
-    Utils.saveToStorage(CONFIG.storageKeys.suggestedItems, suggestedItems);
+    Utils.saveToStorage(CONFIG.storageKeys.suggestedItems, 
+      STATE.items.filter(item => item.isSuggested).map(item => item.name)
+    );
     
     UI.updateTotal();
-  },
-
-  async getNextOrderNumber() {
-    try {
-      const response = await fetch(`/IDs/${CONFIG.restaurantId}/orders/pickup/`);
-      if (!response.ok) return 100;
-
-      const files = await response.json();
-      if (!Array.isArray(files) || files.length === 0) return 100;
-
-      const numbers = files
-        .map(o => {
-          const match = o._filename?.match(/Pickup\s+(\d+)/i);
-          return match ? parseInt(match[1], 10) : null;
-        })
-        .filter(n => n !== null);
-
-      return numbers.length > 0 ? Math.max(...numbers) + 1 : 100;
-    } catch (error) {
-      console.error("Errore lettura numero ordine:", error);
-      return 100;
-    }
-  },
-
-  async saveOrderToServer(endpoint, orderDetails) {
-    try {
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-        body: JSON.stringify(orderDetails)
-      });
-
-      if (response.ok) {
-        return { success: true, ...(await response.json()) };
-      }
-      throw new Error(`Errore HTTP ${response.status}`);
-    } catch (error) {
-      console.error('Errore salvataggio ordine:', error);
-      return { success: false, message: error.message };
-    }
-  },
-
-  async updateUserPreferences(userId, items) {
-    try {
-      const response = await fetch('/api/update-preferences', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, items })
-      });
-      return response.ok;
-    } catch (error) {
-      console.error('Errore aggiornamento preferenze:', error);
-      return false;
-    }
   }
 };
 
 // ==================== UI ====================
 const UI = {
-  renderItems() {
-    CONFIG.elements.list.innerHTML = "";
-    
-    STATE.items.forEach((item, index) => {
-      const row = this.createItemRow(item, index);
-      CONFIG.elements.list.appendChild(row);
-    });
-
-    document.querySelector(".checkout-wrapper").style.display = STATE.items.length === 0 ? "none" : "";
+  elements: {
+    list: document.getElementById("checkout-list"),
+    total: document.getElementById("checkout-total"),
+    backBtn: document.getElementById("back-to-menu"),
+    navCategories: document.getElementById("checkout-nav"),
+    nextBtn: document.querySelector(".next"),
+    stepButtons: document.querySelectorAll(".categories button"),
+    pill: document.querySelector(".categories .pill")
   },
 
-  createItemRow(item, index) {
-    const row = document.createElement("div");
-    row.className = "checkout-item";
-    
-    if (item.isCoperto) {
-      row.classList.add('coperto-item');
-    }
-  
-    const img = document.createElement("img");
-    img.src = Utils.getImagePath(item);
-    img.alt = item.name;
-    Utils.handleImageError(img);
-  
-    const info = document.createElement("div");
-    info.className = "checkout-info";
-    
-    const customLabel = item.customizations ? Utils.getCustomizationLabel(item.customizations) : '';
-    const displayName = `${item.name}${customLabel}`;
-    
-    info.innerHTML = `
-      <h3>${displayName}${item.quantity > 1 ? ` (x${item.quantity})` : ''}</h3>
-      <p>€${(item.price * item.quantity).toFixed(2)}</p>
-    `;
-  
-    if (!item.isCoperto) {
-      const infoBtn = document.createElement("div");
-      infoBtn.className = "info-btn";
-      infoBtn.innerHTML = '<img src="img/edit.png" alt="Edit">';
-      infoBtn.onclick = (e) => {
-        e.stopPropagation();
-        Popup.openItemPopup(item, index);
-      };
-      row.append(img, info, infoBtn);
-    } else {
-      row.append(img, info);
-    }
-  
-    return row;
+  renderItems() {
+    this.elements.list.innerHTML = STATE.items.map((item, index) => {
+      const customLabel = Utils.getCustomizationLabel(item.customizations);
+      const displayName = `${item.name}${customLabel}${item.quantity > 1 ? ` (x${item.quantity})` : ''}`;
+      const editBtn = item.isCoperto ? '' : `<div class="info-btn" onclick="Popup.openItemPopup(${index})"><img src="img/edit.png" alt="Edit"></div>`;
+      
+      return `
+        <div class="checkout-item ${item.isCoperto ? 'coperto-item' : ''}">
+          <img src="${item.img}" alt="${item.name}" onerror="this.src='img/placeholder.png'">
+          <div class="checkout-info">
+            <h3>${displayName}</h3>
+            <p>€${(item.price * item.quantity).toFixed(2)}</p>
+          </div>
+          ${editBtn}
+        </div>
+      `;
+    }).join('');
+
+    document.querySelector(".checkout-wrapper").style.display = STATE.items.length === 0 ? "none" : "";
   },
 
   updateTotal() {
     const total = STATE.items.reduce((sum, i) => sum + i.price * i.quantity, 0);
     const count = STATE.items.reduce((sum, i) => sum + (i.isCoperto ? 0 : i.quantity), 0);
 
-    CONFIG.elements.total.textContent = `€${total.toFixed(2)}`;
+    this.elements.total.textContent = `€${total.toFixed(2)}`;
     localStorage.setItem(CONFIG.storageKeys.total, total.toFixed(2));
     localStorage.setItem(CONFIG.storageKeys.count, count.toString());
 
     const isEmpty = STATE.items.length === 0;
-    CONFIG.elements.navCategories.style.pointerEvents = isEmpty ? "none" : "auto";
-    CONFIG.elements.navCategories.style.opacity = isEmpty ? "0.5" : "1";
+    this.elements.navCategories.style.cssText = `pointer-events: ${isEmpty ? 'none' : 'auto'}; opacity: ${isEmpty ? '0.5' : '1'}`;
 
-    if (CONFIG.elements.nextBtn) {
-      CONFIG.elements.nextBtn.disabled = isEmpty;
-      CONFIG.elements.nextBtn.classList.toggle("locked", isEmpty);
+    if (this.elements.nextBtn) {
+      this.elements.nextBtn.disabled = isEmpty;
+      this.elements.nextBtn.classList.toggle("locked", isEmpty);
     }
   },
 
   updatePillPosition(button) {
-    button.offsetHeight;
-    CONFIG.elements.pill.style.width = `${button.offsetWidth}px`;
-    CONFIG.elements.pill.style.transform = `translateX(${button.offsetLeft}px)`;
+    this.elements.pill.style.cssText = `width: ${button.offsetWidth}px; transform: translateX(${button.offsetLeft}px)`;
   }
 };
 
 // ==================== POPUP ====================
 const Popup = {
-  openItemPopup(item, index) {
-    const popup = document.querySelector(".popup");
-    const img = popup.querySelector(".popup-img");
-    img.src = Utils.getImagePath(item);
-    Utils.handleImageError(img);
+  currentScrollY: 0,
 
+  openItemPopup(index) {
+    const item = STATE.items[index];
+    const popup = document.querySelector(".popup");
+    
+    popup.querySelector(".popup-img").src = item.img;
     popup.querySelector(".popup-title").textContent = item.name;
     popup.querySelector(".popup-ingredients").textContent = item.ingredients.join(", ");
-    
-    const notesBox = popup.querySelector(".popup-notes");
-    notesBox.value = STATE.orderNotes[index] || "";
+    popup.querySelector(".popup-notes").value = STATE.orderNotes[index] || "";
 
     this.setupQuantityControls(popup, item, index);
-    this.showPopup(popup, () => {
-      STATE.orderNotes[index] = notesBox.value;
+    this.show(popup, () => {
+      STATE.orderNotes[index] = popup.querySelector(".popup-notes").value;
       Utils.saveToStorage(CONFIG.storageKeys.notes, STATE.orderNotes);
     });
   },
@@ -522,91 +466,67 @@ const Popup = {
     const updateQty = (newQty) => {
       qty = newQty;
       controls.querySelector(".popup-qty").textContent = qty;
-      
-      // ✅ Aggiorna l'oggetto nello STATE
       STATE.items[index].quantity = qty;
       
-      // ✅ Ricalcola il prezzo se ha customizzazioni
       if (item.customizations && Object.keys(item.customizations).length > 0) {
-        const newPrice = Utils.calculateItemPrice(item.name, item.customizations);
-        STATE.items[index].price = newPrice;
+        STATE.items[index].price = Utils.calculateItemPrice(item.name, item.customizations);
       }
       
       DataManager.saveSelected();
       UI.renderItems();
-      UI.updateTotal();
     };
   
     controls.querySelector(".popup-minus").onclick = () => {
       if (qty > 1) {
         updateQty(qty - 1);
       } else {
-        // ✅ Rimuovi l'item e chiudi popup
         STATE.items.splice(index, 1);
         STATE.orderNotes.splice(index, 1);
         DataManager.saveSelected();
-        this.hidePopup(popup);
+        this.hide(popup);
         UI.renderItems();
-        UI.updateTotal();
         
-        // ✅ Refresh suggerimenti se disponibili
         if (DataManager.canShowSuggestions() && typeof suggestionsEngine !== 'undefined') {
           suggestionsEngine.renderSuggestions(CONFIG.restaurantId).catch(console.error);
         }
       }
     };
   
-    // ✅ CORRETTA: Gestione pulsante "+"
     controls.querySelector(".popup-plus").onclick = () => {
       if (item.customizable) {
-        // Chiudi popup e apri customizzazione
-        this.hidePopup(popup);
+        this.hide(popup);
         CustomizationScreen.open(item);
       } else {
-        // Item normale: incrementa quantità
         updateQty(qty + 1);
       }
     };
   },
 
-  showPopup(popup, onClose) {
-    const scrollY = window.scrollY;
-    document.body.style.position = 'fixed';
-    document.body.style.top = `-${scrollY}px`;
-    document.body.style.width = '100%';
+  show(popup, onClose) {
+    this.currentScrollY = Utils.lockScroll();
     popup.classList.remove("hidden");
-    document.body.classList.add("noscroll");
 
     const closeHandler = () => {
       if (onClose) onClose();
-      this.hidePopup(popup);
+      this.hide(popup);
     };
 
-    const closeBtn = popup.querySelector(".close-popup");
-    closeBtn.onclick = closeHandler;
+    popup.querySelector(".close-popup").onclick = closeHandler;
     popup.onclick = (e) => { if (e.target === popup) closeHandler(); };
     
     const sendBtn = popup.querySelector(".popup-send-btn");
     if (sendBtn) sendBtn.onclick = closeHandler;
   },
 
-  hidePopup(popup) {
+  hide(popup) {
     popup.classList.add("hidden");
-    
-    const scrollY = document.body.style.top;
-    document.body.style.position = '';
-    document.body.style.top = '';
-    document.body.style.width = '';
-    document.body.classList.remove("noscroll");
-    
-    window.scrollTo(0, parseInt(scrollY || '0') * -1);
+    Utils.unlockScroll(this.currentScrollY);
   },
 
   async showSuggestionsPopup() {
-    if (STATE.suggestionsShown) return;
-
-    if (!DataManager.canShowSuggestions()) {
-      this.skipSuggestions();
+    if (STATE.suggestionsShown || !DataManager.canShowSuggestions()) {
+      STATE.suggestionsShown = true;
+      Navigation.switchToStep(1);
       return;
     }
 
@@ -615,87 +535,62 @@ const Popup = {
     const selectedSuggestions = new Set();
 
     try {
-      const suggestions = await suggestionsEngine.generateSuggestions();
-      
+      const suggestions = await suggestionsEngine.generateSuggestionsForCheckout();
       const uniqueSuggestions = [...new Map(suggestions.map(s => [s.name, s])).values()].slice(0, 4);
       
       if (uniqueSuggestions.length === 0) {
-        this.skipSuggestions();
+        STATE.suggestionsShown = true;
+        Navigation.switchToStep(1);
         return;
       }
 
+      Utils.lockScroll();
       popup.classList.remove("hidden");
-      document.body.classList.add("noscroll");
-      grid.innerHTML = "";
+      grid.innerHTML = uniqueSuggestions.map(s => `
+        <div class="suggestion-card" data-name="${s.name}">
+          <img src="${s.img}" alt="${s.name}" onerror="this.src='img/placeholder.png'">
+          <h4>${s.name}</h4>
+          <p>€${s.price.toFixed(2)}</p>
+        </div>
+      `).join('');
 
-      uniqueSuggestions.forEach(suggestion => {
-        const card = this.createSuggestionCard(suggestion, selectedSuggestions);
-        grid.appendChild(card);
+      grid.querySelectorAll('.suggestion-card').forEach(card => {
+        card.onclick = () => {
+          card.classList.toggle("selected");
+          const name = card.dataset.name;
+          selectedSuggestions.has(name) ? selectedSuggestions.delete(name) : selectedSuggestions.add(name);
+
+          const btn = document.getElementById("suggestions-action-btn");
+          btn.textContent = selectedSuggestions.size > 0 ? "Avanti" : "No grazie";
+          btn.classList.toggle("locked", selectedSuggestions.size === 0);
+          btn.style.opacity = "1";
+        };
       });
 
       this.setupSuggestionsButton(popup, selectedSuggestions);
     } catch (error) {
-      console.error("Errore caricamento suggerimenti:", error);
-      this.skipSuggestions();
+      console.error("Errore suggerimenti:", error);
+      STATE.suggestionsShown = true;
+      Navigation.switchToStep(1);
     }
   },
 
-  createSuggestionCard(suggestion, selectedSet) {
-    const card = document.createElement("div");
-    card.className = "suggestion-card";
-
-    const img = document.createElement("img");
-    img.src = suggestion.img;
-    img.alt = suggestion.name;
-    Utils.handleImageError(img);
-
-    card.innerHTML = `
-      <h4>${suggestion.name}</h4>
-      <p>€${suggestion.price.toFixed(2)}</p>
-    `;
-    card.prepend(img);
-
-    card.onclick = () => {
-      card.classList.toggle("selected");
-      selectedSet.has(suggestion.name) 
-        ? selectedSet.delete(suggestion.name) 
-        : selectedSet.add(suggestion.name);
-
-      const btn = document.getElementById("suggestions-action-btn");
-      btn.textContent = selectedSet.size > 0 ? "Avanti" : "No grazie";
-      btn.classList.toggle("locked", selectedSet.size === 0);
-    };
-
-    return card;
-  },
-
- setupSuggestionsButton(popup, selectedSuggestions) {
-    const oldBtn = document.getElementById("suggestions-action-btn");
-    const newBtn = oldBtn.cloneNode(true);
-    oldBtn.replaceWith(newBtn);
-  
-    newBtn.style.opacity = "0";
-  
-    let buttonTimeout = setTimeout(() => {
-      newBtn.style.opacity = "1";
-    }, 2500);
-  
-    const showButtonNow = () => {
-      clearTimeout(buttonTimeout);
-      newBtn.style.opacity = "1";
-    };
-  
-    const cards = popup.querySelectorAll('.suggestion-card');
-    cards.forEach(card => {
-      const originalOnClick = card.onclick;
+  setupSuggestionsButton(popup, selectedSuggestions) {
+    const btn = document.getElementById("suggestions-action-btn");
+    btn.style.opacity = "0";
+    
+    const showBtn = setTimeout(() => btn.style.opacity = "1", 1500);
+    
+    popup.querySelectorAll('.suggestion-card').forEach(card => {
+      const original = card.onclick;
       card.onclick = function(e) {
-        originalOnClick.call(this, e);
-        showButtonNow();
+        clearTimeout(showBtn);
+        btn.style.opacity = "1";
+        original.call(this, e);
       };
     });
-  
-    newBtn.onclick = () => {
-      // ✅ MARCA SUBITO I SUGGERIMENTI COME MOSTRATI
+
+    btn.onclick = () => {
       STATE.suggestionsShown = true;
       
       if (selectedSuggestions.size > 0) {
@@ -705,169 +600,250 @@ const Popup = {
             if (menuItem) {
               const existingItem = STATE.items.find(i => 
                 i.name === itemName && 
-                (!i.customizations || Object.keys(i.customizations).length === 0) &&
-                !i.isCoperto
+                !i.isCoperto && 
+                (!i.customizations || Object.keys(i.customizations).length === 0)
               );
               
               if (existingItem) {
                 existingItem.quantity += 1;
                 existingItem.isSuggested = true;
               } else {
-                // ✅ Trova l'indice del coperto
-                const copertoIndex = STATE.items.findIndex(i => i.isCoperto);
-                
                 const newItem = {
                   ...menuItem,
+                  ingredients: menuItem.ingredients || (menuItem.description ? menuItem.description.split(",").map(s => s.trim()).filter(Boolean) : []),
                   restaurantId: CONFIG.restaurantId,
                   quantity: 1,
-                  category: category,
+                  category,
                   isSuggested: true,
                   customizations: {},
                   uniqueKey: itemName
                 };
                 
-                // ✅ Se c'è il coperto, inserisci PRIMA di esso
-                if (copertoIndex !== -1) {
-                  STATE.items.splice(copertoIndex, 0, newItem);
-                  STATE.orderNotes.splice(copertoIndex, 0, "");
-                } else {
-                  // Altrimenti aggiungi in cima
-                  STATE.items.unshift(newItem);
-                  STATE.orderNotes.unshift("");
-                }
+                STATE.items.push(newItem);
+                STATE.orderNotes.push("");
               }
               break;
             }
           }
         });
-  
+
         DataManager.saveSelected();
-        this.hidePopup(popup);
         UI.renderItems();
-        UI.updateTotal();
-        Navigation.switchToStep(1);
         
-        // Refresh suggerimenti se disponibili
-        if (DataManager.canShowSuggestions() && typeof suggestionsEngine !== 'undefined') {
+        if (typeof suggestionsEngine !== 'undefined') {
           suggestionsEngine.renderSuggestions(CONFIG.restaurantId).catch(console.error);
         }
-      } else {
-        this.hidePopup(popup);
-        Navigation.switchToStep(1);
       }
+      
+      Utils.unlockScroll();
+      popup.classList.add("hidden");
+      Navigation.switchToStep(1);
     };
-  },
-
-  skipSuggestions() {
-    STATE.suggestionsShown = true;
-    Navigation.switchToStep(1);
   }
 };
 
-// ==================== GESTIONE COPERTO ====================
-const CopertoManager = {
-  COPERTO_KEY: 'totemino_last_coperto',
-  COOLDOWN_HOURS: 4,
-  copertoPrice: 0,
-
-  async loadCopertoPrice() {
-    try {
-      const response = await fetch(`IDs/${CONFIG.restaurantId}/settings.json`);
-      if (response.ok) {
-        const settings = await response.json();
-        this.copertoPrice = parseFloat(settings.copertoPrice) || 0;
+// ==================== CUSTOMIZATION SCREEN ====================
+const CustomizationScreen = {
+  open(item) {
+    const screen = document.createElement("div");
+    screen.className = "customization-screen";
+    screen.innerHTML = `
+      <div class="customization-header">
+        <h2>Modifica ${item.name}</h2>
+        <button class="back-btn"><img src="img/x.png" alt="Chiudi"></button>
+      </div>
+      <div class="customization-content">
+        ${item.img ? `<img src="${item.img}" alt="${item.name}" onerror="this.src='img/placeholder.png'">` : ""}
+        ${item.ingredients && item.ingredients.length > 0 ? 
+          `<div style="background: var(--btn-secondary); color: var(--text-primary); padding: 1rem; border-radius: 1rem; margin-bottom: 1rem;">
+            <div style="font-size: 0.9rem; line-height: 1.5; white-space: pre-line; opacity: 0.9;">${item.ingredients.join(", ").replace(/\\n/g, "\n").trim()}</div>
+          </div>` 
+        : ""}
+        <div class="customization-sections"></div>
+      </div>
+      <div class="customization-footer">
+        <div class="price-display">
+          <span class="base-price">Prezzo base: €${(item.originalPrice || item.price).toFixed(2)}</span>
+          <span class="total-price">Totale: €${(item.originalPrice || item.price).toFixed(2)}</span>
+        </div>
+        <button class="add-to-cart-btn">Conferma</button>
+      </div>
+    `;
+    
+    const scrollY = Utils.lockScroll();
+    document.body.appendChild(screen);
+    
+    const customizationState = {};
+    const group = STATE.customizationData[item.customizationGroup];
+    
+    if (group) {
+      const sectionsContainer = screen.querySelector(".customization-sections");
+      
+      group.forEach(section => {
+        section.options.forEach(opt => customizationState[opt.id] = 0);
         
-      } else {
-        this.copertoPrice = 0;
+        const optionsHTML = section.options.map(opt => {
+          const priceLabel = opt.priceModifier !== 0 
+            ? ` (${opt.priceModifier > 0 ? '+' : ''}€${opt.priceModifier.toFixed(2)})` 
+            : '';
+          const inputType = section.maxSelections === 1 ? 'radio-checkbox' : 'square-checkbox';
+          
+          return `
+            <div class="customization-option">
+              <label>${opt.name}${priceLabel}</label>
+              <div class="option-controls">
+                <input type="checkbox" id="opt-${opt.id}" class="${inputType}" data-option="${opt.id}">
+              </div>
+            </div>
+          `;
+        }).join('');
         
-      }
-    } catch (error) {
+        sectionsContainer.innerHTML += `
+          <div class="customization-section" data-section="${section.name}" data-max="${section.maxSelections || 999}">
+            <h3>${section.name}${section.required ? ' *' : ''}</h3>
+            ${optionsHTML}
+          </div>
+        `;
+      });
       
-      this.copertoPrice = 0;
+      sectionsContainer.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
+        checkbox.addEventListener('change', () => {
+          const optId = checkbox.dataset.option;
+          const section = checkbox.closest('.customization-section');
+          const maxSelections = parseInt(section.dataset.max);
+          const isRadio = maxSelections === 1;
+          
+          if (isRadio && checkbox.checked) {
+            section.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+              if (cb !== checkbox) {
+                cb.checked = false;
+                customizationState[cb.dataset.option] = 0;
+              }
+            });
+            customizationState[optId] = 1;
+          } else {
+            if (checkbox.checked) {
+              const currentSelections = Object.values(customizationState).reduce((sum, val) => sum + val, 0);
+              if (currentSelections < maxSelections) {
+                customizationState[optId] = 1;
+              } else {
+                checkbox.checked = false;
+                alert(`Massimo ${maxSelections} selezioni per questa sezione`);
+              }
+            } else {
+              customizationState[optId] = 0;
+            }
+          }
+          
+          this.updatePrice(item, customizationState, screen, group);
+        });
+      });
     }
-  },
-
-  canAddCoperto() {
-    if (this.copertoPrice <= 0) return false;
     
-    const lastCoperto = localStorage.getItem(this.COPERTO_KEY);
-    if (!lastCoperto) return true;
-    
-    const lastTime = parseInt(lastCoperto, 10);
-    const now = Date.now();
-    const hoursPassed = (now - lastTime) / (1000 * 60 * 60);
-    
-    return hoursPassed >= this.COOLDOWN_HOURS;
-  },
-
-  addCopertoIfNeeded() {
-    const hasCoperto = STATE.items.some(item => item.isCoperto);
-    if (hasCoperto) {
-      
-      return;
-    }
-
-    if (!this.canAddCoperto()) {
-      
-      return;
-    }
-
-    const copertoItem = {
-      name: 'Coperto',
-      price: this.copertoPrice,
-      img: '../../img/coperto.png',
-      ingredients: ['Servizio al tavolo'],
-      restaurantId: CONFIG.restaurantId,
-      quantity: 1,
-      category: 'Servizi',
-      isSuggested: false,
-      isCoperto: true
+    screen.querySelector('.back-btn').onclick = () => {
+      document.body.removeChild(screen);
+      Utils.unlockScroll(scrollY);
     };
-
-    STATE.items.push(copertoItem);
-    STATE.orderNotes.push('');
     
+    screen.querySelector('.add-to-cart-btn').onclick = () => {
+      const filteredCustomizations = Object.fromEntries(
+        Object.entries(customizationState).filter(([_, v]) => v > 0)
+      );
+      
+      const itemPrice = Utils.calculateItemPrice(item.name, filteredCustomizations);
+      const customStr = Object.keys(filteredCustomizations).sort()
+        .map(k => `${k}:${filteredCustomizations[k]}`).join(',');
+      const uniqueKey = customStr ? `${item.name}|{${customStr}}` : item.name;
+      
+      const existingIndex = STATE.items.findIndex(i => i.uniqueKey === uniqueKey);
+      
+      if (existingIndex !== -1) {
+        STATE.items[existingIndex].quantity += 1;
+      } else {
+        const copertoIndex = STATE.items.findIndex(i => i.isCoperto);
+        const newItem = {
+          name: item.name,
+          price: itemPrice,
+          originalPrice: item.originalPrice || item.price,
+          img: item.img,
+          ingredients: item.ingredients,
+          restaurantId: CONFIG.restaurantId,
+          quantity: 1,
+          category: item.category,
+          customizable: item.customizable,
+          customizationGroup: item.customizationGroup,
+          customizations: filteredCustomizations,
+          uniqueKey
+        };
+        
+        if (copertoIndex !== -1) {
+          STATE.items.splice(copertoIndex, 0, newItem);
+          STATE.orderNotes.splice(copertoIndex, 0, "");
+        } else {
+          STATE.items.unshift(newItem);
+          STATE.orderNotes.unshift("");
+        }
+      }
+      
+      DataManager.saveSelected();
+      UI.renderItems();
+      
+      if (DataManager.canShowSuggestions() && typeof suggestionsEngine !== 'undefined') {
+        suggestionsEngine.renderSuggestions(CONFIG.restaurantId).catch(console.error);
+      }
+      
+      document.body.removeChild(screen);
+      Utils.unlockScroll(scrollY);
+    };
     
+    this.updatePrice(item, customizationState, screen, group);
   },
-
-  markCopertoAdded() {
-    localStorage.setItem(this.COPERTO_KEY, Date.now().toString());
+  
+  updatePrice(item, customizationState, screen, group) {
+    const totalPrice = Utils.calculateItemPrice(item.name, customizationState);
+    screen.querySelector(".total-price").textContent = `Totale: €${totalPrice.toFixed(2)}`;
+    
+    let allRequiredFilled = true;
+    if (group) {
+      for (const section of group) {
+        if (section.required && !section.options.some(opt => customizationState[opt.id] > 0)) {
+          allRequiredFilled = false;
+          break;
+        }
+      }
+    }
+    
+    const btn = screen.querySelector('.add-to-cart-btn');
+    btn.disabled = !allRequiredFilled;
+    btn.classList.toggle("disabled", !allRequiredFilled);
   }
 };
 
 // ==================== NAVIGAZIONE ====================
 const Navigation = {
   init() {
-    CONFIG.elements.stepButtons.forEach((btn, index) => {
+    UI.elements.stepButtons.forEach((btn, index) => {
       btn.onclick = () => this.switchToStep(index);
     });
 
-    CONFIG.elements.backBtn.onclick = () => {
-      if (!CONFIG.restaurantId) {
-        window.location.href = "menu.html";
-        return;
-      }
-      
-      // ✅ Costruisci URL mantenendo tutti i parametri
+    UI.elements.backBtn.onclick = () => {
       const params = new URLSearchParams(window.location.search);
       const menuUrl = new URL('menu.html', window.location.origin);
       
-      menuUrl.searchParams.set('id', CONFIG.restaurantId);
-      
-      // ✅ Mantieni il parametro type se presente
-      const menuType = params.get('type');
-      if (menuType) {
-        menuUrl.searchParams.set('type', menuType);
+      if (CONFIG.restaurantId) {
+        menuUrl.searchParams.set('id', CONFIG.restaurantId);
+        const menuType = params.get('type');
+        if (menuType) menuUrl.searchParams.set('type', menuType);
       }
       
       window.location.href = menuUrl.toString();
     };
 
-    CONFIG.elements.nextBtn?.addEventListener("click", () => {
-      if (DataManager.canShowSuggestions()) {
+    UI.elements.nextBtn?.addEventListener("click", () => {
+      if (!STATE.suggestionsShown && DataManager.canShowSuggestions()) {
         Popup.showSuggestionsPopup();
       } else {
-        Navigation.switchToStep(1);
+        this.switchToStep(1);
       }
     });
 
@@ -881,453 +857,26 @@ const Navigation = {
 
     window.addEventListener('load', () => {
       const activeBtn = document.querySelector('.categories button.active');
-      if (activeBtn) {
-        setTimeout(() => UI.updatePillPosition(activeBtn), 0);
-      }
+      if (activeBtn) setTimeout(() => UI.updatePillPosition(activeBtn), 0);
     });
   },
 
   switchToStep(index) {
-    // ✅ CONTROLLA SE MOSTRARE SUGGERIMENTI
     if (index === 1 && STATE.items.length > 0 && !STATE.suggestionsShown && DataManager.canShowSuggestions()) {
       Popup.showSuggestionsPopup();
       return;
     }
 
-    CONFIG.elements.stepButtons.forEach(b => b.classList.remove("active"));
-    const activeBtn = CONFIG.elements.stepButtons[index];
+    UI.elements.stepButtons.forEach(b => b.classList.remove("active"));
+    const activeBtn = UI.elements.stepButtons[index];
     activeBtn.classList.add("active");
     UI.updatePillPosition(activeBtn);
 
     document.getElementById("section-ordine").style.display = index === 0 ? "" : "none";
     document.getElementById("section-pagamento").style.display = index === 1 ? "" : "none";
-    
-    // ✅ Riapplica visibilità metodi quando si passa alla pagina pagamento
-    if (index === 1) {
-      DataManager.applyCheckoutMethods();
-    }
-  }
-};
-
-// ==================== PAGAMENTO ====================
-const Payment = {
-  init() {
-    const paymentCards = document.querySelectorAll(".payment-card");
-    const confirmBtn = document.getElementById("confirm-payment");
-
-    paymentCards.forEach(card => {
-      card.onclick = () => this.selectPayment(card.id, paymentCards, confirmBtn);
-      card.onkeydown = (e) => {
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          this.selectPayment(card.id, paymentCards, confirmBtn);
-        }
-      };
-    });
-
-    confirmBtn?.addEventListener("click", () => this.processPayment());
-  },
-
-  selectPayment(id, cards, btn) {
-    STATE.selectedPaymentMethod = id;
-    cards.forEach(card => {
-      const isSelected = card.id === id;
-      card.classList.toggle("selected", isSelected);
-      card.setAttribute("aria-pressed", isSelected);
-    });
-    if (btn) btn.disabled = false;
-  },
-
-  async processPayment() {
-    if (!STATE.selectedPaymentMethod) return;
-
-    if (STATE.selectedPaymentMethod === "pay-stripe") {
-      const totalCents = Math.round(STATE.items.reduce((sum, i) => sum + i.price * i.quantity, 0) * 100);
-
-      try {
-        const response = await fetch('/create-checkout-session', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ amount: totalCents })
-        });
-
-        const data = await response.json();
-        if (data.url) window.location.href = data.url;
-        else alert('Errore creazione sessione pagamento');
-      } catch (error) {
-        alert('Errore di rete');
-        console.error(error);
-      }
-    } else if (STATE.selectedPaymentMethod === "pay-paypal") {
-      alert('PayPal non ancora implementato');
-    }
-  }
-};
-
-// ==================== ORDINI ====================
-const Orders = {
-  init() {
-    document.getElementById("service-table")?.addEventListener("click", () => this.handleTable());
-    document.getElementById("service-pickup")?.addEventListener("click", () => this.handlePickup());
-    document.getElementById("service-show")?.addEventListener("click", () => this.handleShow());
-  },
-
-  async handleTable() {
-    const popup = document.querySelector(".popup-table-number");
-    const input = document.getElementById("table-number-input");
-    const confirmBtn = document.getElementById("confirm-table-number");
-
-    popup.classList.remove("hidden");
-
-    const closeHandler = () => popup.classList.add("hidden");
-    popup.querySelector(".close-popup-table").onclick = closeHandler;
-    popup.onclick = (e) => { if (e.target === popup) closeHandler(); };
-
-    const newConfirmBtn = confirmBtn.cloneNode(true);
-    confirmBtn.replaceWith(newConfirmBtn);
-
-    newConfirmBtn.onclick = async () => {
-      const tableNumber = input.value.trim();
-      if (!tableNumber) {
-        input.style.boxShadow = '0 0 0 3px rgba(255, 0, 0, 0.8)';
-        input.classList.add('shake');
-        setTimeout(() => {
-          input.style.boxShadow = '';
-          input.classList.remove('shake');
-        }, 1000);
-        return;
-      }
-
-      await this.submitOrder('table', { tableNumber });
-    };
-  },
-
-  async handlePickup() {
-    const orderNumber = await DataManager.getNextOrderNumber();
-    await this.submitOrder('pickup', { orderNumber });
-  },
-  
-  handleShow() {
-    window.location.href = `your-order.html?id=${CONFIG.restaurantId}`;
-  },
-  
-  async submitOrder(type, extra = {}) {
-    const userId = Utils.getUserId();
-    
-    const hasCoperto = STATE.items.some(item => item.isCoperto);
-    if (hasCoperto) {
-      CopertoManager.markCopertoAdded();
-    }
-
-    const orderDetails = {
-      userId,
-      ...extra,
-      items: STATE.items.map(item => ({
-        name: item.name,
-        price: item.price,
-        quantity: item.quantity,
-        category: item.category,
-        ingredients: item.ingredients,
-        isSuggested: item.isSuggested || false,
-        isCoperto: item.isCoperto || false,
-        customizations: item.customizations || {}
-      })),
-      orderNotes: STATE.orderNotes,
-      total: STATE.items.reduce((sum, i) => sum + i.price * i.quantity, 0),
-      suggestion_stats: Utils.loadFromStorage(CONFIG.storageKeys.suggestionStats, {})
-    };
-
-    const response = await DataManager.saveOrderToServer(
-      `/IDs/${CONFIG.restaurantId}/orders/${type}/`,
-      orderDetails
-    );
-
-    if (response.success) {
-      await DataManager.updateUserPreferences(userId, orderDetails.items);
-      Utils.clearStorageKeepUser();
-      sessionStorage.setItem("lastOrder", JSON.stringify({
-        type,
-        ...(type === 'table' ? { tableNumber: extra.tableNumber } : { orderNumber: response.orderNumber || extra.orderNumber }),
-        total: orderDetails.total.toFixed(2)
-      }));
-      
-      const params = new URLSearchParams(window.location.search);
-      const successUrl = new URL('success.html', window.location.origin);
-      
-      successUrl.searchParams.set('id', CONFIG.restaurantId);
-      
-      const menuType = params.get('type');
-      if (menuType) {
-        successUrl.searchParams.set('type', menuType);
-      }
-      
-      window.location.href = successUrl.toString();
-    } else {
-      console.error("Errore salvataggio ordine:", response.message);
-      window.location.href = "error.html";
-    }
-  }
-};
-
-// ==================== CUSTOMIZATION SCREEN ====================
-const CustomizationScreen = {
-  open(item) {
-    const screen = document.createElement("div");
-    screen.className = "customization-screen";
-    screen.innerHTML = `
-      <div class="customization-header">
-        <h2>Modifica ${item.name}</h2>
-        <button class="back-btn">
-          <img src="img/x.png" alt="Chiudi">
-        </button>
-      </div>
-      <div class="customization-content">
-        ${item.img ? `<img src="${item.img}" alt="${item.name}" onerror="this.src='img/placeholder.png'">` : ""}
-        <div class="customization-sections"></div>
-      </div>
-      <div class="customization-footer">
-        <div class="price-display">
-          <span class="base-price">Prezzo base: €${(item.originalPrice || item.price).toFixed(2)}</span>
-          <span class="total-price">Totale: €${(item.originalPrice || item.price).toFixed(2)}</span>
-        </div>
-        <button class="add-to-cart-btn">Conferma</button>
-      </div>
-    `;
-    
-    const scrollY = window.scrollY;
-    document.body.style.position = 'fixed';
-    document.body.style.top = `-${scrollY}px`;
-    document.body.style.width = '100%';
-    
-    document.body.appendChild(screen);
-    document.body.classList.add("noscroll");
-    
-    const sectionsContainer = screen.querySelector(".customization-sections");
-    const totalPriceEl = screen.querySelector(".total-price");
-    const addBtn = screen.querySelector(".add-to-cart-btn");
-    const backBtn = screen.querySelector(".back-btn");
-    
-    // ✅ Inizializza stato vuoto
-    const customizationState = {};
-    
-    const group = STATE.customizationData[item.customizationGroup];
-    if (group) {
-      group.forEach(section => {
-        const sectionDiv = document.createElement("div");
-        sectionDiv.className = "customization-section";
-        
-        const title = document.createElement("h3");
-        title.textContent = section.name + (section.required ? " *" : "");
-        sectionDiv.appendChild(title);
-        
-        // ✅ Inizializza tutte le opzioni a 0
-        section.options.forEach(opt => {
-          customizationState[opt.id] = 0;
-        });
-        
-        section.options.forEach(opt => {
-          const optDiv = document.createElement("div");
-          optDiv.className = "customization-option";
-          
-          const optLabel = document.createElement("label");
-          optLabel.textContent = opt.name;
-          if (opt.priceModifier !== 0) {
-            const sign = opt.priceModifier > 0 ? '+' : '';
-            optLabel.textContent += ` (${sign}€${opt.priceModifier.toFixed(2)})`;
-          }
-          
-          const controls = document.createElement("div");
-          controls.className = "option-controls";
-          
-          if (section.maxSelections === 1) {
-            // Radio checkbox
-            const checkbox = document.createElement("input");
-            checkbox.type = "checkbox";
-            checkbox.id = `opt-${opt.id}`;
-            checkbox.className = "radio-checkbox";
-            
-            checkbox.addEventListener("change", () => {
-              if (checkbox.checked) {
-                // Deseleziona tutte le altre opzioni
-                section.options.forEach(o => {
-                  if (o.id !== opt.id) {
-                    customizationState[o.id] = 0;
-                    const otherCheckbox = document.getElementById(`opt-${o.id}`);
-                    if (otherCheckbox) {
-                      otherCheckbox.checked = false;
-                    }
-                  }
-                });
-                customizationState[opt.id] = 1;
-              } else {
-                customizationState[opt.id] = 0;
-              }
-              this.updateTotalPrice(item, customizationState, totalPriceEl, addBtn, group);
-            });
-            
-            controls.appendChild(checkbox);
-          } else {
-            // Checkbox quadrato multiplo
-            const checkbox = document.createElement("input");
-            checkbox.type = "checkbox";
-            checkbox.id = `opt-${opt.id}`;
-            checkbox.className = "square-checkbox";
-            
-            checkbox.addEventListener("change", () => {
-              if (checkbox.checked) {
-                // Calcola selezioni correnti
-                const currentSelections = section.options
-                  .filter(o => o.id !== opt.id)
-                  .reduce((sum, o) => sum + (customizationState[o.id] || 0), 0);
-                
-                if (!section.maxSelections || (currentSelections < section.maxSelections)) {
-                  customizationState[opt.id] = 1;
-                } else {
-                  checkbox.checked = false;
-                  customizationState[opt.id] = 0;
-                  alert(`Massimo ${section.maxSelections} selezioni per questa sezione`);
-                }
-              } else {
-                customizationState[opt.id] = 0;
-              }
-              this.updateTotalPrice(item, customizationState, totalPriceEl, addBtn, group);
-            });
-            
-            controls.appendChild(checkbox);
-          }
-          
-          optDiv.appendChild(optLabel);
-          optDiv.appendChild(controls);
-          sectionDiv.appendChild(optDiv);
-        });
-        
-        sectionsContainer.appendChild(sectionDiv);
-      });
-    }
-    
-    // ✅ PULSANTE CONFERMA CORRETTO
-    addBtn.addEventListener("click", async () => {
-      // Filtra customizzazioni con valore > 0
-      const filteredCustomizations = {};
-      for (const [key, value] of Object.entries(customizationState)) {
-        if (value > 0) {
-          filteredCustomizations[key] = value;
-        }
-      }
-      
-      const itemPrice = Utils.calculateItemPrice(item.name, filteredCustomizations);
-      
-      // Genera chiave univoca
-      const customStr = Object.keys(filteredCustomizations)
-        .sort()
-        .map(k => `${k}:${filteredCustomizations[k]}`)
-        .join(',');
-      const uniqueKey = customStr ? `${item.name}|{${customStr}}` : item.name;
-      
-      // ✅ Cerca se esiste già questa ESATTA variante
-      const existingIndex = STATE.items.findIndex(i => i.uniqueKey === uniqueKey);
-      
-      if (existingIndex !== -1) {
-        // Incrementa quantità della variante esistente
-        STATE.items[existingIndex].quantity += 1;
-      } else {
-        // Crea nuova variante
-        STATE.items.push({
-          name: item.name,
-          price: itemPrice,
-          originalPrice: item.originalPrice || item.price,
-          img: item.img,
-          ingredients: item.ingredients,
-          restaurantId: CONFIG.restaurantId,
-          quantity: 1,
-          category: item.category,
-          isSuggested: false,
-          customizable: item.customizable,
-          customizationGroup: item.customizationGroup,
-          customizations: filteredCustomizations,
-          uniqueKey: uniqueKey
-        });
-        STATE.orderNotes.push("");
-      }
-      
-      DataManager.saveSelected();
-      UI.renderItems();
-      UI.updateTotal();
-      
-      // ✅ Refresh suggerimenti
-      if (DataManager.canShowSuggestions() && typeof suggestionsEngine !== 'undefined') {
-        suggestionsEngine.renderSuggestions(CONFIG.restaurantId).catch(console.error);
-      }
-      
-      // Chiudi schermata
-      const scrollY = document.body.style.top;
-      document.body.style.position = '';
-      document.body.style.top = '';
-      document.body.style.width = '';
-      document.body.removeChild(screen);
-      document.body.classList.remove("noscroll");
-      window.scrollTo(0, parseInt(scrollY || '0') * -1);
-    });
-    
-    backBtn.addEventListener("click", () => {
-      const scrollY = document.body.style.top;
-      document.body.style.position = '';
-      document.body.style.top = '';
-      document.body.style.width = '';
-      document.body.removeChild(screen);
-      document.body.classList.remove("noscroll");
-      window.scrollTo(0, parseInt(scrollY || '0') * -1);
-    });
-    
-    // ✅ Aggiorna prezzo iniziale
-    this.updateTotalPrice(item, customizationState, totalPriceEl, addBtn, group);
-  },
-  
-  updateTotalPrice(item, customizationState, totalPriceEl, addBtn, group) {
-    const totalPrice = Utils.calculateItemPrice(item.name, customizationState);
-    totalPriceEl.textContent = `Totale: €${totalPrice.toFixed(2)}`;
-    
-    // Verifica sezioni required
-    let allRequiredFilled = true;
-    if (group) {
-      for (const section of group) {
-        if (section.required) {
-          const hasSelection = section.options.some(opt => 
-            customizationState[opt.id] > 0
-          );
-          if (!hasSelection) {
-            allRequiredFilled = false;
-            break;
-          }
-        }
-      }
-    }
-    
-    addBtn.disabled = !allRequiredFilled;
-    addBtn.classList.toggle("disabled", !allRequiredFilled);
   }
 };
 
 // ==================== INIZIALIZZAZIONE ====================
 DataManager.fetchMenu();
 Navigation.init();
-Payment.init();
-Orders.init();
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

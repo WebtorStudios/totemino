@@ -1,41 +1,132 @@
-// Configurazione e variabili globali
+// ============================================
+// ORDERS MANAGER - Sistema Unificato
+// ============================================
+
 const CONFIG = {
   restaurantId: new URLSearchParams(window.location.search).get('id') || '0000',
   apiBase: '/IDs',
   refreshInterval: 30000
 };
 
-document.getElementById("fullscreen").onclick = () =>
-  document.fullscreenElement
-    ? document.exitFullscreen()
-    : document.documentElement.requestFullscreen();
-
-let currentSection = 'table';
-let currentOrders = [];
-let viewingCompleted = false;
-let expandedGroups = new Set();
-let currentDetailOrder = null;
-let rotation = 0;
-let isRotating = false;
-
-document.getElementById("stats").onclick = () => {
-  window.location.href = `statistics.html?id=${CONFIG.restaurantId}`;
+// Configurazione sezioni - facilmente estendibile
+const SECTIONS = {
+  table: {
+    label: 'Ordini Tavolo',
+    apiPath: 'table',
+    icon: '🍽️',
+    getIdentifier: (order) => order.table?.[0]?.tableNumber || 'N/A'
+  },
+  takeaway: {
+    label: 'Ritiro al Banco',
+    apiPath: 'takeaway',
+    icon: '🥡',
+    getIdentifier: (order) => order.takeaway?.[0]?.time || 'N/A'
+  },
+  delivery: {
+    label: 'Consegne a Domicilio',
+    apiPath: 'delivery',
+    icon: '🚗',
+    getIdentifier: (order) => order.delivery?.[0]?.time || 'N/A'
+  }
 };
 
-async function checkPremiumAccess() {
+// State globale
+const state = {
+  currentSection: 'table',
+  orders: [],
+  viewingCompleted: false,
+  expandedGroups: new Set(),
+  currentDetailOrder: null,
+  rotation: 0,
+  isRotating: false
+};
+
+// DOM Elements
+const dom = {
+  nav: document.getElementById('table-nav'),
+  refreshBtn: document.getElementById('table-refresh-btn'),
+  popup: document.querySelector('.gpopup'),
+  deletePopup: document.querySelector('.delete-popup-overlay'),
+  sections: {}
+};
+
+// ============================================
+// INIZIALIZZAZIONE
+// ============================================
+
+document.addEventListener('DOMContentLoaded', async () => {
+  if (!await checkAccess()) return;
+  document.getElementById('back-btn').onclick = () => location.href = `profile.html`;
+  initSections();
+  initEvents();
+  switchSection('table');
+  loadOrders();
+  setInterval(loadOrders, CONFIG.refreshInterval);
+});
+
+function initSections() {
+  // Genera navigation tabs
+  const navHTML = Object.entries(SECTIONS)
+    .map(([key, config]) => 
+      `<button class="${key === 'table' ? 'active' : ''}" id="${key}-tab">${config.label}</button>`
+    ).join('');
+  
+  dom.nav.innerHTML = '<div class="pill"></div>' + navHTML;
+  
+  // Registra sezioni DOM
+  Object.keys(SECTIONS).forEach(key => {
+    dom.sections[key] = {
+      active: document.querySelector(`.${key}-section:not(.completed)`),
+      completed: document.querySelector(`.${key}-section.completed`)
+    };
+  });
+}
+
+function initEvents() {
+  // Tab navigation
+  Object.keys(SECTIONS).forEach(key => {
+    document.getElementById(`${key}-tab`)?.addEventListener('click', () => switchSection(key));
+  });
+  
+  // Refresh
+  dom.refreshBtn?.addEventListener('click', loadOrders);
+  
+  // Popup
+  document.querySelector('.gpopup-close-btn')?.addEventListener('click', hidePopup);
+  dom.popup?.addEventListener('click', (e) => e.target === dom.popup && hidePopup());
+  document.querySelector('.toggle-status')?.addEventListener('click', toggleStatus);
+  
+  // Delete
+  document.getElementById('open-delete-popup')?.addEventListener('click', showDeletePopup);
+  document.getElementById('delete-btn')?.addEventListener('click', deleteOrder);
+  document.getElementById('cancel-delete')?.addEventListener('click', hideDeletePopup);
+  dom.deletePopup?.addEventListener('click', (e) => e.target === dom.deletePopup && hideDeletePopup());
+  
+  // Utility buttons
+  document.getElementById('fullscreen')?.addEventListener('click', toggleFullscreen);
+  document.getElementById('stats')?.addEventListener('click', () => 
+    window.location.href = `statistics.html?id=${CONFIG.restaurantId}`);
+  document.getElementById('gestione-menu-btn')?.addEventListener('click', () => 
+    window.location.href = `gestione-menu.html?id=${CONFIG.restaurantId}`);
+  
+  window.addEventListener('resize', animatePill);
+}
+
+// ============================================
+// AUTENTICAZIONE
+// ============================================
+
+async function checkAccess() {
   try {
-    const response = await fetch('/api/auth/me', { credentials: 'include' });
-    const data = await response.json();
+    const res = await fetch('/api/auth/me', { credentials: 'include' });
+    const data = await res.json();
     
     if (!data.success || !data.user) {
       window.location.href = 'login.html';
       return false;
     }
     
-    const hasAccess = data.user.status === 'premium' || 
-                     data.user.status === 'paid' || 
-                     data.user.status === 'pro' ||
-                     data.user.isTrialActive;
+    const hasAccess = ['premium', 'paid', 'pro'].includes(data.user.status) || data.user.isTrialActive;
     
     if (!hasAccess) {
       alert('La gestione ordini richiede un piano Premium o superiore');
@@ -51,105 +142,30 @@ async function checkPremiumAccess() {
   }
 }
 
-// Elementi DOM
-const elements = {
-  refreshBtn: document.getElementById('table-refresh-btn'),
-  nav: document.getElementById('table-nav'),
-  sections: {
-    table: document.querySelector('.orders-section'),
-    pickup: document.querySelector('.pickup-section'),
-    tableCompleted: document.querySelector('.orders-section.completed'),
-    pickupCompleted: document.querySelector('.pickup-section.completed')
-  },
-  popup: document.querySelector('.gpopup'),
-  popupContent: {
-    title: document.querySelector('.gpopup-title'),
-    date: document.querySelector('.gpopup-date'),
-    total: document.querySelector('.gpopup-total'),
-    items: document.querySelector('.gpopup-items'),
-    statusBtn: document.querySelector('.toggle-status'),
-    deleteBtn: document.getElementById('delete-btn')
-  },
-  deletePopup: document.querySelector('.delete-popup-overlay'),
-  openDeleteBtn: document.getElementById('open-delete-popup'),
-  cancelDeleteBtn: document.getElementById('cancel-delete')
-};
-
-// Inizializzazione
-document.addEventListener('DOMContentLoaded', async () => {
-  const hasAccess = await checkPremiumAccess();
-  if (!hasAccess) return;
-  
-  initEventListeners();
-  switchSection('table');
-  loadOrders();
-  setInterval(loadOrders, CONFIG.refreshInterval);
-});
-
-function rotateRefresh() {
-  if (isRotating) return;
-  isRotating = true;
-  rotation += 360;
-  elements.refreshBtn.style.transform = `rotate(${rotation}deg)`;
-  setTimeout(() => isRotating = false, 1000);
-}
-
-// Event Listeners
-function initEventListeners() {
-  document.getElementById('table-orders-tab').addEventListener('click', () => switchSection('table'));
-  document.getElementById('table-pickup-tab').addEventListener('click', () => switchSection('pickup'));
-  document.getElementById('table-refresh-btn').addEventListener('click', loadOrders);
-  
-  document.querySelector('.gpopup-close-btn').addEventListener('click', hidePopup);
-  elements.popup.addEventListener('click', (e) => e.target === elements.popup && hidePopup());
-  elements.popupContent.statusBtn.addEventListener('click', toggleOrderStatus);
-  
-  if (elements.openDeleteBtn) {
-    elements.openDeleteBtn.addEventListener('click', showDeletePopup);
-  }
-  if (elements.popupContent.deleteBtn) {
-    elements.popupContent.deleteBtn.addEventListener('click', deleteOrder);
-  }
-  if (elements.cancelDeleteBtn) {
-    elements.cancelDeleteBtn.addEventListener('click', hideDeletePopup);
-  }
-  if (elements.deletePopup) {
-    elements.deletePopup.addEventListener('click', (e) => {
-      if (e.target === elements.deletePopup) hideDeletePopup();
-    });
-  }
-  
-  window.addEventListener('resize', animatePill);
-  document.getElementById('gestione-menu-btn').addEventListener('click', () => {
-    window.location.href = `gestione-menu.html?id=${CONFIG.restaurantId}`;
-  });
-}
-
-function showDeletePopup() {
-  elements.deletePopup.classList.add('show');
-}
-
-function hideDeletePopup() {
-  elements.deletePopup.classList.remove('show');
-}
+// ============================================
+// NAVIGATION
+// ============================================
 
 function switchSection(section) {
-  currentSection = section;
-  viewingCompleted = false;
-  expandedGroups.clear();
+  state.currentSection = section;
+  state.viewingCompleted = false;
+  state.expandedGroups.clear();
   
-  document.getElementById('table-orders-tab').classList.toggle('active', section === 'table');
-  document.getElementById('table-pickup-tab').classList.toggle('active', section === 'pickup');
+  // Update tabs
+  Object.keys(SECTIONS).forEach(key => {
+    document.getElementById(`${key}-tab`)?.classList.toggle('active', key === section);
+  });
   
-  elements.sections.table.classList.toggle('active', section === 'table');
-  elements.sections.table.classList.toggle('hidden', section !== 'table');
-  elements.sections.pickup.classList.toggle('active', section === 'pickup');
-  elements.sections.pickup.classList.toggle('hidden', section !== 'pickup');
-  
-  elements.sections.tableCompleted.classList.add('hidden');
-  elements.sections.tableCompleted.classList.remove('active');
-  elements.sections.pickupCompleted.classList.add('hidden');
-  elements.sections.pickupCompleted.classList.remove('active');
+  // Update sections visibility
+  Object.keys(SECTIONS).forEach(key => {
+    const sections = dom.sections[key];
+    if (sections) {
+      sections.active?.classList.toggle('active', key === section);
+      sections.active?.classList.toggle('hidden', key !== section);
+      sections.completed?.classList.add('hidden');
+      sections.completed?.classList.remove('active');
+    }
+  });
   
   animatePill();
   loadOrders();
@@ -157,29 +173,35 @@ function switchSection(section) {
 
 function animatePill() {
   const pill = document.querySelector('.pill');
-  const activeTab = document.querySelector(`#table-${currentSection === 'table' ? 'orders' : 'pickup'}-tab`);
+  const activeTab = document.getElementById(`${state.currentSection}-tab`);
   if (!pill || !activeTab) return;
   
   const tabRect = activeTab.getBoundingClientRect();
-  const navRect = elements.nav.getBoundingClientRect();
+  const navRect = dom.nav.getBoundingClientRect();
   pill.style.left = `${tabRect.left - navRect.left}px`;
   pill.style.width = `${tabRect.width}px`;
 }
 
+// ============================================
+// DATA LOADING
+// ============================================
+
 async function loadOrders() {
   rotateRefresh();
-  const activeSection = getActiveSection();
-  activeSection.innerHTML = '<div class="loading">Caricamento...</div>';
+  const section = getActiveSection();
+  section.innerHTML = '<div class="loading">Caricamento...</div>';
   
   try {
-    const response = await fetch(`${CONFIG.apiBase}/${CONFIG.restaurantId}/orders/${currentSection}`);
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const apiPath = SECTIONS[state.currentSection].apiPath;
+    const res = await fetch(`${CONFIG.apiBase}/${CONFIG.restaurantId}/orders/${apiPath}`);
     
-    currentOrders = await response.json();
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    
+    state.orders = await res.json();
     renderOrders();
   } catch (error) {
     console.error('Errore caricamento:', error);
-    activeSection.innerHTML = `
+    section.innerHTML = `
       <div class="error">
         <h3>Errore caricamento</h3>
         <button onclick="loadOrders()">Riprova</button>
@@ -187,109 +209,82 @@ async function loadOrders() {
   }
 }
 
+function rotateRefresh() {
+  if (state.isRotating) return;
+  state.isRotating = true;
+  state.rotation += 180;
+  dom.refreshBtn.style.transform = `rotate(${state.rotation}deg)`;
+  setTimeout(() => state.isRotating = false, 500);
+}
+
+// ============================================
+// RENDERING
+// ============================================
+
 function renderOrders() {
-  const activeSection = getActiveSection();
-  const orders = viewingCompleted ? 
-    currentOrders.filter(o => o.status === 'completed') :
-    currentOrders.filter(o => o.status !== 'completed');
+  const section = getActiveSection();
+  const orders = state.orders.filter(o => 
+    state.viewingCompleted ? o.status === 'completed' : o.status !== 'completed'
+  );
   
-  if (viewingCompleted) {
-    renderCompletedView(activeSection, orders);
-    return;
-  }
+  const grouped = groupOrders(orders);
+  const completedCount = state.orders.filter(o => o.status === 'completed').length;
   
   if (orders.length === 0) {
-    const completedCount = currentOrders.filter(o => o.status === 'completed').length;
-    activeSection.innerHTML = `
+    section.innerHTML = `
       <div class="orders-grid">
-        <div class="empty-state">Nessun ordine attivo</div>
-        ${createNavigationButtons(completedCount, false)}
+        <div class="empty-state">Nessun ordine ${state.viewingCompleted ? 'completato' : 'attivo'}</div>
+        ${createNavButton(completedCount)}
       </div>`;
     return;
   }
   
-  const grouped = groupOrdersByIdentifier(orders);
-  const completedCount = currentOrders.filter(o => o.status === 'completed').length;
+  const sortedGroups = Object.entries(grouped).sort((a, b) => 
+    getLatestTimestamp(b[1]) - getLatestTimestamp(a[1])
+  );
   
   let html = '<div class="orders-grid">';
   
-  const sortedGroups = Object.entries(grouped).sort((a, b) => {
-    const timestampA = Math.max(...a[1].map(order => new Date(order.timestamp).getTime()));
-    const timestampB = Math.max(...b[1].map(order => new Date(order.timestamp).getTime()));
-    return timestampB - timestampA;
-  });
-  
-  sortedGroups.forEach(([identifier, groupOrders], index) => {
-    const isExpanded = expandedGroups.has(identifier);
+  sortedGroups.forEach(([id, groupOrders], i) => {
+    const isExpanded = state.expandedGroups.has(id);
     const hasMultiple = groupOrders.length > 1;
-    const color = getTableColor(index);
+    const color = getColor(i);
     
     if (isExpanded && hasMultiple) {
-      html += createCollapseButton(identifier, color, false);
-      groupOrders.forEach((order, i) => {
-        html += createOrderCard(order, color, false, i + 1);
+      html += createCollapseButton(id, color);
+      groupOrders.forEach((order, j) => {
+        html += createOrderCard(order, color, j + 1);
       });
     } else {
-      html += createGroupCard(identifier, groupOrders, color, hasMultiple);
+      html += createGroupCard(id, groupOrders, color, hasMultiple);
     }
   });
   
-  html += createNavigationButtons(completedCount, false) + '</div>';
-  activeSection.innerHTML = html;
-}
-
-function renderCompletedView(section, completedOrders) {
-  let html = '<div class="orders-grid">';
-  
-  if (completedOrders.length === 0) {
-    html += '<div class="empty-state">Nessun ordine completato</div>';
-  } else {
-    const grouped = groupOrdersByIdentifier(completedOrders);
-    
-    const sortedGroups = Object.entries(grouped).sort((a, b) => {
-      const timestampA = Math.max(...a[1].map(order => new Date(order.timestamp).getTime()));
-      const timestampB = Math.max(...b[1].map(order => new Date(order.timestamp).getTime()));
-      return timestampB - timestampA;
-    });
-    
-    sortedGroups.forEach(([identifier, groupOrders], index) => {
-      const isExpanded = expandedGroups.has(identifier);
-      const hasMultiple = groupOrders.length > 1;
-      const color = getTableColor(index);
-      
-      if (isExpanded && hasMultiple) {
-        html += createCollapseButton(identifier, color, true);
-        groupOrders.forEach((order, i) => {
-          html += createOrderCard(order, color, true, i + 1);
-        });
-      } else {
-        html += createGroupCard(identifier, groupOrders, color, hasMultiple, true);
-      }
-    });
-  }
-  
-  const completedCount = currentOrders.filter(o => o.status === 'completed').length;
-  html += createNavigationButtons(completedCount, true) + '</div>';
+  html += createNavButton(completedCount) + '</div>';
   section.innerHTML = html;
 }
 
-function createGroupCard(identifier, orders, color, hasMultiple, isCompleted = false) {
+// ============================================
+// CARD CREATION
+// ============================================
+
+function createGroupCard(id, orders, color, hasMultiple) {
   const order = orders[0];
   const total = orders.reduce((sum, o) => sum + o.total, 0);
-  const countDisplay = hasMultiple ? `<sup>(${orders.length})</sup>` : '';
-  const isNew = !isCompleted && orders.some(o => isNewOrder(o.timestamp));
-  const newIndicator = isNew ? '<div class="new-indicator"></div>' : '';
+  const count = hasMultiple ? `<sup>(${orders.length})</sup>` : '';
+  const isNew = !state.viewingCompleted && orders.some(o => isNewOrder(o.timestamp));
+  const newBadge = isNew ? '<div class="new-indicator"></div>' : '';
+  const completed = state.viewingCompleted ? 'completed' : '';
   
   const events = hasMultiple ? 
-    `oncontextmenu="expandGroup('${identifier}'); return false;" 
-     onclick="showGroupDetails('${identifier}')"` :
+    `oncontextmenu="expandGroup('${id}'); return false;" onclick="showGroupDetails('${id}')"` :
     `onclick="showOrderDetails('${order.id}')"`;
   
   return `
-    <div class="order-card ${hasMultiple ? 'group' : ''} ${isCompleted ? 'completed' : ''}" 
+    <div class="order-card ${hasMultiple ? 'group' : ''} ${completed}" 
          style="--card-color: ${color}" ${events}>
-      ${newIndicator}
-      <div class="card-number">${identifier}${countDisplay}</div>
+      ${newBadge}
+      <div class="card-number">${id}${count}</div>
       <div class="card-info">
         <div class="card-date">${formatDateTime(order.timestamp)}</div>
         <div class="card-price">€${total.toFixed(2)}</div>
@@ -297,17 +292,18 @@ function createGroupCard(identifier, orders, color, hasMultiple, isCompleted = f
     </div>`;
 }
 
-function createOrderCard(order, color, isCompleted = false, orderNumber = null) {
-  const identifier = order.tableNumber || order.orderNumber;
-  const countDisplay = orderNumber ? `<sup>(${orderNumber})</sup>` : '';
-  const newIndicator = (!isCompleted && isNewOrder(order.timestamp)) ? 
-    '<div class="new-indicator"></div>' : '';
+function createOrderCard(order, color, orderNum = null) {
+  const id = getOrderIdentifier(order);
+  const count = orderNum ? `<sup>(${orderNum})</sup>` : '';
+  const isNew = !state.viewingCompleted && isNewOrder(order.timestamp);
+  const newBadge = isNew ? '<div class="new-indicator"></div>' : '';
+  const completed = state.viewingCompleted ? 'completed' : '';
   
   return `
-    <div class="order-card ${isCompleted ? 'completed' : ''}" 
+    <div class="order-card ${completed}" 
          style="--card-color: ${color}" onclick="showOrderDetails('${order.id}')">
-      ${newIndicator}
-      <div class="card-number">${identifier}${countDisplay}</div>
+      ${newBadge}
+      <div class="card-number">${id}${count}</div>
       <div class="card-info">
         <div class="card-date">${formatDateTime(order.timestamp)}</div>
         <div class="card-price">€${order.total.toFixed(2)}</div>
@@ -315,20 +311,21 @@ function createOrderCard(order, color, isCompleted = false, orderNumber = null) 
     </div>`;
 }
 
-function createCollapseButton(identifier, color, isCompleted = false) {
+function createCollapseButton(id, color) {
+  const completed = state.viewingCompleted ? 'completed' : '';
   return `
-    <div class="order-card group-collapse ${isCompleted ? 'completed' : ''}" style="--card-color: ${color}" 
-         onclick="collapseGroup('${identifier}')"
-         oncontextmenu="collapseGroup('${identifier}'); return false;">
+    <div class="order-card group-collapse ${completed}" style="--card-color: ${color}" 
+         onclick="collapseGroup('${id}')"
+         oncontextmenu="collapseGroup('${id}'); return false;">
       <div class="card-number">Chiudi</div>
       <div class="card-info">
-        <div class="card-date">Ordine ${identifier}</div>
+        <div class="card-date">Ordine ${id}</div>
       </div>
     </div>`;
 }
 
-function createNavigationButtons(completedCount, isCompletedView) {
-  if (isCompletedView) {
+function createNavButton(completedCount) {
+  if (state.viewingCompleted) {
     return `
       <div class="order-card special" onclick="showActive()">
         <div class="card-number">Torna ad attivi</div>
@@ -336,140 +333,39 @@ function createNavigationButtons(completedCount, isCompletedView) {
           <div class="card-date">Tutti gli ordini</div>
         </div>
       </div>`;
-  } else {
-    return `
-      <div class="order-card special" onclick="showCompleted()">
-        <div class="card-number">Vai a terminati</div>
-        <div class="card-info">
-          <div class="card-date">${completedCount} ordini</div>
-        </div>
-      </div>`;
   }
+  return `
+    <div class="order-card special" onclick="showCompleted()">
+      <div class="card-number">Vai a terminati</div>
+      <div class="card-info">
+        <div class="card-date">${completedCount} ordini</div>
+      </div>
+    </div>`;
 }
 
-function expandGroup(identifier) {
-  expandedGroups.add(identifier);
-  renderOrders();
-}
+// ============================================
+// ORDER DETAILS POPUP
+// ============================================
 
-function collapseGroup(identifier) {
-  expandedGroups.delete(identifier);
-  renderOrders();
-}
-
-function showGroupDetails(identifier) {
-  const orders = getOrdersByIdentifier(identifier);
-  if (orders.length === 0) return;
-  
-  if (!expandedGroups.has(identifier)) {
-    showCombinedOrderDetails(identifier, orders);
-  }
-}
-
-function formatItemDisplay(item) {
-  let displayName = item.name;
-  
-  // Aggiungi customizzazioni se presenti
-  if (item.customizationDetails && item.customizationDetails.length > 0) {
-    const customs = item.customizationDetails
-      .map(c => `${c.name}${c.quantity > 1 ? ' x' + c.quantity : ''}`)
-      .join(', ');
-    displayName += ` <span class="item-customizations">(${customs})</span>`;
-  }
-  
-  return displayName;
-}
-
-function getItemPrice(item) {
-  return item.finalPrice || item.price || 0;
-}
-
-function showCombinedOrderDetails(identifier, orders) {
-  if (orders.length === 0) return;
-  
-  currentDetailOrder = { 
-    id: `group_${identifier}`, 
-    isGroup: true, 
-    orders: orders 
-  };
-  
-  const totalAmount = orders.reduce((sum, order) => sum + order.total, 0);
-  const earliestOrder = orders.reduce((earliest, order) => 
-    new Date(order.timestamp) < new Date(earliest.timestamp) ? order : earliest
-  );
-  
-  elements.popupContent.title.textContent = `${currentSection === 'table' ? 'Tavolo' : 'Ordine'} #${identifier} - (${orders.length} ordini)`;
-  elements.popupContent.date.textContent = formatDateTimeFull(earliestOrder.timestamp);
-  elements.popupContent.total.textContent = `€${totalAmount.toFixed(2)}`;
-  
-  const combinedItems = {};
-  
-  orders.forEach((order, orderIndex) => {
-    order.items.forEach((item, itemIndex) => {
-      // ✅ Crea chiave univoca considerando customizzazioni
-      const customKey = item.customizationDetails 
-        ? JSON.stringify(item.customizationDetails)
-        : 'none';
-      const key = `${item.name}|${customKey}`;
-      
-      if (!combinedItems[key]) {
-        combinedItems[key] = {
-          name: item.name,
-          price: getItemPrice(item),
-          quantity: 0,
-          notes: [],
-          customizationDetails: item.customizationDetails || []
-        };
-      }
-      
-      combinedItems[key].quantity += item.quantity;
-      
-      const note = order.orderNotes?.[itemIndex]?.trim();
-      if (note) {
-        combinedItems[key].notes.push(`Ordine ${orderIndex + 1}: ${note}`);
-      }
-    });
-  });
-  
-  elements.popupContent.items.innerHTML = Object.values(combinedItems).map(item => {
-    const notesHtml = item.notes.length > 0 ? 
-      item.notes.map(note => `<div class="item-note">🗒️ ${note}</div>`).join('') : '';
-    
-    return `
-      <div class="gpopup-item">
-        <div class="item-info">
-          <h4>${item.quantity > 1 ? `(x${item.quantity}) ` : ''}${formatItemDisplay(item)}</h4>
-          <div class="item-price">€${(item.price * item.quantity).toFixed(2)}</div>
-        </div>
-        ${notesHtml}
-      </div>`;
-  }).join('');
-  
-  updateStatusButton(orders[0].status);
-  showPopup();
-}
-
-// ✅ MODIFICATO: Popup ordine singolo con customizzazioni
 function showOrderDetails(orderId) {
-  const order = currentOrders.find(o => o.id === orderId);
+  const order = state.orders.find(o => o.id === orderId);
   if (!order) return;
   
-  currentDetailOrder = order;
-  const identifier = order.tableNumber || order.orderNumber;
+  state.currentDetailOrder = order;
+  const id = getOrderIdentifier(order);
   
-  elements.popupContent.title.textContent = 
-    `${currentSection === 'table' ? 'Tavolo' : 'Ordine'} #${identifier}`;
-  elements.popupContent.date.textContent = formatDateTimeFull(order.timestamp);
-  elements.popupContent.total.textContent = `€${order.total.toFixed(2)}`;
+  document.querySelector('.gpopup-title').textContent = `Ordine #${id}`;
+  document.querySelector('.gpopup-date').textContent = formatDateTimeFull(order.timestamp);
+  document.querySelector('.gpopup-total').textContent = `€${order.total.toFixed(2)}`;
   
-  elements.popupContent.items.innerHTML = order.items.map((item, i) => {
+  document.querySelector('.gpopup-items').innerHTML = order.items.map((item, i) => {
     const note = order.orderNotes?.[i]?.trim();
-    const price = getItemPrice(item);
+    const price = item.finalPrice || item.price || 0;
     
     return `
       <div class="gpopup-item">
         <div class="item-info">
-          <h4>${item.quantity > 1 ? `(x${item.quantity}) ` : ''}${formatItemDisplay(item)}</h4>
+          <h4>${item.quantity > 1 ? `(x${item.quantity}) ` : ''}${formatItemName(item)}</h4>
           <div class="item-price">€${(price * item.quantity).toFixed(2)}</div>
         </div>
         ${note ? `<div class="item-note">🗒️ ${note}</div>` : ''}
@@ -480,120 +376,136 @@ function showOrderDetails(orderId) {
   showPopup();
 }
 
-async function deleteOrder() {
-  if (!currentDetailOrder) return;
+function showGroupDetails(id) {
+  const orders = getOrdersByIdentifier(id);
+  if (orders.length === 0) return;
   
-  if (currentDetailOrder.isGroup) {
-    await deleteGroupOrders();
-    return;
+  if (!state.expandedGroups.has(id)) {
+    state.currentDetailOrder = { id: `group_${id}`, isGroup: true, orders };
+    
+    const total = orders.reduce((sum, o) => sum + o.total, 0);
+    const earliest = orders.reduce((e, o) => 
+      new Date(o.timestamp) < new Date(e.timestamp) ? o : e
+    );
+    
+    document.querySelector('.gpopup-title').textContent = `Ordine #${id} - (${orders.length} ordini)`;
+    document.querySelector('.gpopup-date').textContent = formatDateTimeFull(earliest.timestamp);
+    document.querySelector('.gpopup-total').textContent = `€${total.toFixed(2)}`;
+    
+    // Combina items
+    const combined = {};
+    orders.forEach((order, oi) => {
+      order.items.forEach((item, ii) => {
+        const key = `${item.name}|${JSON.stringify(item.customizations || {})}`;
+        if (!combined[key]) {
+          combined[key] = {
+            name: item.name,
+            price: item.finalPrice || item.price || 0,
+            quantity: 0,
+            notes: [],
+            customizations: item.customizations || {}
+          };
+        }
+        combined[key].quantity += item.quantity;
+        const note = order.orderNotes?.[ii]?.trim();
+        if (note) combined[key].notes.push(`Ordine ${oi + 1}: ${note}`);
+      });
+    });
+    
+    document.querySelector('.gpopup-items').innerHTML = Object.values(combined).map(item => {
+      const notesHtml = item.notes.map(n => `<div class="item-note">🗒️ ${n}</div>`).join('');
+      return `
+        <div class="gpopup-item">
+          <div class="item-info">
+            <h4>${item.quantity > 1 ? `(x${item.quantity}) ` : ''}${formatItemName(item)}</h4>
+            <div class="item-price">€${(item.price * item.quantity).toFixed(2)}</div>
+          </div>
+          ${notesHtml}
+        </div>`;
+    }).join('');
+    
+    updateStatusButton(orders[0].status);
+    showPopup();
   }
+}
+
+// ============================================
+// ORDER ACTIONS
+// ============================================
+
+async function deleteOrder() {
+  if (!state.currentDetailOrder) return;
   
-  elements.popupContent.deleteBtn.disabled = true;
+  const btn = document.getElementById('delete-btn');
+  btn.disabled = true;
   hideDeletePopup();
   
   try {
-    const identifier = currentDetailOrder._filename?.replace('.json', '') || currentDetailOrder.id;
-    const response = await fetch(
-      `${CONFIG.apiBase}/${CONFIG.restaurantId}/orders/${currentSection}/${identifier}`, {
-      method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' }
-    });
+    const orders = state.currentDetailOrder.isGroup ? 
+      state.currentDetailOrder.orders : [state.currentDetailOrder];
     
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const apiPath = SECTIONS[state.currentSection].apiPath;
     
-    const orderIndex = currentOrders.findIndex(o => o.id === currentDetailOrder.id);
-    if (orderIndex !== -1) {
-      currentOrders.splice(orderIndex, 1);
-    }
+    await Promise.all(orders.map(async order => {
+      const filename = order.timestamp.replace(/:/g, '.').replace('T', ' - ').split('.')[0];
+      const res = await fetch(
+        `${CONFIG.apiBase}/${CONFIG.restaurantId}/orders/${apiPath}/${filename}`, 
+        { method: 'DELETE', headers: { 'Content-Type': 'application/json' } }
+      );
+      
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      
+      const idx = state.orders.findIndex(o => o.id === order.id);
+      if (idx !== -1) state.orders.splice(idx, 1);
+    }));
     
     setTimeout(() => {
       hidePopup();
       renderOrders();
-      elements.popupContent.deleteBtn.disabled = false;
-      currentDetailOrder = null;
+      btn.disabled = false;
+      state.currentDetailOrder = null;
     }, 500);
     
   } catch (error) {
     console.error('Errore eliminazione:', error);
     alert('Errore nell\'eliminare l\'ordine');
-    elements.popupContent.deleteBtn.disabled = false;
-    hideDeletePopup();
+    btn.disabled = false;
   }
 }
 
-async function deleteGroupOrders() {
-  if (!currentDetailOrder || !currentDetailOrder.isGroup) return;
+async function toggleStatus() {
+  if (!state.currentDetailOrder) return;
   
-  const orders = currentDetailOrder.orders;
-  elements.popupContent.deleteBtn.disabled = true;
-  hideDeletePopup();
+  const orders = state.currentDetailOrder.isGroup ? 
+    state.currentDetailOrder.orders : [state.currentDetailOrder];
+  
+  const newStatus = orders[0].status === 'completed' ? 'pending' : 'completed';
+  const btn = document.querySelector('.toggle-status');
+  btn.disabled = true;
   
   try {
-    const deletePromises = orders.map(async order => {
-      const identifier = order._filename?.replace('.json', '') || order.id;
-      const response = await fetch(
-        `${CONFIG.apiBase}/${CONFIG.restaurantId}/orders/${currentSection}/${identifier}`, {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' }
+    const apiPath = SECTIONS[state.currentSection].apiPath;
+    
+    await Promise.all(orders.map(async order => {
+      const filename = order.timestamp.replace(/:/g, '.').replace('T', ' - ').split('.')[0];
+      const res = await fetch(
+        `${CONFIG.apiBase}/${CONFIG.restaurantId}/orders/${apiPath}/${filename}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus })
       });
       
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
       
-      const orderIndex = currentOrders.findIndex(o => o.id === order.id);
-      if (orderIndex !== -1) {
-        currentOrders.splice(orderIndex, 1);
-      }
-      
-      return response;
-    });
+      const idx = state.orders.findIndex(o => o.id === order.id);
+      if (idx !== -1) state.orders[idx].status = newStatus;
+    }));
     
-    await Promise.all(deletePromises);
-    
-    setTimeout(() => {
-      hidePopup();
-      renderOrders();
-      elements.popupContent.deleteBtn.disabled = false;
-      currentDetailOrder = null;
-    }, 500);
-    
-  } catch (error) {
-    console.error('Errore eliminazione gruppo:', error);
-    alert('Errore nell\'eliminare gli ordini');
-    elements.popupContent.deleteBtn.disabled = false;
-    hideDeletePopup();
-  }
-}
-
-async function toggleOrderStatus() {
-  if (!currentDetailOrder) return;
-  
-  if (currentDetailOrder.isGroup) {
-    await toggleGroupOrderStatus();
-    return;
-  }
-  
-  const newStatus = currentDetailOrder.status === 'completed' ? 'pending' : 'completed';
-  elements.popupContent.statusBtn.disabled = true;
-  
-  try {
-    const identifier = currentDetailOrder._filename?.replace('.json', '') || currentDetailOrder.id;
-    const response = await fetch(
-      `${CONFIG.apiBase}/${CONFIG.restaurantId}/orders/${currentSection}/${identifier}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status: newStatus })
-    });
-    
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    
-    const orderIndex = currentOrders.findIndex(o => o.id === currentDetailOrder.id);
-    if (orderIndex !== -1) {
-      currentOrders[orderIndex].status = newStatus;
-      currentDetailOrder.status = newStatus;
+    if (!state.currentDetailOrder.isGroup) {
+      state.currentDetailOrder.status = newStatus;
     }
     
     updateStatusButton(newStatus);
-    
     setTimeout(() => {
       hidePopup();
       renderOrders();
@@ -601,69 +513,38 @@ async function toggleOrderStatus() {
     
   } catch (error) {
     console.error('Errore aggiornamento:', error);
-    alert('Errore nel salvare lo stato dell\'ordine');
-    elements.popupContent.statusBtn.disabled = false;
+    alert('Errore nel salvare lo stato');
+    btn.disabled = false;
   }
 }
 
-async function toggleGroupOrderStatus() {
-  if (!currentDetailOrder || !currentDetailOrder.isGroup) return;
-  
-  const orders = currentDetailOrder.orders;
-  const newStatus = orders[0].status === 'completed' ? 'pending' : 'completed';
-  elements.popupContent.statusBtn.disabled = true;
-  
-  try {
-    const updatePromises = orders.map(async order => {
-      const identifier = order._filename?.replace('.json', '') || order.id;
-      const response = await fetch(
-        `${CONFIG.apiBase}/${CONFIG.restaurantId}/orders/${currentSection}/${identifier}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: newStatus })
-      });
-      
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      
-      const orderIndex = currentOrders.findIndex(o => o.id === order.id);
-      if (orderIndex !== -1) {
-        currentOrders[orderIndex].status = newStatus;
-      }
-      
-      return response;
-    });
-    
-    await Promise.all(updatePromises);
-    
-    updateStatusButton(newStatus);
-    
-    setTimeout(() => {
-      hidePopup();
-      renderOrders();
-    }, 800);
-    
-  } catch (error) {
-    console.error('Errore aggiornamento gruppo:', error);
-    alert('Errore nel salvare lo stato degli ordini');
-    elements.popupContent.statusBtn.disabled = false;
-  }
-}
+// ============================================
+// POPUP MANAGEMENT
+// ============================================
 
 function showPopup() {
-  elements.popup.classList.remove('hidden');
+  dom.popup.classList.remove('hidden');
   hideDeletePopup();
 }
 
 function hidePopup() {
-  elements.popup.classList.add('hidden');
+  dom.popup.classList.add('hidden');
   hideDeletePopup();
-  currentDetailOrder = null;
-  elements.popupContent.deleteBtn.disabled = false;
-  elements.popupContent.statusBtn.disabled = false;
+  state.currentDetailOrder = null;
+  document.getElementById('delete-btn').disabled = false;
+  document.querySelector('.toggle-status').disabled = false;
+}
+
+function showDeletePopup() {
+  dom.deletePopup.classList.add('show');
+}
+
+function hideDeletePopup() {
+  dom.deletePopup.classList.remove('show');
 }
 
 function updateStatusButton(status) {
-  const btn = elements.popupContent.statusBtn;
+  const btn = document.querySelector('.toggle-status');
   const icon = btn.querySelector('.status-icon');
   const text = btn.querySelector('.status-text');
   
@@ -680,45 +561,104 @@ function updateStatusButton(status) {
   btn.disabled = false;
 }
 
+// ============================================
+// VIEW MANAGEMENT
+// ============================================
+
 function showCompleted() {
-  viewingCompleted = true;
+  state.viewingCompleted = true;
+  
+  // Nascondi sezione active, mostra sezione completed
+  const sections = dom.sections[state.currentSection];
+  if (sections) {
+    sections.active?.classList.add('hidden');
+    sections.active?.classList.remove('active');
+    sections.completed?.classList.remove('hidden');
+    sections.completed?.classList.add('active');
+  }
+  
   renderOrders();
 }
 
 function showActive() {
-  viewingCompleted = false;
+  state.viewingCompleted = false;
+  
+  // Mostra sezione active, nascondi sezione completed
+  const sections = dom.sections[state.currentSection];
+  if (sections) {
+    sections.active?.classList.remove('hidden');
+    sections.active?.classList.add('active');
+    sections.completed?.classList.add('hidden');
+    sections.completed?.classList.remove('active');
+  }
+  
   renderOrders();
 }
 
-function getActiveSection() {
-  return currentSection === 'table' ? 
-    elements.sections.table : elements.sections.pickup;
+
+function expandGroup(id) {
+  state.expandedGroups.add(id);
+  renderOrders();
 }
 
-function groupOrdersByIdentifier(orders) {
+function collapseGroup(id) {
+  state.expandedGroups.delete(id);
+  renderOrders();
+}
+
+// ============================================
+// UTILITY FUNCTIONS
+// ============================================
+
+function getActiveSection() {
+  return state.viewingCompleted ? 
+    dom.sections[state.currentSection].completed : 
+    dom.sections[state.currentSection].active;
+}
+
+function getOrderIdentifier(order) {
+  return SECTIONS[state.currentSection].getIdentifier(order);
+}
+
+function groupOrders(orders) {
   const grouped = {};
   orders.forEach(order => {
-    const key = order.tableNumber || order.orderNumber || 'unknown';
+    const key = getOrderIdentifier(order);
     if (!grouped[key]) grouped[key] = [];
     grouped[key].push(order);
   });
   
   Object.values(grouped).forEach(group => 
-    group.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)));
+    group.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
+  );
   
   return grouped;
 }
 
-function getOrdersByIdentifier(identifier) {
-  const orders = viewingCompleted ? 
-    currentOrders.filter(o => o.status === 'completed') :
-    currentOrders.filter(o => o.status !== 'completed');
-  
-  return orders.filter(o => (o.tableNumber || o.orderNumber) === identifier)
-               .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+function getOrdersByIdentifier(id) {
+  const orders = state.orders.filter(o => 
+    (state.viewingCompleted ? o.status === 'completed' : o.status !== 'completed') &&
+    getOrderIdentifier(o) === id
+  );
+  return orders.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
 }
 
-function getTableColor(index) {
+function formatItemName(item) {
+  let name = item.name;
+  if (item.customizations && Object.keys(item.customizations).length > 0) {
+    const customs = Object.entries(item.customizations)
+      .map(([n, q]) => `${n}${q > 1 ? ' x' + q : ''}`)
+      .join(', ');
+    name += ` <span class="item-customizations">(${customs})</span>`;
+  }
+  return name;
+}
+
+function getLatestTimestamp(orders) {
+  return Math.max(...orders.map(o => new Date(o.timestamp).getTime()));
+}
+
+function getColor(index) {
   const colors = ['#FF6F6F', '#FF9A4D', '#F7E250', '#56D97C', '#42C7F5', 
                   '#6C8CFF', '#9C7DFF', '#FF77F6', '#FFB36B', '#FFE066'];
   return colors[index % colors.length];
@@ -729,16 +669,20 @@ function isNewOrder(timestamp) {
 }
 
 function formatDateTime(timestamp) {
-  const date = new Date(timestamp);
-  return `${date.getDate().toString().padStart(2, '0')}/${(date.getMonth() + 1).toString().padStart(2, '0')}<br>${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
+  const d = new Date(timestamp);
+  return `${d.getDate().toString().padStart(2, '0')}/${(d.getMonth() + 1).toString().padStart(2, '0')}<br>${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`;
 }
 
 function formatDateTimeFull(timestamp) {
-  const date = new Date(timestamp);
-  return `${date.getDate().toString().padStart(2, '0')}/${(date.getMonth() + 1).toString().padStart(2, '0')} - ${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
+  const d = new Date(timestamp);
+  return `${d.getDate().toString().padStart(2, '0')}/${(d.getMonth() + 1).toString().padStart(2, '0')} - ${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`;
 }
 
-// Funzioni globali
+function toggleFullscreen() {
+  document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen();
+}
+
+// Esposizione funzioni globali
 window.showOrderDetails = showOrderDetails;
 window.showGroupDetails = showGroupDetails;
 window.collapseGroup = collapseGroup;

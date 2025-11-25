@@ -176,10 +176,6 @@ body {
   transition: background-color 0.4s, color 0.4s;
 }
 
-body::-webkit-scrollbar {
-  display: none;
-}
-
 body.noscroll {
   overflow: hidden;
   position: fixed;
@@ -199,6 +195,11 @@ h1 {
 
 img {
   pointer-events: none;
+}
+
+#logoSwap {
+  position: relative;
+  pointer-events: all;
 }
 
 input[type="number"]::-webkit-inner-spin-button,
@@ -370,7 +371,7 @@ input[type="number"]::-webkit-outer-spin-button {
 /* ===== PRODOTTI ===== */
 .items {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
   gap: 1rem;
   padding: 0 1rem 5rem 1rem;
   margin-bottom: 4rem;
@@ -844,7 +845,6 @@ input[type="number"]::-webkit-outer-spin-button {
 /* ===== MEDIA QUERIES ===== */
 @media (min-width: 768px) {
   .items {
-    grid-template-columns: repeat(4, 1fr);
     gap: 1.2rem;
     padding: 0 1.5rem;
   }
@@ -894,7 +894,6 @@ input[type="number"]::-webkit-outer-spin-button {
 
 @media (min-width: 1200px) {
   .items {
-    grid-template-columns: repeat(6, 1fr);
     gap: 1.5rem;
     padding: 0 2rem 1rem;
     max-width: 1400px;

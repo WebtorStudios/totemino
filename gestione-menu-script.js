@@ -86,12 +86,79 @@ async function checkAccess() {
   }
 }
 
+// ===== VERIFICA SETTINGS PER DELIVERY =====
+async function checkDeliverySettings() {
+  try {
+    const res = await fetch(`IDs/${restaurantId}/settings.json`);
+    if (!res.ok) return false;
+    
+    const settings = await res.json();
+    
+    // Campi obbligatori per abilitare delivery
+    const required = [
+      settings.restaurant?.name,
+      settings.restaurant?.street,
+      settings.restaurant?.number,
+      settings.restaurant?.cap,
+      settings.restaurant?.phone,
+      settings.restaurant?.email,
+      settings.delivery?.radius,
+      settings.delivery?.costType,
+      settings.delivery?.prepTime
+    ];
+    
+    return required.every(field => field !== null && field !== undefined && field !== '');
+  } catch (err) {
+    return false;
+  }
+}
+
+function updateDeliveryCheckboxState(checkboxId, canEnable) {
+  const checkbox = document.getElementById(checkboxId);
+  const label = checkbox.closest('.checkbox-label');
+  
+  if (!canEnable) {
+    checkbox.disabled = true;
+    checkbox.checked = false;
+    label.style.opacity = '0.5';
+    label.style.cursor = 'not-allowed';
+    label.title = 'Configura le impostazioni di consegna per abilitare';
+    
+    // Aggiungi handler per aprire settings
+    label.onclick = (e) => {
+      e.preventDefault();
+      if (confirm('Le impostazioni di consegna non sono configurate. Vuoi configurarle ora?')) {
+        const newWindow = window.open(`info.html?id=${restaurantId}`, '_blank');
+        
+        // Ricarica quando la finestra viene chiusa o quando si ritorna su questa tab
+        const checkInterval = setInterval(() => {
+          if (newWindow.closed) {
+            clearInterval(checkInterval);
+            location.reload();
+          }
+        }, 500);
+        
+        // Ricarica anche quando l'utente torna su questa tab
+        window.addEventListener('focus', () => {
+          location.reload();
+        }, { once: true });
+      }
+    };
+  } else {
+    checkbox.disabled = false;
+    label.style.opacity = '1';
+    label.style.cursor = 'pointer';
+    label.title = '';
+    label.onclick = null;
+  }
+}
+
 // ===== LOAD =====
 async function loadMenu() {
   try {
     const [menuRes, settingsRes] = await Promise.all([
       fetch(`IDs/${restaurantId}/menu.json`),
-      fetch(`IDs/${restaurantId}/settings.json`).catch(() => ({ ok: false }))
+      fetch(`IDs/${restaurantId}/menuTypes.json`).catch(() => ({ ok: false }))
     ]);
     
     const menu = await menuRes.json();
@@ -116,14 +183,20 @@ async function loadMenu() {
       }));
     });
     
-    // Assicura che esista sempre il menu default
-    menuTypes = settings.menuTypes || [];
+    menuTypes = (settings.menuTypes || []).map(t => ({
+      id: t.id,
+      name: t.name,
+      coperto: t.copertoPrice || 0,
+      methods: t.checkoutMethods || { table: true, delivery: true, takeaway: true, show: true },
+      visible: t.visibility !== false
+    }));
+    
     if (!menuTypes.some(t => t.id === 'default')) {
       menuTypes.unshift({
         id: 'default',
         name: 'Menu Intero',
         coperto: 0,
-        methods: { table: true, pickup: true, show: true },
+        methods: { table: true, delivery: true, takeaway: true, show: true },
         visible: true
       });
     }
@@ -156,8 +229,7 @@ function renderMenuTypes() {
   `).join('') : '<p class="no-groups-message">Nessun tipo di menu</p>';
 }
 
-// ===== AGGIUNGI queste nuove funzioni =====
-function openEditMenuTypePopup(idx) {
+async function openEditMenuTypePopup(idx) {
   const type = menuTypes[idx];
   const isDefault = type.id === 'default';
   
@@ -165,14 +237,17 @@ function openEditMenuTypePopup(idx) {
   document.getElementById('menu-type-name-edit').value = type.name;
   document.getElementById('menu-type-coperto-edit').value = type.coperto || 0;
   
-  // FIX: Assicura che methods esista
-  const methods = type.methods || { table: true, pickup: true, show: true };
+  const methods = type.methods || { table: true, delivery: true, takeaway: true, show: true };
   document.getElementById('edit-method-table').checked = methods.table !== false;
-  document.getElementById('edit-method-pickup').checked = methods.pickup !== false;
+  document.getElementById('edit-method-delivery').checked = methods.delivery !== false;
+  document.getElementById('edit-method-takeaway').checked = methods.takeaway !== false;
   document.getElementById('edit-method-show').checked = methods.show !== false;
   document.getElementById('menu-type-visibility-edit').checked = type.visible !== false;
-    
-  // Nascondi pulsante elimina per il menu default
+  
+  // Controlla se settings è configurato per delivery
+  const canEnableDelivery = await checkDeliverySettings();
+  updateDeliveryCheckboxState('edit-method-delivery', canEnableDelivery);
+  
   const deleteBtn = document.querySelector('#edit-menu-type-popup .btn-danger');
   if (deleteBtn) {
     deleteBtn.style.display = type.id === 'default' ? 'none' : 'inline-block';
@@ -180,7 +255,6 @@ function openEditMenuTypePopup(idx) {
   
   document.getElementById('edit-menu-type-popup').classList.remove('hidden');
 }
-
 
 function closeEditMenuTypePopup() {
   document.getElementById('edit-menu-type-popup').classList.add('hidden');
@@ -199,7 +273,8 @@ async function saveMenuTypeChanges() {
     coperto: parseFloat(coperto.toFixed(2)),
     methods: {
       table: document.getElementById('edit-method-table').checked,
-      pickup: document.getElementById('edit-method-pickup').checked,
+      delivery: document.getElementById('edit-method-delivery').checked,
+      takeaway: document.getElementById('edit-method-takeaway').checked,
       show: document.getElementById('edit-method-show').checked
     },
     visible: document.getElementById('menu-type-visibility-edit').checked
@@ -267,7 +342,6 @@ function renderFilter() {
   select.innerHTML = options;
 }
 
-
 function renderCategories() {
   const container = document.getElementById('menu-sections');
   container.innerHTML = '';
@@ -299,6 +373,9 @@ function renderCategories() {
         <div>
           <button class="delete-category-btn" onclick="deleteCategory('${cat}')" title="Elimina">
             <img src="img/delete.png">
+          </button>
+          <button class="visibility-category-btn" onclick="toggleCategoryVisibility('${cat}')" title="Visibilità categoria">
+            <img src="img/eye.png">
           </button>
           <button class="edit-category-btn" onclick="openEditCategoryPopup('${cat}')" title="Modifica">
             <img src="img/edit.png">
@@ -359,9 +436,6 @@ function createCard(item, cat, idx) {
   `;
 }
 
-
-
-
 // ===== POPUP =====
 function openPopup(idx, cat) {
   const isNew = idx === null;
@@ -370,7 +444,6 @@ function openPopup(idx, cat) {
   document.getElementById('popup-title').textContent = isNew ? `Aggiungi a "${cat}"` : `Modifica "${currentEdit.item.name}"`;
   document.getElementById('delete-item').classList.toggle('hidden', isNew);
   
-  // Reset form
   document.getElementById('item-name').value = currentEdit.item?.name || '';
   document.getElementById('item-price').value = currentEdit.item?.price !== undefined ? currentEdit.item.price : '';
   document.getElementById('item-description').value = currentEdit.item?.description || '';
@@ -395,7 +468,6 @@ function openPopup(idx, cat) {
   
   uploadedImage = null;
   
-  // Allergens
   const grid = document.getElementById('allergens-grid');
   grid.innerHTML = Object.entries(allergens).map(([id, name]) => `
     <div class="allergen-item ${currentEdit.item?.allergens?.includes(id) ? 'selected' : ''}" 
@@ -406,7 +478,6 @@ function openPopup(idx, cat) {
     </div>
   `).join('');
   
-  // Menu types - default sempre selezionato e disabilitato
   const typesContainer = document.getElementById('menu-types-checkboxes');
   typesContainer.innerHTML = menuTypes.length ? menuTypes.map(t => {
     const isDefault = t.id === 'default';
@@ -424,7 +495,6 @@ function openPopup(idx, cat) {
     `;
   }).join('') : '<p style="opacity: 0.7;">Nessun tipo menu disponibile</p>';
   
-  // Show popup
   const scrollY = window.pageYOffset;
   document.body.dataset.scrollY = scrollY;
   document.body.style.top = `-${scrollY}px`;
@@ -452,14 +522,11 @@ async function saveItem() {
   if (!name) return notify('Nome obbligatorio', 'error');
   if (isNaN(price) || price < 0) return notify('Prezzo non valido', 'error');
   
-  // Check duplicates - escludi l'elemento corrente se in modifica
   const isDupe = Object.entries(menuData).some(([cat, items]) => 
     items.some((item, idx) => {
-      // Se è lo stesso elemento che stiamo modificando, ignoralo
       if (cat === currentEdit.category && idx === currentEdit.index) {
         return false;
       }
-      // Altrimenti controlla se il nome è duplicato
       return item.name.toLowerCase() === name.toLowerCase();
     })
   );
@@ -467,10 +534,8 @@ async function saveItem() {
   
   const selectedAllergens = [...document.querySelectorAll('.allergen-item.selected')].map(el => el.dataset.allergenId);
   
-  // Raccogli i tipi menu selezionati dagli input non disabilitati + default obbligatorio
   const selectedTypes = [...document.querySelectorAll('#menu-types-checkboxes input:checked:not([disabled])')].map(cb => cb.value);
   
-  // Assicura che default sia sempre presente
   if (!selectedTypes.includes('default')) {
     selectedTypes.push('default');
   }
@@ -610,13 +675,19 @@ function deleteCategory(name) {
 }
 
 // ===== MENU TYPES =====
-function openAddMenuTypePopup() {
+async function openAddMenuTypePopup() {
   document.getElementById('new-menu-type-name').value = '';
   document.getElementById('new-menu-type-coperto').value = '0.00';
-  document.getElementById('new-method-table').checked = true;
-  document.getElementById('new-method-pickup').checked = true;
-  document.getElementById('new-method-show').checked = true;
+  document.getElementById('new-method-table').checked = false;
+  document.getElementById('new-method-delivery').checked = false;
+  document.getElementById('new-method-takeaway').checked = false;
+  document.getElementById('new-method-show').checked = false;
   document.getElementById('new-menu-type-visibility').checked = true;
+  
+  // Controlla se settings è configurato
+  const canEnableDelivery = await checkDeliverySettings();
+  updateDeliveryCheckboxState('new-method-delivery', canEnableDelivery);
+  
   document.getElementById('add-menu-type-popup').classList.remove('hidden');
 }
 
@@ -638,7 +709,6 @@ async function createNewMenuType() {
   
   if (!name) return notify('Nome obbligatorio', 'error');
   
-  // Genera ID automaticamente
   const id = name.toLowerCase()
     .replace(/\s+/g, '-')
     .replace(/[^a-z0-9-]/g, '');
@@ -652,7 +722,8 @@ async function createNewMenuType() {
     coperto: parseFloat(coperto.toFixed(2)),
     methods: {
       table: document.getElementById('new-method-table').checked,
-      pickup: document.getElementById('new-method-pickup').checked,
+      delivery: document.getElementById('new-method-delivery').checked,
+      takeaway: document.getElementById('new-method-takeaway').checked,
       show: document.getElementById('new-method-show').checked
     },
     visible: document.getElementById('new-menu-type-visibility').checked
@@ -662,6 +733,15 @@ async function createNewMenuType() {
   closeAddMenuTypePopup();
   render();
   notify('Tipo menu aggiunto!');
+
+  Object.keys(menuData).forEach(cat => {
+    menuData[cat].forEach(item => {
+      if (!item.menuType) item.menuType = [];
+      if (!item.menuType.includes(id)) {
+        item.menuType.push(id);
+      }
+    });
+  });
 }
 
 async function deleteMenuType(idx) {
@@ -691,8 +771,8 @@ async function saveMenu() {
           featured: item.isNew,
           visible: item.visible,
           menuType: item.menuType?.length ? item.menuType : undefined,
-          customizable: item.customizable || false, // AGGIUNGI QUESTA
-          customizationGroup: item.customizationGroup || null // AGGIUNGI QUESTA
+          customizable: item.customizable || false,
+          customizationGroup: item.customizationGroup || null
         }))
       }))
     };
@@ -716,26 +796,27 @@ async function saveMenu() {
 
 async function saveSettings() {
   try {
-    const res = await fetch(`/save-settings/${restaurantId}`, {
+    const res = await fetch(`/save-menu-types/${restaurantId}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        settings: {
-          menuTypes: menuTypes.map(t => ({
-            id: t.id,
-            name: t.name,
-            copertoPrice: t.coperto,
-            checkoutMethods: t.methods,
-            visibility: t.visible
-          }))
-        }
+        menuTypes: menuTypes.map(t => ({
+          id: t.id,
+          name: t.name,
+          copertoPrice: t.coperto || 0,
+          checkoutMethods: t.methods || { table: true, delivery: true, takeaway: true, show: true },
+          visibility: t.visible !== false
+        }))
       })
     });
     
     const result = await res.json();
-    if (!result.success) throw new Error();
+    if (!result.success) throw new Error('Errore salvataggio menu types');
+    return true;
   } catch (err) {
-    notify('Errore salvataggio settings', 'error');
+    console.error(err);
+    notify('Errore salvataggio menu types', 'error');
+    return false;
   }
 }
 
@@ -779,12 +860,85 @@ function saveCategoryChanges() {
   notify('Categoria aggiornata!');
 }
 
+function toggleCategoryVisibility(cat) {
+  const items = menuData[cat] || [];
+  const shouldHide = items.some(item => item.visible !== false);
+
+  items.forEach(item => {
+    item.visible = !shouldHide;
+  });
+
+  hasChanges = true;
+  notify(shouldHide ? `Categoria "${cat}" nascosta per TUTTI i menu` : `Categoria "${cat}" mostrata per TUTTI i menu`);
+  render();
+}
+
 function openEditCategoryPopup(cat) {
   editingCategoryName = cat;
   editingCategoryItems = [...menuData[cat]];
   document.getElementById('category-name-input').value = cat;
+  renderCategoryMenuTypes(); 
   renderDraggableItems();
   document.getElementById('edit-category-popup').classList.remove('hidden');
+}
+
+function renderCategoryMenuTypes() {
+  const container = document.getElementById('category-menu-types');
+  const visibleMenuTypes = menuTypes.filter(t => t.visible !== false);
+
+  if (!container.children.length) {
+    container.innerHTML = visibleMenuTypes.map(t => `
+      <label class="checkbox-label ${t.id === "default" ? "disabled" : ""}">
+        <input type="checkbox" value="${t.id}" ${t.id === "default" ? "disabled" : ""}>
+        <span class="checkmark"></span>
+        <span class="checkbox-text">${t.name}</span>
+      </label>
+    `).join('');
+  }
+
+  visibleMenuTypes.forEach(t => {
+    const label = container.querySelector(`input[value="${t.id}"]`)?.closest(".checkbox-label");
+    if (!label) return;
+
+    const items = editingCategoryItems;
+    const itemsWithType = items.filter(item => item.menuType?.includes(t.id)).length;
+    const allHaveType = itemsWithType === items.length;
+    const noneHaveType = itemsWithType === 0;
+    const isChecked = !noneHaveType;
+    const isIncomplete = t.id !== "default" && isChecked && !allHaveType;
+
+    const checkbox = label.querySelector("input");
+    const mark = label.querySelector(".checkmark");
+
+    checkbox.checked = isChecked;
+    mark.classList.toggle("incomplete", isIncomplete);
+
+    if (t.id !== "default") {
+      checkbox.disabled = false;
+      checkbox.onchange = e => toggleCategoryMenuType(t.id, e.target.checked);
+    } else {
+      checkbox.disabled = true;
+    }
+  });
+}
+
+function toggleCategoryMenuType(typeId, isChecked) {
+  editingCategoryItems = editingCategoryItems.map(item => {
+    if (!item.menuType) item.menuType = [];
+
+    if (isChecked) {
+      if (!item.menuType.includes(typeId)) {
+        item.menuType.push(typeId);
+      }
+    } else {
+      item.menuType = item.menuType.filter(t => t !== typeId);
+    }
+
+    return item;
+  });
+
+  renderCategoryMenuTypes();
+  renderDraggableItems();
 }
 
 function renderDraggableItems() {
@@ -840,3 +994,4 @@ window.saveMenuTypeChanges = saveMenuTypeChanges;
 window.deleteMenuTypeFromPopup = deleteMenuTypeFromPopup;
 window.deleteMenuTypeFromCard = deleteMenuTypeFromCard;
 window.autoGenerateId = autoGenerateId;
+window.toggleCategoryVisibility = toggleCategoryVisibility;

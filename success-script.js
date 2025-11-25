@@ -6,7 +6,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const lastOrder = JSON.parse(sessionStorage.getItem('lastOrder') || '{}');
     
     
-    // Setup button handlers
+    /* Setup button handlers
     document.getElementById('shop-again').onclick = () => {
         if (!restaurantId) {
             window.location.href = 'index.html';
@@ -24,9 +24,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         
         window.location.href = menuUrl.toString();
-    };
+    }; */
     
     document.getElementById('back-btn').onclick = () => {
-        window.location.href = 'index.html';
+        window.location.href = 'index-user.html';
     };
 });

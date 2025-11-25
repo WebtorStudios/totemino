@@ -231,6 +231,60 @@ class SuggestionsEngine {
     return suggestions.slice(0, 4);
   }
 
+  async generateSuggestionsForCheckout() {
+    this.loadCurrentOrder();
+    await this.loadUserPreferences();
+    
+    const itemsByCategory = this.getAvailableItemsByCategory();
+    const availableCategories = Object.keys(itemsByCategory);
+    
+    if (availableCategories.length === 0) {
+      return [];
+    }
+    
+    const missingCategories = this.getMissingCategories(availableCategories);
+    const categoriesToSuggest = missingCategories.length > 0 ? missingCategories : availableCategories;
+    const currentItemNames = new Set(this.currentOrder.map(item => item.name));
+    const seed = this.generateSeed();
+    const suggestions = [];
+    
+    for (const category of categoriesToSuggest) {
+      const categoryItems = itemsByCategory[category].filter(
+        item => !currentItemNames.has(item.name) && 
+               !item.customizable &&  // Solo non customizzabili
+               item.price > 0 &&      // Escludi gratis
+               item.price <= 5        // Prezzo basso (modifica a piacere)
+      );
+      
+      if (categoryItems.length === 0) {
+        continue;
+      }
+      
+      const scoredItems = categoryItems.map(item => ({
+        ...item,
+        img: item.imagePath,
+        category,
+        preferenceScore: this.calculatePreferenceScore(item)
+      }));
+      
+      let selectedFromCategory;
+      
+      if (scoredItems.some(item => item.preferenceScore > 0)) {
+        scoredItems.sort((a, b) => b.preferenceScore - a.preferenceScore);
+        selectedFromCategory = scoredItems.slice(0, 1); // Solo 1 per categoria
+      } else {
+        const shuffled = this.seededShuffle(scoredItems, seed + suggestions.length);
+        selectedFromCategory = shuffled.slice(0, 1);
+      }
+      suggestions.push(...selectedFromCategory);
+      
+      if (suggestions.length >= 4) {
+        break;
+      }
+    }
+    return suggestions.slice(0, 4);
+  }
+
   async renderSuggestions(restaurantId) {
     const suggestions = await this.generateSuggestions();
     const wrapper = document.querySelector(".suggestions-wrapper");
@@ -340,7 +394,6 @@ class SuggestionsEngine {
     }
     
     if (!itemExists) {
-      // ✅ Trova la posizione del coperto (se esiste)
       let copertoIndex = -1;
       for (let i = 0; i < currentSelected.length; i += 3) {
         if (currentSelected[i] === "Coperto") {
@@ -350,13 +403,11 @@ class SuggestionsEngine {
       }
       
       if (copertoIndex !== -1) {
-        // ✅ Inserisci PRIMA del coperto
         currentSelected.splice(copertoIndex, 0, suggestion.name, "{}", "1");
         currentNotes.splice(copertoIndex / 3, 0, "");
       } else {
-        // ✅ Altrimenti inserisci in cima
-        currentSelected.unshift(suggestion.name, "{}", "1");
-        currentNotes.unshift("");
+        currentSelected.push(suggestion.name, "{}", "1");
+        currentNotes.push("");
       }
     }
     
@@ -387,7 +438,8 @@ class SuggestionsEngine {
     localStorage.setItem("totemino_count", count.toString());
     
     if (typeof STATE !== 'undefined' && typeof UI !== 'undefined' && typeof DataManager !== 'undefined') {
-      // Ricarica items nello STATE
+      DataManager.removeCoperto();
+      
       const selectedMap = DataManager.loadSelectedItems();
       STATE.items = [];
       
@@ -415,6 +467,8 @@ class SuggestionsEngine {
           }
         }
       }
+      
+      DataManager.addCopertoIfNeeded();
       
       UI.renderItems();
       UI.updateTotal();

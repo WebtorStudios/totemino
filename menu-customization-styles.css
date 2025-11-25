@@ -33,9 +33,15 @@
   z-index: 10;
 }
 
+.customization-header h2 {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .customization-header .back-btn {
-  width: 2.5rem;
   height: 2.5rem;
+  aspect-ratio: 1;
   background: var(--btn-secondary);
   border: none;
   border-radius: 50%;
@@ -74,12 +80,12 @@
 }
 
 .customization-content > img {
-  width: 100%;
+  width: 50%;
   max-height: 250px;
   object-fit: contain;
   border-radius: 1.5rem;
-  margin-top: 1rem;
-  margin-bottom: 2rem;
+  display: block;
+  margin: 1rem auto 2rem; /* top auto bottom */
 }
 
 .customization-sections {

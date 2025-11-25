@@ -28,6 +28,40 @@ let currentPopupItem = null;
 let customizationData = {};
 let isViewOnlyMode = false;
 
+async function initializeViewMode() {
+  const params = new URLSearchParams(window.location.search);
+  const restaurantId = params.get('id');
+  const requestedType = params.get('type') || 'default';
+  
+  if (!restaurantId) return;
+  
+  try {
+    const settingsRes = await fetch(`IDs/${restaurantId}/menuTypes.json`);
+    if (!settingsRes.ok) return;
+    
+    const settings = await settingsRes.json();
+    const typeConfig = settings.menuTypes?.find(t => t.id === requestedType);
+    
+    if (typeConfig) {
+      // View-only se TUTTI i checkoutMethods sono false
+      const checkoutMethods = typeConfig.checkoutMethods || {};
+      const hasAnyCheckout = checkoutMethods.table || checkoutMethods.delivery || checkoutMethods.takeaway || checkoutMethods.show;
+      
+      if (!hasAnyCheckout) {
+        isViewOnlyMode = true;
+        document.documentElement.classList.add('view-only');
+      }
+    }
+  } catch (e) {
+    console.warn("Errore caricamento settings:", e);
+  }
+}
+
+// Chiamata asincrona all'avvio
+(async () => {
+  await initializeViewMode();
+})();
+
 //helper
 function prependToMap(map, key, value) {
   const newMap = new Map();
@@ -346,9 +380,11 @@ function openCustomizationScreen(item) {
       </div>
       <div class="customization-content">
         ${item.img ? `<img src="${item.img}" alt="${item.displayName}" onerror="this.src='img/placeholder.png'">` : ""}
-        <div style="background: var(--btn-secondary); color: var(--text-primary); padding: 1rem; border-radius: 1rem; margin-bottom: 1rem;">
-          ${item.ingredients && item.ingredients.length > 0 ? `<div style="font-size: 0.9rem; line-height: 1.5; white-space: pre-line; opacity: 0.9;">${item.ingredients.join(", ")}</div>` : ""}
-        </div>
+        ${item.ingredients && item.ingredients.length > 0 ? 
+          `<div style="background: var(--btn-secondary); color: var(--text-primary); padding: 1rem; border-radius: 1rem; margin-bottom: 1rem;">
+            <div style="font-size: 0.9rem; line-height: 1.5; white-space: pre-line; opacity: 0.9;">${item.ingredients.join(", ").replace(/\\n/g, "\n").trim()}</div>
+          </div>` 
+        : ""}
         <div class="customization-sections"></div>
       </div>
     `;
@@ -385,9 +421,11 @@ function openCustomizationScreen(item) {
     </div>
     <div class="customization-content">
       ${item.img ? `<img src="${item.img}" alt="${item.displayName}" onerror="this.src='img/placeholder.png'">` : ""}
-      <div style="background: var(--btn-secondary); color: var(--text-primary); padding: 1rem; border-radius: 1rem; margin-bottom: 1rem;">
-        ${item.ingredients && item.ingredients.length > 0 ? `<div style="font-size: 0.9rem; line-height: 1.5; white-space: pre-line; opacity: 0.9;">${item.ingredients.join(", ")}</div>` : ""}
-      </div>
+      ${item.ingredients && item.ingredients.length > 0 ? 
+        `<div style="background: var(--btn-secondary); color: var(--text-primary); padding: 1rem; border-radius: 1rem; margin-bottom: 1rem;">
+          <div style="font-size: 0.9rem; line-height: 1.5; white-space: pre-line; opacity: 0.9;">${item.ingredients.join(", ").replace(/\\n/g, "\n").trim()}</div>
+        </div>` 
+      : ""}
       <div class="customization-sections"></div>
     </div>
     <div class="customization-footer" ${isViewOnlyMode ? 'style="display: none;"' : ''}>
@@ -445,7 +483,7 @@ function openCustomizationScreen(item) {
         
         const optPrice = document.createElement("span");
         if (opt.priceModifier !== 0) {
-          const priceText = item.price < 0.01 ? `€${opt.priceModifier.toFixed(2)}` : `+ €${opt.priceModifier.toFixed(2)}`;
+          const priceText = item.price < 0.01 ? `€${opt.priceModifier.toFixed(2)}` : `+€${opt.priceModifier.toFixed(2)}`;
           optPrice.textContent = priceText;
           optPrice.style.fontWeight = '600';
           optPrice.style.whiteSpace = 'nowrap';
@@ -627,7 +665,7 @@ async function loadMenu() {
   // ✅ Carica settings per verificare menu types disponibili
   let availableMenuTypes = [];
   try {
-    const settingsRes = await fetch(`IDs/${restaurantId}/settings.json`);
+    const settingsRes = await fetch(`IDs/${restaurantId}/menuTypes.json`);
     if (settingsRes.ok) {
       const settings = await settingsRes.json();
       availableMenuTypes = settings.menuTypes || [];
@@ -639,29 +677,28 @@ async function loadMenu() {
   // ✅ FILTRO MENU TYPE con validazione
   const requestedType = params.get("type");
   let menuTypeFilter = null;
-  
-  if (requestedType) {
+
+  // Se manca il type, usa 'default' ma NON reindirizzare
+  if (!requestedType || requestedType === 'default' || requestedType === 'view' || requestedType === 'readonly') {
+    menuTypeFilter = 'default';
+  } else {
     const typeConfig = availableMenuTypes.find(t => t.id === requestedType);
-    
     if (typeConfig) {
       menuTypeFilter = requestedType;
-      
-      // ✅ NUOVO: Controlla se è view-only mode
-      const checkoutMethods = typeConfig.checkoutMethods || {};
-      if (!checkoutMethods.table && !checkoutMethods.pickup && !checkoutMethods.show) {
-        isViewOnlyMode = true;
-        
-        // Nascondi l'order bar in view-only mode
-        const orderBar = document.querySelector('.order');
-        if (orderBar) orderBar.style.display = 'none';
-      }
-      
     } else {
-      console.warn(`⚠️ Menu type "${requestedType}" non trovato, mostro tutto il menu`);
-      const newUrl = new URL(window.location.href);
-      newUrl.searchParams.delete('type');
-      window.history.replaceState({}, '', newUrl);
+      menuTypeFilter = 'default';
     }
+  }
+
+  const typeConfig = availableMenuTypes.find(t => t.id === requestedType);
+
+  if (typeConfig) {
+    menuTypeFilter = requestedType;
+  } else {
+    const newUrl = new URL(window.location.href);
+    newUrl.searchParams.set('type', 'default');
+    window.location.replace(newUrl.toString());
+    return;
   }
   
   menuJson.categories = menuJson.categories
@@ -1201,7 +1238,9 @@ if (itemsContainer) {
   });
 }
 
-
+(async () => {
+  await initializeViewMode();
+  await loadMenu();
+})();
 
 loadMenu();
-

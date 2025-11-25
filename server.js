@@ -8,6 +8,16 @@ const path = require('path');
 const bcrypt = require('bcrypt');
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const cron = require('node-cron');
+const webPush = require('web-push');
+
+const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY;
+const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY;
+
+webPush.setVapidDetails(
+  'mailto:tuo-email@example.com',
+  VAPID_PUBLIC_KEY,
+  VAPID_PRIVATE_KEY
+);
 
 const app = express();
 app.set('trust proxy', 1);
@@ -34,29 +44,6 @@ app.use((req, res, next) => {
   }
   next();
 });
-
-// Sessioni
-const session = require('express-session');
-const FileStore = require('session-file-store')(session);
-
-app.use(session({
-  store: new FileStore({
-    path: './sessions',
-    ttl: 14 * 86400,
-    retries: 0,
-    reapInterval: 86400,
-  }),
-  secret: process.env.SESSION_SECRET || 'fallback-secret-key',
-  resave: false,
-  saveUninitialized: false,
-  proxy: true,
-  cookie: {
-    secure: false,
-    httpOnly: true,
-    maxAge: 24 * 60 * 60 * 1000,
-    sameSite: 'lax'
-  }
-}));
 
 // Webhook Stripe (PRIMA di express.json)
 app.post('/webhook/stripe', 
@@ -136,7 +123,8 @@ const requireAuth = (req, res, next) => {
 const FileManager = {
   PATHS: {
     users: path.join(__dirname, 'userdata', 'users.json'),
-    preferences: path.join(__dirname, 'userdata', 'users-preferences.json')
+    preferences: path.join(__dirname, 'userdata', 'users-preferences.json'),
+    subscriptions: path.join(__dirname, 'userdata', 'push-subscriptions.json') // NUOVO
   },
 
   ensureDir(dirPath) {
@@ -148,7 +136,7 @@ const FileManager = {
   initDirectories() {
     this.ensureDir(path.join(__dirname, 'IDs'));
     this.ensureDir(path.join(__dirname, 'userdata'));
-    
+    this.ensureDir(path.join(__dirname, 'sessions'));    
   },
 
   async loadUsers() {
@@ -241,8 +229,261 @@ const FileManager = {
     }
     
     return { fileName, filePath };
+  },
+  async loadSubscriptions() {
+    try {
+      this.ensureDir(path.dirname(this.PATHS.subscriptions));
+      if (!fsSync.existsSync(this.PATHS.subscriptions)) return {};
+      
+      const data = await fs.readFile(this.PATHS.subscriptions, 'utf8');
+      return JSON.parse(data);
+    } catch (error) {
+      console.error('❌ Errore caricamento subscriptions:', error);
+      return {};
+    }
+  },
+
+  async saveSubscriptions(subscriptions) {
+    try {
+      this.ensureDir(path.dirname(this.PATHS.subscriptions));
+      await fs.writeFile(this.PATHS.subscriptions, JSON.stringify(subscriptions, null, 2));
+      return true;
+    } catch (error) {
+      console.error('❌ Errore salvataggio subscriptions:', error);
+      return false;
+    }
   }
 };
+  
+
+FileManager.initDirectories();
+
+// ==================== SESSIONS ====================
+const session = require('express-session');
+const sqlite = require('better-sqlite3');
+const SqliteStore = require('better-sqlite3-session-store')(session);
+
+const sessionsDB = new sqlite('./sessions/sessions.db', {
+  verbose: process.env.NODE_ENV !== 'production' ? console.log : null
+});
+
+app.use(session({
+  store: new SqliteStore({
+    client: sessionsDB,
+    expired: {
+      clear: true,
+      intervalMs: 12 * 60 * 60 * 1000 
+    }
+  }),
+  secret: process.env.SESSION_SECRET || 'fallback-secret-key',
+  resave: false,
+  rolling: true,
+  saveUninitialized: false,
+  proxy: true,
+  cookie: {
+    secure: false,
+    httpOnly: true,
+    maxAge: 14 * 24 * 60 * 60 * 1000,  // 1 settimana
+    sameSite: 'lax'
+  }
+}));
+
+
+// ==================== PUSH NOTIFICATION MANAGER ====================
+
+const PushNotificationManager = {
+  /**
+   * Invia notifica push a un ristorante
+   */
+  async sendNotification(restaurantId, orderData) {
+    try {
+      // Carica settings per verificare se le notifiche sono attive
+      const settingsPath = path.join(__dirname, 'IDs', restaurantId, 'settings.json');
+      const settings = await FileManager.loadJSON(settingsPath, {});
+      
+      // Se le notifiche app non sono attive, non fare nulla
+      if (!settings.notifications?.app) {
+        console.log(`ℹ️ Notifiche app disattivate per ${restaurantId}`);
+        return;
+      }
+      
+      // Carica subscriptions
+      const subscriptions = await FileManager.loadSubscriptions();
+      const restaurantSubs = subscriptions[restaurantId] || [];
+      
+      if (restaurantSubs.length === 0) {
+        console.log(`⚠️ Nessuna subscription trovata per ${restaurantId}`);
+        return;
+      }
+      
+      // Prepara dati notifica
+      const notificationPayload = JSON.stringify({
+        title: '🔔 Nuovo Ordine!',
+        body: this.formatOrderMessage(orderData),
+        icon: '/img/logo.png',
+        badge: '/img/badge.png',
+        tag: `order-${Date.now()}`,
+        url: `/gestione.html?id=${restaurantId}`,
+        timestamp: Date.now()
+      });
+      
+      // Invia a tutte le subscriptions del ristorante
+      const results = await Promise.allSettled(
+        restaurantSubs.map(sub => 
+          webPush.sendNotification(sub, notificationPayload)
+            .catch(err => {
+              console.error('❌ Errore invio notifica:', err);
+              // Se la subscription è scaduta, rimuovila
+              if (err.statusCode === 410) {
+                return { expired: true, endpoint: sub.endpoint };
+              }
+              throw err;
+            })
+        )
+      );
+      
+      // Rimuovi subscriptions scadute
+      const expiredEndpoints = results
+        .filter(r => r.status === 'fulfilled' && r.value?.expired)
+        .map(r => r.value.endpoint);
+      
+      if (expiredEndpoints.length > 0) {
+        subscriptions[restaurantId] = restaurantSubs.filter(
+          sub => !expiredEndpoints.includes(sub.endpoint)
+        );
+        await FileManager.saveSubscriptions(subscriptions);
+        console.log(`🗑️ Rimosse ${expiredEndpoints.length} subscriptions scadute`);
+      }
+      
+      const successCount = results.filter(r => r.status === 'fulfilled' && !r.value?.expired).length;
+      console.log(`✅ Notifiche inviate: ${successCount}/${restaurantSubs.length}`);
+      
+    } catch (error) {
+      console.error('❌ Errore PushNotificationManager:', error);
+    }
+  },
+  
+  /**
+   * Formatta il messaggio dell'ordine
+   */
+  formatOrderMessage(orderData) {
+    const type = orderData.type || 'ordine';
+    let message = '';
+    
+    if (type === 'table' && orderData.table?.[0]?.tableNumber) {
+      message = `Tavolo ${orderData.table[0].tableNumber} - €${orderData.total.toFixed(2)}`;
+    } else if (type === 'delivery' && orderData.delivery?.[0]) {
+      const delivery = orderData.delivery[0];
+      message = `Consegna ${delivery.address || 'a domicilio'} - €${orderData.total.toFixed(2)}`;
+    } else if (type === 'takeaway' && orderData.takeaway?.[0]) {
+      const takeaway = orderData.takeaway[0];
+      message = `Ritiro ${takeaway.time || 'al banco'} - €${orderData.total.toFixed(2)}`;
+    } else {
+      message = `Nuovo ordine - €${orderData.total.toFixed(2)}`;
+    }
+    
+    return message;
+  }
+};
+
+// ==================== API ROUTES PER PUSH NOTIFICATIONS ====================
+
+// GET: Ottieni la chiave pubblica VAPID
+app.get('/api/push/vapid-public-key', (req, res) => {
+  res.json({ publicKey: VAPID_PUBLIC_KEY });
+});
+
+// POST: Salva subscription
+app.post('/api/push/subscribe', requireAuth, async (req, res) => {
+  const { subscription } = req.body;
+  const restaurantId = req.session.user.restaurantId;
+  
+  if (!subscription || !subscription.endpoint) {
+    return res.status(400).json({ 
+      success: false, 
+      message: 'Subscription non valida' 
+    });
+  }
+  
+  try {
+    const subscriptions = await FileManager.loadSubscriptions();
+    
+    if (!subscriptions[restaurantId]) {
+      subscriptions[restaurantId] = [];
+    }
+    
+    // Evita duplicati
+    const exists = subscriptions[restaurantId].some(
+      sub => sub.endpoint === subscription.endpoint
+    );
+    
+    if (!exists) {
+      subscriptions[restaurantId].push(subscription);
+      await FileManager.saveSubscriptions(subscriptions);
+      console.log(`✅ Subscription salvata per ${restaurantId}`);
+    }
+    
+    res.json({ success: true, message: 'Subscription salvata' });
+    
+  } catch (error) {
+    console.error('❌ Errore salvataggio subscription:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Errore nel salvataggio' 
+    });
+  }
+});
+
+// POST: Rimuovi subscription
+app.post('/api/push/unsubscribe', requireAuth, async (req, res) => {
+  const { endpoint } = req.body;
+  const restaurantId = req.session.user.restaurantId;
+  
+  try {
+    const subscriptions = await FileManager.loadSubscriptions();
+    
+    if (subscriptions[restaurantId]) {
+      subscriptions[restaurantId] = subscriptions[restaurantId].filter(
+        sub => sub.endpoint !== endpoint
+      );
+      await FileManager.saveSubscriptions(subscriptions);
+    }
+    
+    res.json({ success: true });
+    
+  } catch (error) {
+    console.error('❌ Errore rimozione subscription:', error);
+    res.status(500).json({ success: false });
+  }
+});
+
+// POST: Test notifica (per debugging)
+app.post('/api/push/test', requireAuth, async (req, res) => {
+  const restaurantId = req.session.user.restaurantId;
+  
+  try {
+    const testOrder = {
+      type: 'table',
+      table: [{ tableNumber: '99' }],
+      total: 99.99,
+      timestamp: new Date().toISOString()
+    };
+    
+    await PushNotificationManager.sendNotification(restaurantId, testOrder);
+    
+    res.json({ 
+      success: true, 
+      message: 'Notifica di test inviata' 
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore test notifica:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: error.message 
+    });
+  }
+});
 
 // ==================== CUSTOMIZATION PARSER ====================
 const CustomizationParser = {
@@ -771,9 +1012,11 @@ app.post('/api/create-checkout', requireAuth, async (req, res) => {
   }
   
   try {
-    const origin = process.env.NODE_ENV === 'production' 
-      ? process.env.PRODUCTION_URL 
-      : `http://localhost:${process.env.PORT || 3000}`;
+
+    const origin = 'http://192.168.0.60:8080';
+    //const origin = process.env.NODE_ENV === 'production' 
+    //  ? process.env.PRODUCTION_URL 
+    //  : `http://localhost:${process.env.PORT || 3000}`;
     
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
@@ -849,6 +1092,111 @@ app.get('/api/verify-payment/:sessionId', requireAuth, async (req, res) => {
   }
 });
 
+app.post('/api/stripe/connect-link', requireAuth, async (req, res) => {
+  try {
+    const userCode = req.session.user.userCode;
+
+    const users = await FileManager.loadUsers();
+    const user = users[userCode];
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'Utente non trovato'
+      });
+    }
+
+    // Riusa l’account se già esiste, altrimenti creane uno nuovo
+    let accountId = user.stripeConnectAccountId;
+
+    if (!accountId) {
+      const account = await stripe.accounts.create({
+        type: 'express', // se usi account "standard" cambia in 'standard'
+        metadata: {
+          userCode
+        }
+        // opzionale: email, business_type, ecc.
+      });
+
+      accountId = account.id;
+      user.stripeConnectAccountId = accountId;
+      await FileManager.saveUsers(users);
+    }
+
+    const origin = process.env.NODE_ENV === 'production'
+      ? process.env.PRODUCTION_URL
+      : `http://localhost:${process.env.PORT || 3000}`;
+
+    const accountLink = await stripe.accountLinks.create({
+      account: accountId,
+      refresh_url: `${origin}/gestione.html?id=${userCode}&stripe_refresh=1`,
+      return_url: `${origin}/gestione.html?id=${userCode}&stripe_return=1`,
+      type: 'account_onboarding'
+    });
+
+    return res.json({
+      success: true,
+      url: accountLink.url
+    });
+
+  } catch (error) {
+    console.error('❌ Errore creazione account link Stripe Connect:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Errore nella creazione del link di onboarding Stripe'
+    });
+  }
+});
+
+// ✅ AGGIUNGI QUESTO NUOVO ENDPOINT
+app.get('/api/stripe/verify-connection/:restaurantId', requireAuth, async (req, res) => {
+  try {
+    const { restaurantId } = req.params;
+    
+    if (req.session.user.restaurantId !== restaurantId) {
+      return res.status(403).json({ success: false, message: 'Accesso non autorizzato' });
+    }
+
+    const users = await FileManager.loadUsers();
+    const user = users[restaurantId];
+
+    if (!user || !user.stripeConnectAccountId) {
+      return res.json({ 
+        success: true, 
+        connected: false,
+        message: 'Nessun account Stripe collegato' 
+      });
+    }
+
+    // Verifica lo stato dell'account su Stripe
+    const account = await stripe.accounts.retrieve(user.stripeConnectAccountId);
+    
+    const isFullyOnboarded = account.charges_enabled && account.payouts_enabled;
+    
+    if (isFullyOnboarded && !user.stripeConnected) {
+      // ✅ Aggiorna lo stato nel database
+      user.stripeConnected = true;
+      await FileManager.saveUsers(users);
+    }
+
+    return res.json({
+      success: true,
+      connected: isFullyOnboarded,
+      accountId: user.stripeConnectAccountId,
+      chargesEnabled: account.charges_enabled,
+      payoutsEnabled: account.payouts_enabled
+    });
+
+  } catch (error) {
+    console.error('❌ Errore verifica connessione Stripe:', error);
+    return res.status(500).json({
+      success: false,
+      connected: false,
+      message: 'Errore nella verifica dello stato Stripe'
+    });
+  }
+});
+
 // ==================== PREFERENCES ROUTES ====================
 app.post('/api/update-preferences', async (req, res) => {
   const { userId, items } = req.body;
@@ -878,6 +1226,13 @@ app.post('/api/update-preferences', async (req, res) => {
       message: error.message 
     });
   }
+});
+
+app.get('/api/here-config', (req, res) => {
+  res.json({
+    APP_ID: process.env.VITE_HERE_APP_ID,
+    API_KEY: process.env.VITE_HERE_API_KEY
+  });
 });
 
 // ==================== RESTAURANT STATUS ====================
@@ -1102,6 +1457,33 @@ app.post('/save-settings/:restaurantId', requireAuth, async (req, res) => {
   }
 });
 
+app.post('/save-menu-types/:restaurantId', requireAuth, async (req, res) => {
+  const { restaurantId } = req.params;
+  const { menuTypes } = req.body;
+
+  if (req.session.user.restaurantId !== restaurantId) {
+    return res.status(403).json({ success: false, message: 'Accesso non autorizzato' });
+  }
+
+  if (!menuTypes) {
+    return res.status(400).json({ success: false, message: 'Menu types mancanti' });
+  }
+
+  const menuTypesPath = path.join(__dirname, 'IDs', restaurantId, 'menuTypes.json');
+
+  try {
+    await FileManager.saveJSON(menuTypesPath, { menuTypes });
+    res.json({ success: true });
+  } catch (error) {
+    console.error('❌ Errore salvataggio menu types:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Errore nel salvataggio dei menu types',
+      details: error.message
+    });
+  }
+});
+
 app.post('/save-customizations/:restaurantId', requireAuth, async (req, res) => {
   const { restaurantId } = req.params;
   const { customizations } = req.body;
@@ -1143,9 +1525,9 @@ app.get('/IDs/:restaurantId/customization.json', async (req, res) => {
   }
 });
 
-app.get('/IDs/:restaurantId/settings.json', async (req, res) => {
+app.get('/IDs/:restaurantId/menuTypes.json', async (req, res) => {
   const { restaurantId } = req.params;
-  const settingsPath = path.join(__dirname, 'IDs', restaurantId, 'settings.json');
+  const settingsPath = path.join(__dirname, 'IDs', restaurantId, 'menuTypes.json');
 
   try {
     const settings = await FileManager.loadJSON(settingsPath, { copertoPrice: 0 });
@@ -1171,29 +1553,31 @@ app.post('/IDs/:restaurantId/orders/:section', async (req, res) => {
   try {
     FileManager.ensureDir(ordersDir);
     
-    // ✅ PROCESSA ITEMS CON CUSTOMIZZAZIONI
     const processedItems = await CustomizationParser.processOrderItems(restaurantId, orderData.items);
     
-    // ✅ CALCOLA TOTALE CORRETTO
     const calculatedTotal = processedItems.reduce((sum, item) => 
       sum + (item.finalPrice * item.quantity), 0
     );
     
-    const identifier = section === 'pickup' 
-      ? (orderData.orderNumber || 100) 
-      : (orderData.tableNumber || 'unknown');
+    const now = new Date();
+    const timestamp = now.toISOString()
+      .replace(/T/, ' - ')
+      .replace(/\..+/, '')
+      .replace(/:/g, '.');
+
+    const fileName = `${timestamp}.json`;
+    const filePath = path.join(ordersDir, fileName);
+
+    let counter = 1;
+    let finalFilePath = filePath;
+    while (fsSync.existsSync(finalFilePath)) {
+      const fileNameWithCounter = `${timestamp}_${counter}.json`;
+      finalFilePath = path.join(ordersDir, fileNameWithCounter);
+      counter++;
+    }
     
-    const { fileName, filePath } = FileManager.generateUniqueFilename(
-      ordersDir, 
-      section.charAt(0).toUpperCase() + section.slice(1), 
-      identifier
-    );
-    
-    // ✅ STRUTTURA ORDINE PULITA (SENZA DATI DUPLICATI)
     const completeOrderData = {
       userId: orderData.userId,
-      tableNumber: orderData.tableNumber,
-      orderNumber: orderData.orderNumber,
       items: processedItems,
       orderNotes: orderData.orderNotes || [],
       total: calculatedTotal,
@@ -1202,24 +1586,27 @@ app.post('/IDs/:restaurantId/orders/:section', async (req, res) => {
       restaurantId,
       status: 'pending'
     };
+
+    if (orderData.table) completeOrderData.table = orderData.table;
+    if (orderData.delivery) completeOrderData.delivery = orderData.delivery;
+    if (orderData.takeaway) completeOrderData.takeaway = orderData.takeaway;
     
-    // Salva ordine
     await fs.writeFile(filePath, JSON.stringify(completeOrderData, null, 2));
     
-    // Aggiorna statistiche
     await StatisticsManager.updateStats(restaurantId, completeOrderData);
     
-    // Aggiorna preferenze utente
     if (orderData.userId) {
       await PreferencesManager.updatePreferences(orderData.userId, processedItems);
     }
     
-    
+    // ✅ INVIA NOTIFICA PUSH
+    await PushNotificationManager.sendNotification(restaurantId, completeOrderData);
     
     res.json({ 
       success: true, 
-      fileName, 
-      [section === 'pickup' ? 'orderNumber' : 'tableNumber']: identifier 
+      fileName,
+      orderId: fileName.replace('.json', ''),
+      timestamp: completeOrderData.timestamp
     });
     
   } catch (error) {
@@ -1252,6 +1639,7 @@ app.get('/IDs/:restaurantId/orders/:section', requireAuth, async (req, res) => {
         const fileContent = await fs.readFile(filePath, 'utf8');
         const orderData = JSON.parse(fileContent);
         
+        // IMPORTANTE: l'id deve corrispondere al nome file senza .json
         orderData._filename = file;
         orderData.id = file.replace('.json', '');
         orders.push(orderData);
@@ -1279,11 +1667,30 @@ app.patch('/IDs/:restaurantId/orders/:section/:orderId', requireAuth, async (req
   }
   
   const ordersDir = path.join(__dirname, 'IDs', restaurantId, 'orders', section);
+  
+  // Il nuovo gestione-script.js passa il filename senza estensione
+  // Formato: "2025-01-15 - 14.30.25" (dal timestamp)
   const orderFile = path.join(ordersDir, `${orderId}.json`);
   
   try {
     if (!fsSync.existsSync(orderFile)) {
-      return res.status(404).json({ error: 'Ordine non trovato' });
+      // Prova a cercare il file con pattern matching se non trovato direttamente
+      const files = await fs.readdir(ordersDir);
+      const matchingFile = files.find(f => f.includes(orderId) || f.replace('.json', '') === orderId);
+      
+      if (!matchingFile) {
+        return res.status(404).json({ error: 'Ordine non trovato' });
+      }
+      
+      const actualFile = path.join(ordersDir, matchingFile);
+      const fileContent = await fs.readFile(actualFile, 'utf8');
+      const orderData = JSON.parse(fileContent);
+      
+      orderData.status = status;
+      orderData.lastModified = new Date().toISOString();
+      
+      await fs.writeFile(actualFile, JSON.stringify(orderData, null, 2));
+      return res.json({ success: true, orderId, status });
     }
     
     const fileContent = await fs.readFile(orderFile, 'utf8');
@@ -1301,6 +1708,7 @@ app.patch('/IDs/:restaurantId/orders/:section/:orderId', requireAuth, async (req
   }
 });
 
+// ==================== DELETE ORDER ENDPOINT ====================
 app.delete('/IDs/:restaurantId/orders/:section/:orderId', requireAuth, async (req, res) => {
   const { restaurantId, section, orderId } = req.params;
 
@@ -1309,25 +1717,48 @@ app.delete('/IDs/:restaurantId/orders/:section/:orderId', requireAuth, async (re
   }
   
   const ordersDir = path.join(__dirname, 'IDs', restaurantId, 'orders', section);
-  const deletedDir = path.join(__dirname, 'IDs', restaurantId, 'orders', 'deleted');
   const orderFile = path.join(ordersDir, `${orderId}.json`);
-
+  
   try {
+    // Verifica se il file esiste
     if (!fsSync.existsSync(orderFile)) {
-      return res.status(404).json({ error: 'Ordine non trovato' });
+      // Prova a cercare il file con pattern matching
+      const files = await fs.readdir(ordersDir);
+      const matchingFile = files.find(f => f.includes(orderId) || f.replace('.json', '') === orderId);
+      
+      if (!matchingFile) {
+        return res.status(404).json({ error: 'Ordine non trovato' });
+      }
+      
+      const actualFile = path.join(ordersDir, matchingFile);
+      
+      // Elimina definitivamente il file
+      await fs.unlink(actualFile);
+      console.log(`✅ Ordine eliminato: ${matchingFile}`);
+      
+      return res.json({ 
+        success: true, 
+        message: 'Ordine eliminato definitivamente',
+        orderId 
+      });
     }
     
-    FileManager.ensureDir(deletedDir);
-    const timestamp = Date.now();
-    const newFileName = `${orderId}_deleted_${timestamp}.json`;
-    const deletedFilePath = path.join(deletedDir, newFileName);
-
-    await fs.rename(orderFile, deletedFilePath);
-    res.json({ success: true, orderId, deletedFile: newFileName });
-
+    // Elimina definitivamente il file
+    await fs.unlink(orderFile);
+    console.log(`✅ Ordine eliminato: ${orderId}.json`);
+    
+    res.json({ 
+      success: true, 
+      message: 'Ordine eliminato definitivamente',
+      orderId 
+    });
+    
   } catch (error) {
     console.error('❌ Errore eliminazione ordine:', error);
-    res.status(500).json({ error: 'Errore nell\'eliminazione dell\'ordine' });
+    res.status(500).json({ 
+      error: 'Errore nell\'eliminazione dell\'ordine',
+      details: error.message 
+    });
   }
 });
 
@@ -1367,6 +1798,45 @@ app.get('/IDs/:restaurantId/banners.json', async (req, res) => {
     res.json(banners);
   } catch (error) {
     res.status(500).json({ error: 'Errore nel caricamento dei banner' });
+  }
+});
+
+// ===== PROMO CODES ROUTES (PROTECTED) =====
+app.post('/save-promo/:restaurantId', requireAuth, async (req, res) => {
+  const { restaurantId } = req.params;
+  const { promos } = req.body;
+
+  if (req.session.user.restaurantId !== restaurantId) {
+    return res.status(403).json({ success: false, message: 'Accesso non autorizzato' });
+  }
+
+  if (!Array.isArray(promos)) {
+    return res.status(400).json({ success: false, message: 'Dati promo non validi' });
+  }
+
+  const promosPath = path.join(__dirname, 'IDs', restaurantId, 'promo.json');
+
+  try {
+    await FileManager.saveJSON(promosPath, promos);
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ 
+      success: false, 
+      message: 'Errore nel salvataggio',
+      details: error.message
+    });
+  }
+});
+
+app.get('/IDs/:restaurantId/promo.json', async (req, res) => {
+  const { restaurantId } = req.params;
+  const promosPath = path.join(__dirname, 'IDs', restaurantId, 'promo.json');
+
+  try {
+    const promos = await FileManager.loadJSON(promosPath, []);
+    res.json(promos);
+  } catch (error) {
+    res.status(500).json({ error: 'Errore nel caricamento dei codici sconto' });
   }
 });
 
@@ -1460,11 +1930,4 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
   console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
-
 });
-
-
-
-
-
-

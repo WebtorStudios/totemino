@@ -3,21 +3,26 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Totemino - Scegli menu</title>
+    <title>Scegli Menu - Totemino</title>
     <link rel="icon" type="image/png" href="img/favicon.png">
     <script>
         // Controllo immediato per redirect veloce
         (async function() {
+            window.addEventListener('pageshow', function(event) {
+                if (event.persisted || performance.getEntriesByType('navigation')[0]?.type === 'back_forward') {
+                location.reload();
+                }
+            });
             const urlParams = new URLSearchParams(window.location.search);
             const id = urlParams.get('id');
             
             if (!id) {
-                window.location.href = 'index.html';
+                window.location.href = 'index-user.html';
                 return;
             }
             
             try {
-                const settingsResponse = await fetch(`IDs/${id}/settings.json`);
+                const settingsResponse = await fetch(`IDs/${id}/menuTypes.json`);
                 const settings = await settingsResponse.json();
                 
                 const menuResponse = await fetch(`IDs/${id}/menu.json`);
@@ -44,7 +49,7 @@
                 
             } catch (error) {
                 console.error('Errore nel caricamento:', error);
-                window.location.href = 'index.html';
+                window.location.href = 'index-user.html';
             }
             
             function checkMenuTypeHasItems(menuData, menuTypeId) {
@@ -69,7 +74,7 @@
 
         .menu-title {
             font-family: 'CalSans';
-            font-size: 2.5rem;
+            font-size: 2.4rem;
             color: var(--text-accent);
             margin-bottom: 1rem;
         }
@@ -77,46 +82,54 @@
         .menu-grid {
             display: flex;
             flex-direction: column;
-            gap: 1.5rem;
+            gap: 1rem;
             max-width: 500px;
             margin: 2rem auto;
             padding: 0 1rem;
         }
 
         .menu-card {
-            background: 
-                linear-gradient(
-                    to top,
-                    color-mix(in srgb, var(--card-color) 15%, transparent) 0%,
-                    transparent 40%
-                ),
-                var(--card-bg);
-            border: 4px solid var(--card-color);
-            border-radius: 1.5rem;
-            padding: 2rem 1rem;
-            padding-bottom: 4rem;
-            text-decoration: none;
-            color: var(--text-primary);
-            transition: all 0.3s ease;
-            box-shadow: 0 4px 12px var(--shadow-sm);
+            display: flex;
+            align-items: center;
+            background: var(--card-bg);
+            padding: 1.5rem;
+            border-radius: 1.4rem;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
             cursor: pointer;
-            text-align: left;
-            position: relative;
+            transition: all 0.2s ease;
+            text-decoration: none;
+            color: #fdf8db;
         }
 
-        .menu-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 8px 20px var(--shadow-sm);
+        .menu-card:active {
+            transform: scale(0.98);
+        }
+
+        .menu-card img.menu-icon {
+            width: 50px;
+            height: 50px;
+            border-radius: 0.5rem;
+            object-fit: cover;
+            margin-right: 1rem;
         }
 
         .menu-card h3 {
-            font-family: 'CalSans';
-            font-size: 1.8rem;
+            flex: 1;
+            font-size: 1rem;
             margin: 0;
-            color: var(--card-color);
-            padding: 0 1rem;
+            font-weight: 500;
+            color: var(--text-primary);
+            text-align: left;
         }
 
+        .menu-card img.arrow {
+            width: 24px;
+            height: 24px;
+            will-change: filter;
+        }
+        [data-theme="light"] .menu-card img.arrow {
+            filter: invert(1);
+        }
         /* Nascondi tutto fino a quando non sappiamo se mostrare la pagina */
         body {
             visibility: hidden;
@@ -134,8 +147,8 @@
 
     <div class="title">
         <div class="logo_space">
-            <img class="theme-img" data-light="img/logo_light.png" data-dark="img/logo_dark.png" alt="Logo">
-            <a href="index.html"><h1>Totemino</h1></a>
+            <img class="theme-img" data-light="img/logo/1_light.png" data-dark="img/logo/1_dark.png" alt="Logo" id="logoSwap">
+            <a href="index-user.html"><h1>Totemino</h1></a>
         </div>
         <div>
             <button id="theme" class="header-btn" type="button">
@@ -152,16 +165,19 @@
     </div>
     
     <script src="theme.js"></script>
+    <script src="logo-pop.js"></script>
     <script>
         const CONFIG = {
             storageKeys: {
                 userId: "totemino_user_id",
-                theme: "totemino_theme"
+                theme: "totemino_theme",
+                history: "totemino_history"
             }
         };
         function clearStorageKeepUser() {
             const theme = localStorage.getItem(CONFIG.storageKeys.theme);
             const userId = localStorage.getItem(CONFIG.storageKeys.userId);
+            const history = localStorage.getItem(CONFIG.storageKeys.history);
             const cookieConsent = localStorage.getItem('totemino_cookie_consent');
             const lastCoperto = localStorage.getItem('totemino_last_coperto');
             
@@ -169,12 +185,12 @@
             
             if (userId) localStorage.setItem(CONFIG.storageKeys.userId, userId);
             if (theme) localStorage.setItem(CONFIG.storageKeys.theme, theme);
+            if (history) localStorage.setItem(CONFIG.storageKeys.history, history);
             if (cookieConsent) localStorage.setItem('totemino_cookie_consent', cookieConsent);
             if (lastCoperto) localStorage.setItem('totemino_last_coperto', lastCoperto);
         }
 
         clearStorageKeepUser();
-        const colors = ['#FFE066', '#FF6F6F', '#FF9A4D', '#56D97C', '#42C7F5', '#6C8CFF', '#9C7DFF', '#FF77F6', '#FFB36B', '#F7E250'];
         
         async function loadMenuSelection() {
             while (!window.menuSelectionData) {
@@ -208,11 +224,16 @@
                 const menuType = availableMenus[i];
                 const menuCard = document.createElement('a');
                 menuCard.className = 'menu-card';
-                const cardColor = colors[i % colors.length];
-                menuCard.style.borderColor = cardColor;
-                menuCard.style.setProperty('--card-color', cardColor);
                 menuCard.href = `menu.html?id=${id}&type=${menuType.id}`;
-                menuCard.innerHTML = `<h3>${menuType.name}</h3>`;
+                
+                const iconNumber = (i % 10) + 1;
+                
+                menuCard.innerHTML = `
+                    <img class="menu-icon" src="img/menu_icons/icon${iconNumber}.png" alt="${menuType.name}">
+                    <h3>${menuType.name}</h3>
+                    <img class="arrow" src="img/arrow_select.png" alt="Vai">
+                `;
+                
                 menuGrid.appendChild(menuCard);
             }
         }

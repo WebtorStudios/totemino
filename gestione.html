@@ -11,11 +11,12 @@
       document.documentElement.setAttribute('data-theme', theme);
     })();
   </script>
-  <title>Totemino - Gestione Ordini</title>
+  <title>Gestione Ordini - Totemino</title>
   <link rel="icon" type="image/png" href="img/favicon.png">
   <link rel="stylesheet" href="gestione-styles.css" />
 </head>
 <body>
+
   <!-- Luci -->
   <div class="bg-light light1"></div>
   <div class="bg-light light2"></div>
@@ -24,29 +25,25 @@
   <!-- Header -->
   <div class="title">
     <div>
-      <img class="theme-img" data-light="img/logo_light.png" data-dark="img/logo_dark.png" alt="Logo">
+      <img class="theme-img" data-light="img/logo/1_light.png" data-dark="img/logo/1_dark.png" alt="Logo" id="logoSwap">
       <a href="index.html"><h1>Totemino</h1></a>
       <p>Gestione</p>
     </div>
+
     <div class="header-buttons-wrapper">
-      <!-- Hamburger button (mobile only) -->
       <button id="mobile-menu-toggle" class="header-btn mobile-only" type="button">
         <img class="theme-img" data-light="img/hamburger_light.png" data-dark="img/hamburger_dark.png" alt="Menu">
       </button>
-      
-      <!-- Desktop buttons -->
+
       <div class="desktop-buttons">
         <button id="fullscreen" class="header-btn" type="button">
           <img class="theme-img" data-light="img/fullscreen_light.png" data-dark="img/fullscreen_dark.png" alt="Schermo intero">
         </button>
-        <button id="stats" class="header-btn"  type="button">
-          <img class="theme-img" data-light="img/statistics_light.png" data-dark="img/statistics_dark.png" alt="Mostra statistiche">
-        </button>
-        <button id="gestione-menu-btn" class="header-btn" type="button">
-          <img class="theme-img" data-light="img/edit-menu_light.png" data-dark="img/edit-menu_dark.png" alt="Modifica menu">
-        </button>
         <button id="table-refresh-btn" class="header-btn" type="button">
           <img class="theme-img" data-light="img/refresh_light.png" data-dark="img/refresh_dark.png" alt="Aggiorna">
+        </button>
+        <button id="back-btn" class="header-btn" type="button">
+          <img class="theme-img" data-light="img/exit_light.png" data-dark="img/exit_dark.png" alt="Torna a Gestione">
         </button>
         <button id="theme" class="header-btn" type="button">
           <img class="theme-img" data-light="img/theme_light.png" data-dark="img/theme_dark.png" alt="Cambia tema">
@@ -55,20 +52,13 @@
     </div>
   </div>
 
+
   <!-- Mobile Sidebar Menu -->
   <div id="mobile-sidebar" class="mobile-sidebar">
     <div class="mobile-sidebar-content">
       <button class="sidebar-btn" data-action="fullscreen">
         <img class="theme-img" data-light="img/fullscreen_light.png" data-dark="img/fullscreen_dark.png" alt="Schermo intero">
         <span>Schermo intero</span>
-      </button>
-      <button class="sidebar-btn" data-action="stats">
-        <img class="theme-img" data-light="img/statistics_light.png" data-dark="img/statistics_dark.png" alt="Statistiche">
-        <span>Statistiche</span>
-      </button>
-      <button class="sidebar-btn" data-action="gestione-menu">
-        <img class="theme-img" data-light="img/edit-menu_light.png" data-dark="img/edit-menu_dark.png" alt="Modifica menu">
-        <span>Modifica menu</span>
       </button>
       <button class="sidebar-btn" data-action="refresh">
         <img class="theme-img" data-light="img/refresh_light.png" data-dark="img/refresh_dark.png" alt="Aggiorna">
@@ -81,46 +71,49 @@
     </div>
   </div>
 
-  <!-- Overlay per chiudere il menu -->
   <div id="mobile-sidebar-overlay" class="mobile-sidebar-overlay"></div>
+
 
   <!-- Step Navbar -->
   <div class="categories" id="table-nav">
     <div class="pill"></div>
-    <button class="active" id="table-orders-tab">Ordini Tavolo</button>
-    <button id="table-pickup-tab">Ritiro al Banco</button>
+
+    <!-- Ogni tab è generato dinamicamente dallo script: table, takeaway, delivery -->
+    <!-- Lo script riempirà automaticamente -->
   </div>
+
 
   <!-- Contenuto -->
   <main>
-    <!-- Sezione: Ordini Tavolo Attivi -->
-    <section class="orders-section active">
-      <!-- qui il JS inserisce le card -->
-    </section>
 
-    <!-- Sezione: Ordini Tavolo Completati -->
-    <section class="orders-section completed hidden">
-      <!-- qui il JS inserisce le card completate -->
-    </section>
+    <!-- ========================= -->
+    <!--        ORDINI TAVOLO      -->
+    <!-- ========================= -->
+    <section class="table-section active"></section>
+    <section class="table-section completed hidden"></section>
 
-    <!-- Sezione: Ritiro al Banco Attivi -->
-    <section class="pickup-section hidden">
-      <!-- qui il JS inserisce le card -->
-    </section>
-    
-    <!-- Sezione: Ritiro al Banco Completati -->
-    <section class="pickup-section completed hidden">
-      <!-- qui il JS inserisce le card completate -->
-    </section>
+    <!-- ========================= -->
+    <!--      RITIRO AL BANCO      -->
+    <!-- ========================= -->
+    <section class="takeaway-section hidden"></section>
+    <section class="takeaway-section completed hidden"></section>
+
+    <!-- ========================= -->
+    <!--      CONSEGNE A DOMICILIO -->
+    <!-- ========================= -->
+    <section class="delivery-section hidden"></section>
+    <section class="delivery-section completed hidden"></section>
+
   </main>
-  
+
+
   <!-- Popup Dettaglio Ordine -->
   <div class="gpopup hidden">
     <div class="gpopup-content">
       <button class="close-popup gpopup-close-btn">
         <img src="img/x.png" alt="Chiudi popup" />
       </button>
-  
+
       <div class="gpopup-header">
         <h2 class="gpopup-title">Ordine</h2>
         <div class="gpopup-info">
@@ -128,9 +121,9 @@
           <span class="gpopup-total"></span>
         </div>
       </div>
-  
-      <div class="gpopup-items"><!-- Lista ordine del JSON --></div>
-  
+
+      <div class="gpopup-items"></div>
+
       <div class="gpopup-actions">
         <div class="gpopup-actions-row">
           <button class="status-btn toggle-status">
@@ -142,7 +135,8 @@
           </button>
         </div>
       </div>
-      <!-- Delete Popup Overlay -->
+
+      <!-- Delete Popup -->
       <div class="delete-popup-overlay">
         <div class="delete-popup">
           <div class="delete-popup-header">
@@ -155,14 +149,17 @@
           </div>
         </div>
       </div>
-      
-    </div>
-  </div>  
 
+    </div>
+  </div>
+
+
+  <!-- Script -->
   <script src="auth-protection.js"></script>
   <script src="theme.js"></script>
+  <script src="logo-pop.js"></script>
   <script src="gestione-script.js"></script>
   <script src="mobile-menu.js"></script>
-  
+
 </body>
 </html>

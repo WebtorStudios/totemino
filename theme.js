@@ -3,7 +3,8 @@ class ThemeManager {
   constructor() {
     this.themeButton = document.getElementById('theme');
     this.html = document.documentElement;
-    this.logo = document.querySelector('.theme-img');
+    // FIX: Escludi #logoSwap dalla gestione automatica
+    this.logo = document.querySelector('.theme-img:not(#logoSwap)');
     this.faqSection = document.querySelector('.faq-section');
     this.oldTheme = null;
     this.init();
@@ -21,10 +22,15 @@ class ThemeManager {
   setTheme(theme) {
     this.html.setAttribute('data-theme', theme);
     localStorage.setItem('totemino_theme', theme);
-    document.querySelectorAll('.theme-img').forEach(img => {
+    
+    // FIX: Escludi #logoSwap dall'aggiornamento automatico
+    document.querySelectorAll('.theme-img:not(#logoSwap)').forEach(img => {
       const src = img.getAttribute(`data-${theme}`);
       if (src) img.src = src;
     });
+    
+    // FIX: Lancia l'evento per logo-pop.js
+    dispatchThemeChange(theme);
   }
   
   toggleTheme() {
@@ -71,7 +77,8 @@ if (document.readyState === 'loading') {
 // ===== GESTIONE IMMAGINI =====
 function updateThemeImages() {
   const theme = localStorage.getItem("totemino_theme") || "light";
-  document.querySelectorAll(".theme-img").forEach(img => {
+  // FIX: Escludi #logoSwap
+  document.querySelectorAll(".theme-img:not(#logoSwap)").forEach(img => {
     const light = img.getAttribute("data-light");
     const dark  = img.getAttribute("data-dark");
     if (light && dark) img.src = theme === "dark" ? dark : light;
@@ -89,15 +96,3 @@ function dispatchThemeChange(theme) {
   const event = new CustomEvent('themeChanged', { detail: { theme } });
   document.dispatchEvent(event);
 }
-
-
-
-
-
-
-
-
-
-
-
-

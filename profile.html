@@ -11,7 +11,7 @@
         document.documentElement.setAttribute('data-theme', theme);
       })();
     </script>
-    <title>Totemino - Profilo</title>
+    <title>Profilo - Totemino</title>
     <link rel="icon" type="image/png" href="img/favicon.png">
     <link rel="stylesheet" href="profile-styles.css"/>
 </head>
@@ -24,7 +24,7 @@
     <!-- Header originale - NON MODIFICATO -->
     <div class="title">
         <div class="logo_space">
-            <img class="theme-img" data-light="img/logo_light.png" data-dark="img/logo_dark.png" alt="Logo">
+            <img class="theme-img" data-light="img/logo/1_light.png" data-dark="img/logo/1_dark.png" alt="Logo" id="logoSwap">
             <a href="index.html"><h1>Totemino</h1></a>
             <p>Profilo</p>
         </div>
@@ -67,6 +67,30 @@
                 </div>
                 <span class="menu-arrow">›</span>
             </a>
+
+            <a href="#" class="menu-item" id="statsCard">
+                <div class="menu-left">
+                    <div class="menu-icon">
+                        <img class="theme-img" data-light="img/profile/stats_light.png" data-dark="img/profile/stats_dark.png" alt="Statistics">
+                    </div>
+                    <span>Statistiche</span>
+                </div>
+                <span class="menu-arrow">›</span>
+            </a>
+        </nav>
+
+        <!-- Menu Configurazione -->
+        <h2 class="section-title">Configurazione</h2>
+        <nav class="menu-card">
+            <a href="#" class="menu-item" id="informazioniCard">
+                <div class="menu-left">
+                    <div class="menu-icon">
+                        <img class="theme-img" data-light="img/profile/info_light.png" data-dark="img/profile/info_dark.png" alt="Impostazioni">
+                    </div>
+                    <span>Informazioni sul ristorante</span>
+                </div>
+                <span class="menu-arrow">›</span>
+            </a>
             
             <a href="#" class="menu-item" id="menuCard">
                 <div class="menu-left">
@@ -88,12 +112,12 @@
                 <span class="menu-arrow">›</span>
             </a>
 
-            <a href="#" class="menu-item" id="statsCard">
+            <a href="#" class="menu-item" id="promoCard">
                 <div class="menu-left">
                     <div class="menu-icon">
-                        <img class="theme-img" data-light="img/profile/stats_light.png" data-dark="img/profile/stats_dark.png" alt="Statistics">
+                        <img class="theme-img" data-light="img/profile/promo_light.png" data-dark="img/profile/promo_dark.png" alt="Promozioni">
                     </div>
-                    <span>Statistiche</span>
+                    <span>Promozioni e codici sconto</span>
                 </div>
                 <span class="menu-arrow">›</span>
             </a>
@@ -162,6 +186,7 @@
     
     <script src="auth-protection.js"></script>
     <script src="theme.js"></script>
+    <script src="logo-pop.js"></script>
     <script src="profile-script.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 </body>
