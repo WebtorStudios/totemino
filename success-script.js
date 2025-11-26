@@ -15,6 +15,10 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('back-btn').onclick = () => {
         window.location.href = 'index-user.html';
     };
+
+    document.getElementById('get-app').onclick = () => {
+        installApp();
+    };
 });
 
 // Cattura evento installazione
@@ -37,3 +41,4 @@ function installApp() {
 window.addEventListener('appinstalled', () => {
     deferredPrompt = null;
 });
+
