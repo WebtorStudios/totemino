@@ -4,8 +4,8 @@
   "description": "Ordina ciò che desideri, senza alcuna parola. Sistema digitale per ordinazioni al ristorante.",
   "start_url": "/index-user.html",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#601f40",
+  "background_color": "#1a1f2e",
+  "theme_color": "#1a1f2e",
   "orientation": "portrait",
   "icons": [
     {
@@ -22,3 +22,4 @@
     }
   ]
 }
+
