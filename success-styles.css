@@ -7,6 +7,10 @@
   height: 2.4rem;
 }
 
+.close-popup img {
+  width: 60%
+}
+
 .success-landing {
   display: flex;
   flex-direction: column;
@@ -86,4 +90,5 @@
     max-width: 240px;
     height: auto;
   }
+
 }
