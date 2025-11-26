@@ -13,7 +13,16 @@ self.addEventListener('activate', (event) => {
 // FETCH - Passa tutte le richieste alla rete
 // ============================================
 self.addEventListener('fetch', (event) => {
-  event.respondWith(fetch(event.request));
+  event.respondWith(
+    caches.open('totemino-v1').then(cache => {
+      return cache.match(event.request).then(response => {
+        return response || fetch(event.request).then(fetchResponse => {
+          cache.put(event.request, fetchResponse.clone());
+          return fetchResponse;
+        });
+      });
+    })
+  );
 });
 
 // ============================================
