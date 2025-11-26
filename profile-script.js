@@ -139,11 +139,6 @@ function initQRCode() {
     });
 }
 
-// Back button
-document.getElementById('back-btn').addEventListener('click', () => {
-    window.location.href = 'index.html';
-});
-
 // Manage billing button
 document.getElementById('manageBillingBtn').addEventListener('click', () => {
     window.location.href = 'accesso-negato.html';
@@ -212,3 +207,4 @@ window.addEventListener('load', () => {
         initQRCode();
     }
 });
+
