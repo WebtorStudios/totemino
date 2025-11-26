@@ -8,9 +8,16 @@ const path = require('path');
 const bcrypt = require('bcrypt');
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const cron = require('node-cron');
+const webpush = require('web-push');
 
 const app = express();
 app.set('trust proxy', 1);
+
+webpush.setVapidDetails(
+  process.env.VAPID_SUBJECT,
+  process.env.VAPID_PUBLIC_KEY,
+  process.env.VAPID_PRIVATE_KEY
+);
 
 // ==================== LIVE RELOAD (SOLO SVILUPPO) ====================
 if (process.env.NODE_ENV !== 'production') {
@@ -582,6 +589,157 @@ const PreferencesManager = {
   }
 };
 
+// ==================== PUSH NOTIFICATION MANAGER ====================
+const PushNotificationManager = {
+  PATHS: {
+    subscriptions: path.join(__dirname, 'userdata', 'push-subscriptions.json')
+  },
+
+  async loadSubscriptions() {
+    try {
+      FileManager.ensureDir(path.dirname(this.PATHS.subscriptions));
+      if (!fsSync.existsSync(this.PATHS.subscriptions)) {
+        await fs.writeFile(this.PATHS.subscriptions, '{}');
+        return {};
+      }
+      
+      const data = await fs.readFile(this.PATHS.subscriptions, 'utf8');
+      return JSON.parse(data);
+    } catch (error) {
+      console.error('❌ Errore caricamento subscriptions:', error);
+      return {};
+    }
+  },
+
+  async saveSubscriptions(subscriptions) {
+    try {
+      FileManager.ensureDir(path.dirname(this.PATHS.subscriptions));
+      await fs.writeFile(this.PATHS.subscriptions, JSON.stringify(subscriptions, null, 2));
+      return true;
+    } catch (error) {
+      console.error('❌ Errore salvataggio subscriptions:', error);
+      return false;
+    }
+  },
+
+  async addSubscription(restaurantId, subscription) {
+    try {
+      const subscriptions = await this.loadSubscriptions();
+      
+      if (!subscriptions[restaurantId]) {
+        subscriptions[restaurantId] = [];
+      }
+      
+      const exists = subscriptions[restaurantId].some(
+        sub => sub.endpoint === subscription.endpoint
+      );
+      
+      if (!exists) {
+        subscriptions[restaurantId].push(subscription);
+        await this.saveSubscriptions(subscriptions);
+        console.log(`✅ Subscription aggiunta per ${restaurantId}`);
+      }
+      
+      return true;
+    } catch (error) {
+      console.error('❌ Errore aggiunta subscription:', error);
+      return false;
+    }
+  },
+
+  async removeSubscription(endpoint) {
+    try {
+      const subscriptions = await this.loadSubscriptions();
+      let removed = false;
+      
+      for (const restaurantId in subscriptions) {
+        const initialLength = subscriptions[restaurantId].length;
+        subscriptions[restaurantId] = subscriptions[restaurantId].filter(
+          sub => sub.endpoint !== endpoint
+        );
+        
+        if (subscriptions[restaurantId].length < initialLength) {
+          removed = true;
+        }
+      }
+      
+      if (removed) {
+        await this.saveSubscriptions(subscriptions);
+        console.log('✅ Subscription rimossa');
+      }
+      
+      return removed;
+    } catch (error) {
+      console.error('❌ Errore rimozione subscription:', error);
+      return false;
+    }
+  },
+
+  async sendNotification(restaurantId, orderData) {
+    try {
+      const subscriptions = await this.loadSubscriptions();
+      const restaurantSubs = subscriptions[restaurantId] || [];
+      
+      if (restaurantSubs.length === 0) {
+        console.log('ℹ️ Nessuna subscription attiva');
+        return;
+      }
+
+      const isDelivery = orderData.delivery && orderData.delivery.length > 0;
+      const isTakeaway = orderData.takeaway && orderData.takeaway.length > 0;
+      
+      if (!isDelivery && !isTakeaway) {
+        return;
+      }
+
+      let title, body, orderTotal, orderTime;
+
+      if (isDelivery) {
+        const delivery = orderData.delivery[0];
+        orderTotal = orderData.total + (delivery.shipping || 0) + (delivery.discount || 0);
+        orderTime = delivery.time || 'N/A';
+        
+        title = 'Totemino - Nuova Consegna';
+        body = `Hai un nuovo ordine di €${orderTotal.toFixed(2)} per le ${orderTime}`;
+      } else {
+        const takeaway = orderData.takeaway[0];
+        orderTotal = orderData.total;
+        orderTime = takeaway.time || 'N/A';
+        
+        title = 'Totemino - Nuovo Takeaway';
+        body = `Hai un nuovo ordine di €${orderTotal.toFixed(2)} per le ${orderTime}`;
+      }
+
+      const payload = JSON.stringify({
+        title,
+        body,
+        icon: '/img/favicon.png',
+        badge: '/img/favicon.png',
+        tag: `order-${Date.now()}`,
+        url: `/gestione.html?id=${restaurantId}`
+      });
+
+      const promises = restaurantSubs.map(async (subscription) => {
+        try {
+          await webpush.sendNotification(subscription, payload);
+          console.log('✅ Notifica inviata');
+        } catch (error) {
+          console.error('❌ Errore invio notifica:', error);
+          
+          if (error.statusCode === 410 || error.statusCode === 404) {
+            await this.removeSubscription(subscription.endpoint);
+          }
+        }
+      });
+
+      await Promise.all(promises);
+      
+    } catch (error) {
+      console.error('❌ Errore sendNotification:', error);
+    }
+  }
+};
+
 // ==================== TRIAL MANAGER ====================
 const TrialManager = {
   async checkAndExpireTrials() {
@@ -1027,6 +1185,79 @@ app.get('/api/here-config', (req, res) => {
   });
 });
 
+// ==================== PUSH NOTIFICATION ROUTES ====================
+app.get('/api/push/vapid-public-key', (req, res) => {
+  res.json({ 
+    success: true,
+    publicKey: process.env.VAPID_PUBLIC_KEY 
+  });
+});
+
+app.post('/api/push/subscribe', requireAuth, async (req, res) => {
+  try {
+    const { subscription } = req.body;
+    const restaurantId = req.session.user.restaurantId;
+    
+    if (!subscription || !subscription.endpoint) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Subscription non valida' 
+      });
+    }
+    
+    const success = await PushNotificationManager.addSubscription(
+      restaurantId, 
+      subscription
+    );
+    
+    if (success) {
+      res.json({ 
+        success: true, 
+        message: 'Subscription salvata con successo' 
+      });
+    } else {
+      res.status(500).json({ 
+        success: false, 
+        message: 'Errore nel salvataggio della subscription' 
+      });
+    }
+    
+  } catch (error) {
+    console.error('❌ Errore /api/push/subscribe:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: error.message 
+    });
+  }
+});
+
+app.post('/api/push/unsubscribe', requireAuth, async (req, res) => {
+  try {
+    const { endpoint } = req.body;
+    
+    if (!endpoint) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Endpoint mancante' 
+      });
+    }
+    
+    const success = await PushNotificationManager.removeSubscription(endpoint);
+    
+    res.json({ 
+      success: true, 
+      message: success ? 'Subscription rimossa' : 'Subscription non trovata' 
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore /api/push/unsubscribe:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: error.message 
+    });
+  }
+});
+
 // ==================== RESTAURANT STATUS ====================
 app.get('/api/restaurant-status/:restaurantId', async (req, res) => {
   const { restaurantId } = req.params;
@@ -1390,8 +1621,6 @@ app.post('/IDs/:restaurantId/orders/:section', async (req, res) => {
     if (orderData.userId) {
       await PreferencesManager.updatePreferences(orderData.userId, processedItems);
     }
-    
-    // ✅ INVIA NOTIFICA PUSH
     await PushNotificationManager.sendNotification(restaurantId, completeOrderData);
     
     res.json({ 
@@ -1723,3 +1952,4 @@ app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
   console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
 });
+
