@@ -3,7 +3,7 @@
   "short_name": "Totemino",
   "description": "Ordina ciò che desideri, senza alcuna parola. Sistema digitale per ordinazioni al ristorante.",
   "start_url": "/index-user.html",
-  "display": "fullscreen",
+  "display": "standalone",
   "background_color": "#1a1f2e",
   "theme_color": "#1a1f2e",
   "orientation": "portrait",
@@ -22,5 +22,6 @@
     }
   ]
 }
+
 
 
