@@ -6,9 +6,9 @@
 	<script>
 	  (function() {
 		const saved = localStorage.getItem('totemino_theme');
-	  	const theme = saved || 
-		    (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
-	    document.documentElement.setAttribute('data-theme', theme);
+		const theme = saved || 
+		  (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+		document.documentElement.setAttribute('data-theme', theme);
 	  })();
 	</script>
 	<title>Successo - Totemino</title>
@@ -19,21 +19,17 @@
 	<div class="bg-light light1"></div>
 	<div class="bg-light light2"></div>
 	<div class="bg-light light3"></div>
-	  
-	<div class="success-landing">
-		<button class="close-popup" id="back-btn">
-			<img src="img/back.png" />
-		</button>
-		<img class="theme-img" data-light="img/success_light.png" data-dark="img/success_dark.png" alt="Successo">
-		<h1>FATTO!</h1>
-		<p>Il tuo ordine è stato ricevuto e presto sarà pronto per te, buon appetito!</p>
-		<!-- <button class="start-btn" id="shop-again">Ordina ancora</button> -->
-	</div>
-	  
+		<div class="success-landing">
+			<button class="close-popup" id="back-btn">
+				<img src="img/back.png" />
+			</button>
+			<img class="theme-img" data-light="img/success_light.png" data-dark="img/success_dark.png" alt="Successo">
+			<h1>FATTO!</h1>
+			<p>Il tuo ordine è stato ricevuto e presto sarà pronto per te, buon appetito!</p>
+			<!-- <button class="start-btn" id="shop-again">Ordina ancora</button> -->
+		</div>
 	<script src="theme.js"></script>
     <script src="logo-pop.js"></script>
 	<script src="success-script.js"></script>
   </body>
 </html>
-
-
