@@ -1,12 +1,8 @@
-// sw.js - Service Worker con Cache, Network First, Push, Messaggi + Supporto PWA
-// (Versione tua COMPLETA, con minima aggiunta finale)
-
-// -------------------------
-// CACHE CONFIG
-// -------------------------
+// sw.js - Service Worker per Push Notifications e Cache
 const CACHE_VERSION = 'v1';
 const CACHE_NAME = `totemino-${CACHE_VERSION}`;
 
+// File da cachare per l'offline
 const STATIC_ASSETS = [
   '/',
   '/gestione.html',
@@ -15,9 +11,9 @@ const STATIC_ASSETS = [
   '/img/favicon.png'
 ];
 
-// -------------------------
-// INSTALL
-// -------------------------
+// ============================================
+// INSTALL - Cache delle risorse statiche
+// ============================================
 self.addEventListener('install', (event) => {
   console.log('✅ Service Worker installato');
   
@@ -33,9 +29,9 @@ self.addEventListener('install', (event) => {
   self.skipWaiting();
 });
 
-// -------------------------
-// ACTIVATE
-// -------------------------
+// ============================================
+// ACTIVATE - Pulizia vecchie cache
+// ============================================
 self.addEventListener('activate', (event) => {
   console.log('✅ Service Worker attivato');
   
@@ -55,23 +51,36 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// -------------------------
-// FETCH - Network First
-// -------------------------
+// ============================================
+// FETCH - Strategia Network First
+// ============================================
 self.addEventListener('fetch', (event) => {
+  // Solo per richieste GET
   if (event.request.method !== 'GET') return;
-
+  
+  // Strategia: Network First, fallback su Cache
   event.respondWith(
     fetch(event.request)
       .then(response => {
-        const clone = response.clone();
-        caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
+        // Clona la risposta per metterla in cache
+        const responseClone = response.clone();
+        
+        caches.open(CACHE_NAME)
+          .then(cache => {
+            cache.put(event.request, responseClone);
+          });
+        
         return response;
       })
       .catch(() => {
+        // Se la rete fallisce, usa la cache
         return caches.match(event.request)
-          .then(cached => {
-            if (cached) return cached;
+          .then(cachedResponse => {
+            if (cachedResponse) {
+              return cachedResponse;
+            }
+            
+            // Fallback per navigazione
             if (event.request.mode === 'navigate') {
               return caches.match('/gestione.html');
             }
@@ -80,14 +89,14 @@ self.addEventListener('fetch', (event) => {
   );
 });
 
-// -------------------------
-// PUSH
-// -------------------------
+// ============================================
+// PUSH - Gestione Notifiche Push
+// ============================================
 self.addEventListener('push', (event) => {
   console.log('🔔 Notifica push ricevuta');
-
+  
   let data = {};
-
+  
   if (event.data) {
     try {
       data = event.data.json();
@@ -99,7 +108,8 @@ self.addEventListener('push', (event) => {
       };
     }
   }
-
+  
+  // Usa la struttura del server (senza icon, che viene gestita da badge)
   const title = data.title || 'Totemino - Nuovo Ordine';
   const options = {
     body: data.body || 'Hai ricevuto un nuovo ordine',
@@ -116,54 +126,73 @@ self.addEventListener('push', (event) => {
       { action: 'close', title: 'Chiudi' }
     ]
   };
-
+  
   event.waitUntil(
     self.registration.showNotification(title, options)
-      .then(() => self.clients.matchAll({ type: 'window', includeUncontrolled: true }))
+      .then(() => {
+        // Invia messaggio a tutti i client aperti per ricaricare gli ordini
+        return self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+      })
       .then(clients => {
-        clients.forEach(client => client.postMessage({
-          type: 'NEW_ORDER',
-          timestamp: Date.now()
-        }));
+        clients.forEach(client => {
+          client.postMessage({
+            type: 'NEW_ORDER',
+            timestamp: Date.now()
+          });
+        });
       })
   );
 });
 
-// -------------------------
-// NOTIFICATION CLICK
-// -------------------------
+// ============================================
+// NOTIFICATION CLICK - Apertura App
+// ============================================
 self.addEventListener('notificationclick', (event) => {
   console.log('🖱️ Click su notifica');
   
   event.notification.close();
+  
   const urlToOpen = event.notification.data?.url || '/gestione.html';
   
   event.waitUntil(
-    clients.matchAll({ type: 'window', includeUncontrolled: true })
-      .then((clientList) => {
-        for (let client of clientList) {
-          if (client.url.includes('gestione.html') && 'focus' in client) {
-            client.postMessage({ type: 'RELOAD_ORDERS', source: 'notification' });
-            return client.focus();
-          }
+    clients.matchAll({ 
+      type: 'window', 
+      includeUncontrolled: true 
+    })
+    .then((clientList) => {
+      // Cerca finestre già aperte su gestione.html
+      for (let client of clientList) {
+        if (client.url.includes('gestione.html') && 'focus' in client) {
+          // Invia messaggio per ricaricare ordini
+          client.postMessage({
+            type: 'RELOAD_ORDERS',
+            source: 'notification'
+          });
+          return client.focus();
         }
+      }
+      
+      // Se nessuna finestra aperta, aprine una nuova
+      if (clients.openWindow) {
         return clients.openWindow(urlToOpen);
-      })
+      }
+    })
   );
 });
 
-// -------------------------
+// ============================================
 // NOTIFICATION CLOSE
-// -------------------------
+// ============================================
 self.addEventListener('notificationclose', (event) => {
   console.log('🔕 Notifica chiusa');
+  // Eventuale tracking analytics
 });
 
-// -------------------------
-// MESSAGGI DAL CLIENT
-// -------------------------
+// ============================================
+// MESSAGE - Comunicazione con il client
+// ============================================
 self.addEventListener('message', (event) => {
-  console.log('📨 Messaggio dal client:', event.data);
+  console.log('📨 Messaggio ricevuto dal client:', event.data);
   
   if (event.data.type === 'SKIP_WAITING') {
     self.skipWaiting();
@@ -173,14 +202,9 @@ self.addEventListener('message', (event) => {
     event.waitUntil(
       caches.keys()
         .then(names => Promise.all(names.map(name => caches.delete(name))))
-        .then(() => event.ports[0].postMessage({ success: true }))
+        .then(() => {
+          event.ports[0].postMessage({ success: true });
+        })
     );
   }
-});
-
-// -------------------------
-// EVENTO PWA INSTALLATA (add-on innocuo)
-// -------------------------
-self.addEventListener("appinstalled", () => {
-  console.log("📲 Totemino installato come PWA!");
 });
