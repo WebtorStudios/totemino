@@ -41,14 +41,11 @@
           case 'fullscreen':
             document.getElementById('fullscreen')?.click();
             break;
-          case 'stats':
-            document.getElementById('stats')?.click();
-            break;
-          case 'gestione-menu':
-            document.getElementById('gestione-menu-btn')?.click();
-            break;
           case 'refresh':
             document.getElementById('table-refresh-btn')?.click();
+            break;
+          case 'profile':
+            document.getElementById('exit-btn')?.click();
             break;
           case 'theme':
             document.getElementById('theme')?.click();
@@ -57,4 +54,5 @@
       }, 300); // Piccolo delay per permettere l'animazione di chiusura
     });
   });
+
 })();
