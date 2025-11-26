@@ -59,7 +59,7 @@
   cursor: pointer;
 }
 
-.success-landing .start-btn {
+.success-landing .start-btn:active {
   transform: scale(0.98);
 }
 
@@ -95,6 +95,7 @@
     height: auto;
   }
 }
+
 
 
 
