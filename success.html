@@ -3,6 +3,8 @@
   <head>
 	<meta charset="UTF-8" />
 	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+	
+	<!-- Carica il tema PRIMA di tutto -->
 	<script>
 	  (function() {
 		const saved = localStorage.getItem('totemino_theme');
@@ -11,8 +13,17 @@
 		document.documentElement.setAttribute('data-theme', theme);
 	  })();
 	</script>
+	
 	<title>Successo - Totemino</title>
     <link rel="icon" type="image/png" href="img/favicon.png">
+    
+    <!-- MANIFEST per PWA -->
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#601f40">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Totemino">
+    
 	<link rel="stylesheet" href="success-styles.css" />
   </head>
   <body>
@@ -22,17 +33,34 @@
 
 	<div class="success-landing">
 		<button class="close-popup" id="back-btn">
-			<img src="img/back.png" />
+			<img src="img/back.png" alt="Indietro" />
 		</button>
-				<img class="theme-img" data-light="img/success_light.png" data-dark="img/success_dark.png" alt="Successo">
+		
+		<img class="theme-img" data-light="img/success_light.png" data-dark="img/success_dark.png" alt="Successo">
+		
 		<div class="billions">
 			<h1>FATTO!</h1>
 			<p>Il tuo ordine è stato ricevuto e presto sarà pronto per te, buon appetito!</p>
 		</div>
-				
+		
 		<button class="start-btn" id="shop-again">Ordina ancora</button>
-		<button class="start-btn" id="get-app" onclick="installApp()">Scarica l'app</button>
+		<button class="start-btn" id="get-app" style="display: none;">Scarica l'app</button>
 	</div>
+
+	<!-- REGISTRAZIONE SERVICE WORKER -->
+	<script>
+		if ('serviceWorker' in navigator) {
+			window.addEventListener('load', () => {
+				navigator.serviceWorker.register('/sw.js')
+					.then(registration => {
+						console.log('✅ Service Worker registrato:', registration.scope);
+					})
+					.catch(error => {
+						console.error('❌ Errore registrazione Service Worker:', error);
+					});
+			});
+		}
+	</script>
 
 	<script src="theme.js"></script>
 	<script src="success-script.js"></script>
