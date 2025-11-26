@@ -699,22 +699,21 @@ const PushNotificationManager = {
         orderTotal = orderData.total + (delivery.shipping || 0) + (delivery.discount || 0);
         orderTime = delivery.time || 'N/A';
         
-        title = 'Totemino - Nuova Consegna';
+        title = 'Nuova Consegna';
         body = `Hai un nuovo ordine di €${orderTotal.toFixed(2)} per le ${orderTime}`;
       } else {
         const takeaway = orderData.takeaway[0];
         orderTotal = orderData.total;
         orderTime = takeaway.time || 'N/A';
         
-        title = 'Totemino - Nuovo Takeaway';
+        title = 'Nuovo Takeaway';
         body = `Hai un nuovo ordine di €${orderTotal.toFixed(2)} per le ${orderTime}`;
       }
 
       const payload = JSON.stringify({
         title,
         body,
-        icon: '/img/favicon.png',
-        badge: '/img/favicon.png',
+        badge: '/img/badge.png',
         tag: `order-${Date.now()}`,
         url: `/gestione.html?id=${restaurantId}`
       });
@@ -1952,4 +1951,5 @@ app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
   console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
 });
+
 
