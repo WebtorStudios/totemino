@@ -398,6 +398,7 @@ function renderOrders() {
 function createGroupCard(id, orders, color, hasMultiple) {
   const order = orders[0];
   const total = orders.reduce((sum, o) => sum + o.total, 0);
+  const count = hasMultiple ? `<sup>(${orders.length})</sup>` : '';
   const isNew = !state.viewingCompleted && orders.some(o => isNewOrder(o.timestamp));
   const newBadge = isNew ? '<div class="new-indicator"></div>' : '';
   const completed = state.viewingCompleted ? 'completed' : '';
@@ -410,7 +411,7 @@ function createGroupCard(id, orders, color, hasMultiple) {
     <div class="order-card ${hasMultiple ? 'group' : ''} ${completed}" 
          style="--card-color: ${color}" ${events}>
       ${newBadge}
-      <div class="card-number">${id}</div>
+      <div class="card-number">${id}${count}</div>
       <div class="card-info">
         <div class="card-date">${formatDateTime(order.timestamp)}</div>
         <div class="card-price">€${total.toFixed(2)}</div>
@@ -420,6 +421,7 @@ function createGroupCard(id, orders, color, hasMultiple) {
 
 function createOrderCard(order, color, orderNum = null) {
   const id = getOrderIdentifier(order);
+  const count = orderNum ? `<sup>(${orderNum})</sup>` : '';
   const isNew = !state.viewingCompleted && isNewOrder(order.timestamp);
   const newBadge = isNew ? '<div class="new-indicator"></div>' : '';
   const completed = state.viewingCompleted ? 'completed' : '';
@@ -428,7 +430,7 @@ function createOrderCard(order, color, orderNum = null) {
     <div class="order-card ${completed}" 
          style="--card-color: ${color}" onclick="showOrderDetails('${order.id}')">
       ${newBadge}
-      <div class="card-number">${id}</div>
+      <div class="card-number">${id}${count}</div>
       <div class="card-info">
         <div class="card-date">${formatDateTime(order.timestamp)}</div>
         <div class="card-price">€${order.total.toFixed(2)}</div>
@@ -749,25 +751,24 @@ function getOrderIdentifier(order) {
 
 function groupOrders(orders) {
   const grouped = {};
-  
+
   orders.forEach(order => {
     const key = getOrderIdentifier(order);
-    
-    // Raggruppa SOLO per ordini tavolo
+
     if (state.currentSection === 'table') {
+      // Tavoli raggruppano
       if (!grouped[key]) grouped[key] = [];
       grouped[key].push(order);
     } else {
-      // Per takeaway e delivery, ogni ordine è separato
-      const uniqueKey = `${key}_${order.id}`;
-      grouped[uniqueKey] = [order];
+      // Takeaway e delivery → ogni ordine una card
+      grouped[key] = [order];
     }
   });
-  
-  Object.values(grouped).forEach(group => 
+
+  Object.values(grouped).forEach(group =>
     group.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
   );
-  
+
   return grouped;
 }
 
@@ -833,3 +834,4 @@ window.addEventListener('beforeunload', () => {
     clearInterval(state.autoRefreshInterval);
   }
 });
+
