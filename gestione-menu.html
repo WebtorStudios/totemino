@@ -226,15 +226,36 @@
       <h2 class="popup-title">Modifica Tipo Menu</h2>
       
       <input type="hidden" id="editing-menu-type-id">
-      
-      <div class="form-field" style="margin-bottom: 1.5rem;">
-        <label for="menu-type-name-edit">Nome visualizzato:</label>
-        <input type="text" id="menu-type-name-edit" placeholder="Es. Menu Bar">
-      </div>
+            
+      <div class="menu-icon-selector">
+        <div class="menu-icon-preview-container">
+          <div class="form-field">
+            <label for="menu-icon-preview">Icona:</label>
+            <div class="image-preview-icon">
+              <img id="menu-icon-preview" src="img/menu_icons/1.png" alt="Icona menu">
+            </div>
+          </div>
+          <div class="menu-icon-controls">
+            <button class="reorder-btn" type="button" onclick="changeMenuIcon('prev')" title="Icona precedente">
+              <img src="img/arrow-up.png" alt="Su">
+            </button>
+            <button class="reorder-btn" type="button" onclick="changeMenuIcon('next')" title="Icona successiva">
+              <img src="img/arrow-down.png" alt="Giù">
+            </button>
+          </div>
+        </div>
+        
+        <div class="menu-icon-form-section">
+          <div class="form-field">
+            <label for="menu-type-name-edit">Nome visualizzato:</label>
+            <input type="text" id="menu-type-name-edit" placeholder="Es. Menu Bar">
+          </div>
 
-      <div class="form-field" style="margin-bottom: 1.5rem;">
-        <label for="menu-type-coperto-edit">Prezzo Coperto (€):</label>
-        <input type="number" id="menu-type-coperto-edit" step="0.01" min="0" placeholder="0.00">
+          <div class="form-field">
+            <label for="menu-type-coperto-edit">Prezzo Coperto (€):</label>
+            <input type="number" id="menu-type-coperto-edit" step="0.01" min="0" placeholder="0.00" value="0.00">
+          </div>
+        </div>
       </div>
 
       <div class="form-field" style="margin-bottom: 1.5rem;">
@@ -290,14 +311,36 @@
       
       <input type="hidden" id="new-menu-type-id">
 
-      <div class="form-field" style="margin-bottom: 1.5rem;">
-        <label for="new-menu-type-name">Nome visualizzato:</label>
-        <input type="text" id="new-menu-type-name" placeholder="Es. Menu Bar" oninput="autoGenerateId()">
-      </div>
+      <!-- SELETTORE ICONA -->
+      <div class="menu-icon-selector">
+        <div class="menu-icon-preview-container">
+          <div class="form-field">
+            <label for="new-menu-icon-preview">Icona:</label>
+            <div class="image-preview-icon">
+              <img id="new-menu-icon-preview" src="img/menu_icons/1.png" alt="Icona menu">
+            </div>
+          </div>
+          <div class="menu-icon-controls">
+            <button class="reorder-btn" type="button" onclick="changeNewMenuIcon('prev')" title="Icona precedente">
+              <img src="img/arrow-up.png" alt="Su">
+            </button>
+            <button class="reorder-btn" type="button" onclick="changeNewMenuIcon('next')" title="Icona successiva">
+              <img src="img/arrow-down.png" alt="Giù">
+            </button>
+          </div>
+        </div>
+        
+        <div class="menu-icon-form-section">
+          <div class="form-field">
+            <label for="new-menu-type-name">Nome visualizzato:</label>
+            <input type="text" id="new-menu-type-name" placeholder="Es. Menu Bar" oninput="autoGenerateId()">
+          </div>
 
-      <div class="form-field" style="margin-bottom: 1.5rem;">
-        <label for="new-menu-type-coperto">Prezzo Coperto (€):</label>
-        <input type="number" id="new-menu-type-coperto" step="0.01" min="0" placeholder="0.00" value="0.00">
+          <div class="form-field">
+            <label for="new-menu-type-coperto">Prezzo Coperto (€):</label>
+            <input type="number" id="new-menu-type-coperto" step="0.01" min="0" placeholder="0.00" value="0.00">
+          </div>
+        </div>
       </div>
 
       <div class="form-field" style="margin-bottom: 1.5rem;">

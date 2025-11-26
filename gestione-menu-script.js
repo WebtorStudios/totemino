@@ -9,6 +9,7 @@ let menuTypes = [];
 let filterType = '';
 let editingCategoryName = null;
 let editingCategoryItems = [];
+let menuIconIndex = 1;
 
 const allergens = {
   "1": "Molluschi", "2": "Lupino", "3": "Soia", "4": "Latte", "5": "Uova",
@@ -188,7 +189,8 @@ async function loadMenu() {
       name: t.name,
       coperto: t.copertoPrice || 0,
       methods: t.checkoutMethods || { table: true, delivery: true, takeaway: true, show: true },
-      visible: t.visibility !== false
+      visible: t.visibility !== false,
+      icon: t.icon || 1  // AGGIUNTO QUESTA RIGA
     }));
     
     if (!menuTypes.some(t => t.id === 'default')) {
@@ -197,7 +199,8 @@ async function loadMenu() {
         name: 'Menu Intero',
         coperto: 0,
         methods: { table: true, delivery: true, takeaway: true, show: true },
-        visible: true
+        visible: true,
+        icon: 1  // AGGIUNTO QUESTA RIGA
       });
     }
     
@@ -233,6 +236,9 @@ async function openEditMenuTypePopup(idx) {
   const type = menuTypes[idx];
   const isDefault = type.id === 'default';
   
+  menuIconIndex = type.icon || 1;  // AGGIUNTO: Carica l'icona salvata
+  updateMenuIconDisplay();  // AGGIUNTO: Mostra l'icona
+  
   document.getElementById('editing-menu-type-id').value = idx;
   document.getElementById('menu-type-name-edit').value = type.name;
   document.getElementById('menu-type-coperto-edit').value = type.coperto || 0;
@@ -244,7 +250,6 @@ async function openEditMenuTypePopup(idx) {
   document.getElementById('edit-method-show').checked = methods.show !== false;
   document.getElementById('menu-type-visibility-edit').checked = type.visible !== false;
   
-  // Controlla se settings è configurato per delivery
   const canEnableDelivery = await checkDeliverySettings();
   updateDeliveryCheckboxState('edit-method-delivery', canEnableDelivery);
   
@@ -277,7 +282,8 @@ async function saveMenuTypeChanges() {
       takeaway: document.getElementById('edit-method-takeaway').checked,
       show: document.getElementById('edit-method-show').checked
     },
-    visible: document.getElementById('menu-type-visibility-edit').checked
+    visible: document.getElementById('menu-type-visibility-edit').checked,
+    icon: menuIconIndex  // AGGIUNTO: Salva l'icona corrente
   };
   
   await saveSettings();
@@ -676,6 +682,7 @@ function deleteCategory(name) {
 
 // ===== MENU TYPES =====
 async function openAddMenuTypePopup() {
+  menuIconIndex = 1; // Reset all'icona 1
   document.getElementById('new-menu-type-name').value = '';
   document.getElementById('new-menu-type-coperto').value = '0.00';
   document.getElementById('new-method-table').checked = false;
@@ -684,11 +691,48 @@ async function openAddMenuTypePopup() {
   document.getElementById('new-method-show').checked = false;
   document.getElementById('new-menu-type-visibility').checked = true;
   
+  // Aggiorna l'immagine dell'icona
+  updateMenuIconDisplay();
+  
   // Controlla se settings è configurato
   const canEnableDelivery = await checkDeliverySettings();
   updateDeliveryCheckboxState('new-method-delivery', canEnableDelivery);
   
   document.getElementById('add-menu-type-popup').classList.remove('hidden');
+}
+
+// ===== AGGIUNGI QUESTA FUNZIONE PER CAMBIARE ICONA NELLA POPUP DI CREAZIONE =====
+
+function changeNewMenuIcon(direction) {
+  if (direction === 'next') {
+    menuIconIndex = menuIconIndex === 20 ? 1 : menuIconIndex + 1;
+  } else if (direction === 'prev') {
+    menuIconIndex = menuIconIndex === 1 ? 20 : menuIconIndex - 1;
+  }
+  updateNewMenuIconDisplay();
+}
+
+function updateNewMenuIconDisplay() {
+  const img = document.getElementById('new-menu-icon-preview');
+  if (img) {
+    img.src = `img/menu_icons/${menuIconIndex}.png`;
+    img.onerror = () => { img.src = 'img/placeholder.png'; };
+  }
+}
+
+function updateMenuIconDisplay() {
+  const img = document.getElementById('menu-icon-preview');
+  img.src = `img/menu_icons/${menuIconIndex}.png`;
+  img.onerror = () => { img.src = 'img/placeholder.png'; };
+}
+
+function changeMenuIcon(direction) {
+  if (direction === 'next') {
+    menuIconIndex = menuIconIndex === 20 ? 1 : menuIconIndex + 1;
+  } else if (direction === 'prev') {
+    menuIconIndex = menuIconIndex === 1 ? 20 : menuIconIndex - 1;
+  }
+  updateMenuIconDisplay();
 }
 
 function closeAddMenuTypePopup() {
@@ -726,7 +770,8 @@ async function createNewMenuType() {
       takeaway: document.getElementById('new-method-takeaway').checked,
       show: document.getElementById('new-method-show').checked
     },
-    visible: document.getElementById('new-menu-type-visibility').checked
+    visible: document.getElementById('new-menu-type-visibility').checked,
+    icon: menuIconIndex // Salva l'indice dell'icona
   });
   
   await saveSettings();
@@ -805,7 +850,8 @@ async function saveSettings() {
           name: t.name,
           copertoPrice: t.coperto || 0,
           checkoutMethods: t.methods || { table: true, delivery: true, takeaway: true, show: true },
-          visibility: t.visible !== false
+          visibility: t.visible !== false,
+          icon: t.icon || 1  // AGGIUNTO: Salva l'icona
         }))
       })
     });
@@ -995,3 +1041,7 @@ window.deleteMenuTypeFromPopup = deleteMenuTypeFromPopup;
 window.deleteMenuTypeFromCard = deleteMenuTypeFromCard;
 window.autoGenerateId = autoGenerateId;
 window.toggleCategoryVisibility = toggleCategoryVisibility;
+window.changeMenuIcon = changeMenuIcon;
+window.updateMenuIconDisplay = updateMenuIconDisplay;
+window.changeNewMenuIcon = changeNewMenuIcon;
+window.updateNewMenuIconDisplay = updateNewMenuIconDisplay;

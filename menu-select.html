@@ -226,10 +226,10 @@
                 menuCard.className = 'menu-card';
                 menuCard.href = `menu.html?id=${id}&type=${menuType.id}`;
                 
-                const iconNumber = (i % 10) + 1;
+                const iconNumber = menuType.icon || 1;
                 
                 menuCard.innerHTML = `
-                    <img class="menu-icon" src="img/menu_icons/icon${iconNumber}.png" alt="${menuType.name}">
+                    <img class="menu-icon" src="img/menu_icons/${iconNumber}.png" alt="${menuType.name}">
                     <h3>${menuType.name}</h3>
                     <img class="arrow" src="img/arrow_select.png" alt="Vai">
                 `;
