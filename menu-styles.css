@@ -30,7 +30,7 @@
   
   /* Ombre */
   --shadow-sm: rgba(0,0,0,0.1);
-  --shadow-lg: rgba(0,0,0,0.8);
+  --shadow-lg: rgba(255, 255, 255, 0.2);
   
   /* Luci animate */
   --light1: rgba(255,216,140,0.9);
@@ -75,7 +75,7 @@
   --badge-red: #468af7;
   --selected-glow: #60a5facc;
   --shadow-sm: rgba(0,0,0,0.3);
-  --shadow-lg: rgba(0,0,0,0.8);
+  --shadow-lg: rgba(0,0,0,0.15);
   
   /* Luci animate */
   --light1: rgba(96, 165, 250, 0.6);
@@ -710,7 +710,7 @@ input[type="number"]::-webkit-outer-spin-button {
   justify-content: center;
   position: relative;
   align-items: center;
-  box-shadow: 0 0 20px var(--shadow-lg);
+  box-shadow: 0 0 20px rgba(0,0,0,0.8);
   color: var(--text-primary);
 }
 
