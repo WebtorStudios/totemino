@@ -7,7 +7,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const params = new URLSearchParams(window.location.search);
     const restaurantId = params.get('id');
 
-    // Recupera dettagli ultimo ordine (debug/log facoltativo)
+    // Recupera dettagli ultimo ordine (solo debug)
     const lastOrder = JSON.parse(sessionStorage.getItem('lastOrder') || '{}');
 
     // 🔙 Pulsante indietro
@@ -15,7 +15,7 @@ document.addEventListener('DOMContentLoaded', () => {
         window.location.href = 'index-user.html';
     };
 
-    // 🔽 Bottone installazione PWA (deve esistere nell’HTML)
+    // 🔽 Bottone installazione PWA (che aggiungerai in HTML)
     const installBtn = document.getElementById('installApp');
     if (installBtn) {
         installBtn.style.display = "none";
@@ -26,7 +26,7 @@ document.addEventListener('DOMContentLoaded', () => {
             installPrompt.prompt();
             const outcome = await installPrompt.userChoice;
 
-            console.log("📦 Risultato installazione PWA:", outcome.outcome);
+            console.log("📦 Installazione PWA:", outcome.outcome);
 
             installPrompt = null;
             installBtn.style.display = "none";
@@ -34,7 +34,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
-// 📲 Evento che permette di mostrare il prompt installazione
+// 📲 Evento che permette il prompt di installazione
 window.addEventListener("beforeinstallprompt", (e) => {
     console.log("📥 Evento beforeinstallprompt intercettato");
     e.preventDefault();
@@ -42,6 +42,6 @@ window.addEventListener("beforeinstallprompt", (e) => {
 
     const installBtn = document.getElementById("installApp");
     if (installBtn) {
-        installBtn.style.display = "block"; // Mostra bottone
+        installBtn.style.display = "block"; // Mostra il bottone
     }
 });
