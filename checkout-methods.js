@@ -41,7 +41,7 @@ async function initHereConfig() {
   if (HERE_API_CONFIG) return HERE_API_CONFIG;
   if (configLoadPromise) return configLoadPromise;
 
-  const API_BASE = `${window.location.protocol}//${window.location.hostname}:8080`;
+  const API_BASE = `${window.location.protocol}//${window.location.hostname}`;
   
   configLoadPromise = (async () => {
     try {
@@ -673,7 +673,7 @@ async function validateAndConfirm(tipo) {
       const section = sectionMap[tipo];
       const restaurantId = orderData.restaurantId;
       
-      const API_BASE = `${window.location.protocol}//${window.location.hostname}:8080`;
+      const API_BASE = `${window.location.protocol}//${window.location.hostname}`;
       const response = await fetch(`${API_BASE}/IDs/${restaurantId}/orders/${section}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -1051,3 +1051,4 @@ function attachSwipeListeners(sheet, overlay) {
 
   overlay.addEventListener("click", closeBottomSheet);
 }
+
