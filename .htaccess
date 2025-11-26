@@ -1,0 +1,8 @@
+# Forza HTTPS
+RewriteEngine On
+RewriteCond %{HTTPS} off
+RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
+# Redirect da www a non-www
+RewriteCond %{HTTP_HOST} ^www\.totemino\.it [NC]
+RewriteRule ^(.*)$ https://totemino.it/$1 [L,R=301]
