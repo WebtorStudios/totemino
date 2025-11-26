@@ -59,6 +59,10 @@
   cursor: pointer;
 }
 
+.success-landing .start-btn {
+  transform: scale(0.98);
+}
+
 #get-app {
   bottom: 2.3rem;
   background: var(--shadow-lg);
@@ -90,5 +94,5 @@
     max-width: 240px;
     height: auto;
   }
-
 }
+
