@@ -116,9 +116,6 @@ async function initServiceWorker() {
     CONFIG.swEnabled = true;
     console.log('✅ Push notifications attive');
     
-    // Mostra indicatore nella UI
-    showPushStatus(true);
-    
     return true;
     
   } catch (error) {
@@ -185,29 +182,6 @@ function showNotificationBadge() {
   setTimeout(() => badge.remove(), 3000);
 }
 
-function showPushStatus(enabled) {
-  const statusEl = document.createElement('div');
-  statusEl.className = 'push-status';
-  statusEl.innerHTML = enabled 
-    ? '🔔 Notifiche attive' 
-    : '⚠️ Notifiche disabilitate';
-  statusEl.style.cssText = `
-    position: fixed;
-    bottom: 20px;
-    right: 20px;
-    background: ${enabled ? '#4CAF50' : '#FF9800'};
-    color: white;
-    padding: 10px 20px;
-    border-radius: 8px;
-    font-size: 14px;
-    z-index: 9999;
-    animation: slideIn 0.3s ease;
-  `;
-  
-  document.body.appendChild(statusEl);
-  setTimeout(() => statusEl.remove(), 3000);
-}
-
 // Utility per convertire VAPID key
 function urlBase64ToUint8Array(base64String) {
   const padding = '='.repeat((4 - base64String.length % 4) % 4);
@@ -226,7 +200,7 @@ function urlBase64ToUint8Array(base64String) {
 }
 
 // ============================================
-// RESTO DEL CODICE INVARIATO
+// RESTO DEL CODICE
 // ============================================
 
 function initSections() {
@@ -268,6 +242,13 @@ function initEvents() {
     window.location.href = `gestione-menu.html?id=${CONFIG.restaurantId}`);
   
   window.addEventListener('resize', animatePill);
+  window.addEventListener('scroll', () => {
+    requestAnimationFrame(animatePill);
+  });
+  
+  dom.nav.addEventListener('scroll', () => {
+    requestAnimationFrame(animatePill);
+  });
 }
 
 async function checkAccess() {
@@ -324,10 +305,20 @@ function animatePill() {
   const activeTab = document.getElementById(`${state.currentSection}-tab`);
   if (!pill || !activeTab) return;
   
+  // Forza il reflow prima di calcolare le posizioni
+  pill.style.transition = 'none';
+  void pill.offsetWidth;
+  
   const tabRect = activeTab.getBoundingClientRect();
   const navRect = dom.nav.getBoundingClientRect();
+  
   pill.style.left = `${tabRect.left - navRect.left}px`;
   pill.style.width = `${tabRect.width}px`;
+  
+  // Riattiva la transizione
+  requestAnimationFrame(() => {
+    pill.style.transition = '';
+  });
 }
 
 async function loadOrders() {
@@ -486,8 +477,21 @@ function showOrderDetails(orderId) {
   state.currentDetailOrder = order;
   const id = getOrderIdentifier(order);
   
-  document.querySelector('.gpopup-title').textContent = `Ordine #${id}`;
-  document.querySelector('.gpopup-date').textContent = formatDateTimeFull(order.timestamp);
+  // Titolo personalizzato per categoria
+  const titles = {
+    table: `Tavolo #${id}`,
+    takeaway: `Orario ${id}`,
+    delivery: `Consegna ${id}`
+  };
+  
+  document.querySelector('.gpopup-title').textContent = titles[state.currentSection] || `Ordine #${id}`;
+  
+  // Data formattata: "Ordinato alle XX:XX del giorno DD/MM"
+  const d = new Date(order.timestamp);
+  const time = `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`;
+  const date = `${d.getDate().toString().padStart(2, '0')}/${(d.getMonth() + 1).toString().padStart(2, '0')}`;
+  document.querySelector('.gpopup-date').textContent = `Ordinato alle ${time} del giorno ${date}`;
+  
   document.querySelector('.gpopup-total').textContent = `€${order.total.toFixed(2)}`;
   
   document.querySelector('.gpopup-items').innerHTML = order.items.map((item, i) => {
@@ -520,8 +524,21 @@ function showGroupDetails(id) {
       new Date(o.timestamp) < new Date(e.timestamp) ? o : e
     );
     
-    document.querySelector('.gpopup-title').textContent = `Ordine #${id} - (${orders.length} ordini)`;
-    document.querySelector('.gpopup-date').textContent = formatDateTimeFull(earliest.timestamp);
+    // Titolo personalizzato per categoria (senza trattino)
+    const titles = {
+      table: `Tavolo #${id} (${orders.length} ordini)`,
+      takeaway: `Orario ${id} (${orders.length} ordini)`,
+      delivery: `Consegna ${id} (${orders.length} ordini)`
+    };
+    
+    document.querySelector('.gpopup-title').textContent = titles[state.currentSection] || `Ordine #${id} (${orders.length} ordini)`;
+    
+    // Data formattata: "Ordinato alle XX:XX del giorno DD/MM"
+    const d = new Date(earliest.timestamp);
+    const time = `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`;
+    const date = `${d.getDate().toString().padStart(2, '0')}/${(d.getMonth() + 1).toString().padStart(2, '0')}`;
+    document.querySelector('.gpopup-date').textContent = `Ordinato alle ${time} del giorno ${date}`;
+    
     document.querySelector('.gpopup-total').textContent = `€${total.toFixed(2)}`;
     
     const combined = {};
@@ -734,10 +751,19 @@ function getOrderIdentifier(order) {
 
 function groupOrders(orders) {
   const grouped = {};
+  
   orders.forEach(order => {
     const key = getOrderIdentifier(order);
-    if (!grouped[key]) grouped[key] = [];
-    grouped[key].push(order);
+    
+    // Raggruppa SOLO per ordini tavolo
+    if (state.currentSection === 'table') {
+      if (!grouped[key]) grouped[key] = [];
+      grouped[key].push(order);
+    } else {
+      // Per takeaway e delivery, ogni ordine è separato
+      const uniqueKey = `${key}_${order.id}`;
+      grouped[uniqueKey] = [order];
+    }
   });
   
   Object.values(grouped).forEach(group => 
