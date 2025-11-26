@@ -39,24 +39,23 @@ function setupEventListeners() {
     toggle('whatsapp-numbers-section', e.target.checked);
   });
   
-  // ✅ LISTENER PER NOTIFICHE APP (RIMOSSO requireAuth)
-  document.getElementById('notify-app').addEventListener('click', handleNotificationToggle);
+  // ✅ LISTENER PER NOTIFICHE APP
+  document.getElementById('notify-app').addEventListener('change', handleNotificationToggle);
 }
 
 // ===== NOTIFICATION TOGGLE =====
 async function handleNotificationToggle(e) {
   const checkbox = e.target;
   
-  // Se è già checked, vuole disattivare
   if (checkbox.checked) {
-    await disablePushNotifications();
-    checkbox.checked = false;
-  } else {
-    // Se non è checked, vuole attivare
+    // Vuole attivare
     const success = await enablePushNotifications();
-    if (success) {
-      checkbox.checked = true;
+    if (!success) {
+      checkbox.checked = false;
     }
+  } else {
+    // Vuole disattivare
+    await disablePushNotifications();
   }
   
   saveToLocalStorage();
@@ -799,4 +798,5 @@ function notify(msg, type = 'success') {
   el.classList.add('show');
   
   notifyTimeout = setTimeout(() => el.classList.remove('show'), 3000);
+
 }
