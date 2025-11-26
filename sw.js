@@ -9,9 +9,8 @@ self.addEventListener('activate', (event) => {
   event.waitUntil(clients.claim());
 });
 
-// Gestione notifiche push
 self.addEventListener('push', (event) => {
-  console.log('🔔 Notifica push ricevuta:', event);
+  console.log('🔔 Notifica push ricevuta');
   
   let data = {};
   
@@ -23,28 +22,15 @@ self.addEventListener('push', (event) => {
     }
   }
   
-  const title = data.title || 'Nuovo Ordine Ricevuto!';
+  const title = data.title || 'Totemino - Nuovo Ordine';
   const options = {
     body: data.body || 'Hai ricevuto un nuovo ordine',
-    icon: data.icon || '/img/logo.png',
-    badge: '/img/badge.png',
+    icon: data.icon || '/img/favicon.png',
+    badge: data.badge || '/img/favicon.png',
     tag: data.tag || 'new-order',
-    requireInteraction: true, // Resta visibile finché non viene chiusa
-    vibrate: [200, 100, 200, 100, 200], // Pattern vibrazione
-    data: data.url || '/gestione.html',
-    actions: [
-      {
-        action: 'view',
-        title: '👁️ Visualizza',
-        icon: '/img/view-icon.png'
-      },
-      {
-        action: 'close',
-        title: '❌ Chiudi',
-        icon: '/img/close-icon.png'
-      }
-    ],
-    sound: '/sounds/notification.mp3' // Suono personalizzato
+    requireInteraction: true,
+    vibrate: [200, 100, 200],
+    data: data.url || '/gestione.html'
   };
   
   event.waitUntil(
@@ -52,33 +38,26 @@ self.addEventListener('push', (event) => {
   );
 });
 
-// Gestione click sulla notifica
 self.addEventListener('notificationclick', (event) => {
-  console.log('🖱️ Click su notifica:', event.action);
+  console.log('🖱️ Click su notifica');
   
   event.notification.close();
   
-  if (event.action === 'view' || !event.action) {
-    // Apri o porta in primo piano la pagina gestione
-    event.waitUntil(
-      clients.matchAll({ type: 'window', includeUncontrolled: true })
-        .then((clientList) => {
-          // Cerca una finestra già aperta con gestione.html
-          for (let client of clientList) {
-            if (client.url.includes('gestione.html') && 'focus' in client) {
-              return client.focus();
-            }
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true })
+      .then((clientList) => {
+        for (let client of clientList) {
+          if (client.url.includes('gestione.html') && 'focus' in client) {
+            return client.focus();
           }
-          // Se non trova nessuna finestra aperta, ne apre una nuova
-          if (clients.openWindow) {
-            return clients.openWindow(event.notification.data);
-          }
-        })
-    );
-  }
+        }
+        if (clients.openWindow) {
+          return clients.openWindow(event.notification.data);
+        }
+      })
+  );
 });
 
-// Gestione chiusura notifica
 self.addEventListener('notificationclose', (event) => {
   console.log('🔕 Notifica chiusa');
 });
