@@ -45,7 +45,7 @@
             document.getElementById('table-refresh-btn')?.click();
             break;
           case 'profile':
-            document.getElementById('exit-btn')?.click();
+            document.getElementById('back-btn')?.click();
             break;
           case 'theme':
             document.getElementById('theme')?.click();
@@ -56,3 +56,4 @@
   });
 
 })();
+
