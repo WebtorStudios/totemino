@@ -9,15 +9,11 @@
 	  	const theme = saved || 
 		    (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
 	    document.documentElement.setAttribute('data-theme', theme);
-		if ('serviceWorker' in navigator) {
-		  navigator.serviceWorker.register('/sw.js');
-	    }
 	  })();
 	</script>
 	<title>Successo - Totemino</title>
     <link rel="icon" type="image/png" href="img/favicon.png">
 	<link rel="stylesheet" href="success-styles.css" />
-	<link rel="manifest" href="manifest.json">
   </head>
   <body>
 	<div class="bg-light light1"></div>
@@ -32,7 +28,6 @@
 		<h1>FATTO!</h1>
 		<p>Il tuo ordine è stato ricevuto e presto sarà pronto per te, buon appetito!</p>
 		<!-- <button class="start-btn" id="shop-again">Ordina ancora</button> -->
-		<button id="installApp" style="display:none">Installa App</button>
 	</div>
 	  
 	<script src="theme.js"></script>
@@ -40,4 +35,5 @@
 	<script src="success-script.js"></script>
   </body>
 </html>
+
 
