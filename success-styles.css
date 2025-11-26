@@ -7,7 +7,7 @@
   height: 2.4rem;
 }
 
-.close-popup img {
+.success-landing .close-popup img {
   width: 60%;
 }
 
@@ -95,5 +95,6 @@
     height: auto;
   }
 }
+
 
 
