@@ -398,7 +398,6 @@ function renderOrders() {
 function createGroupCard(id, orders, color, hasMultiple) {
   const order = orders[0];
   const total = orders.reduce((sum, o) => sum + o.total, 0);
-  const count = hasMultiple ? `<sup>(${orders.length})</sup>` : '';
   const isNew = !state.viewingCompleted && orders.some(o => isNewOrder(o.timestamp));
   const newBadge = isNew ? '<div class="new-indicator"></div>' : '';
   const completed = state.viewingCompleted ? 'completed' : '';
@@ -411,7 +410,7 @@ function createGroupCard(id, orders, color, hasMultiple) {
     <div class="order-card ${hasMultiple ? 'group' : ''} ${completed}" 
          style="--card-color: ${color}" ${events}>
       ${newBadge}
-      <div class="card-number">${id}${count}</div>
+      <div class="card-number">${id}</div>
       <div class="card-info">
         <div class="card-date">${formatDateTime(order.timestamp)}</div>
         <div class="card-price">€${total.toFixed(2)}</div>
@@ -421,7 +420,6 @@ function createGroupCard(id, orders, color, hasMultiple) {
 
 function createOrderCard(order, color, orderNum = null) {
   const id = getOrderIdentifier(order);
-  const count = orderNum ? `<sup>(${orderNum})</sup>` : '';
   const isNew = !state.viewingCompleted && isNewOrder(order.timestamp);
   const newBadge = isNew ? '<div class="new-indicator"></div>' : '';
   const completed = state.viewingCompleted ? 'completed' : '';
@@ -430,7 +428,7 @@ function createOrderCard(order, color, orderNum = null) {
     <div class="order-card ${completed}" 
          style="--card-color: ${color}" onclick="showOrderDetails('${order.id}')">
       ${newBadge}
-      <div class="card-number">${id}${count}</div>
+      <div class="card-number">${id}</div>
       <div class="card-info">
         <div class="card-date">${formatDateTime(order.timestamp)}</div>
         <div class="card-price">€${order.total.toFixed(2)}</div>
