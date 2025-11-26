@@ -22,10 +22,20 @@ let HERE_API_CONFIG = null;
 let configLoadPromise = null;
 const geocodeCache = new Map();
 let restaurantCoords = null;
+let restaurantCoordsPromise = null;
 
 // ============================================
-// CARICAMENTO CONFIGURAZIONI
+// CARICAMENTO CONFIGURAZIONI CON TIMEOUT
 // ============================================
+
+function fetchWithTimeout(url, timeout = 5000) {
+  return Promise.race([
+    fetch(url),
+    new Promise((_, reject) =>
+      setTimeout(() => reject(new Error('Timeout')), timeout)
+    )
+  ]);
+}
 
 async function initHereConfig() {
   if (HERE_API_CONFIG) return HERE_API_CONFIG;
@@ -35,12 +45,12 @@ async function initHereConfig() {
   
   configLoadPromise = (async () => {
     try {
-      const res = await fetch(`${API_BASE}/api/here-config`);
+      const res = await fetchWithTimeout(`${API_BASE}/api/here-config`, 3000);
       if (!res.ok) throw new Error('Failed to load HERE config');
       HERE_API_CONFIG = await res.json();
       return HERE_API_CONFIG;
     } catch (error) {
-      console.error('❌ Errore caricamento HERE config:', error);
+      console.warn('⚠️ HERE config non disponibile:', error.message);
       HERE_API_CONFIG = { API_KEY: '', APP_ID: '' };
       return HERE_API_CONFIG;
     }
@@ -49,61 +59,61 @@ async function initHereConfig() {
   return configLoadPromise;
 }
 
-document.addEventListener('DOMContentLoaded', async () => {
-  try {
-    await Promise.all([initHereConfig(), loadConfigurations()]);
-    await initRestaurantLocation();
-    initServizi();
-  } catch (error) {
-    console.error('❌ Errore inizializzazione:', error);
-  }
+document.addEventListener('DOMContentLoaded', () => {
+  // FASE 1: Inizializzazione immediata (UI cliccabile subito)
+  initServiziImmediate();
+  
+  // FASE 2: Caricamento configurazioni in background (non bloccante)
+  loadConfigurationsAsync();
 });
 
-async function loadConfigurations() {
+function initServiziImmediate() {
+  // Rendi TUTTI i servizi cliccabili immediatamente
+  const servizi = ['tavolo', 'delivery', 'takeaway', 'ordine'];
+  
+  servizi.forEach(tipo => {
+    const element = document.getElementById(`servizio-${tipo}`);
+    if (element) {
+      element.style.display = 'flex';
+      element.addEventListener('click', () => openBottomSheet(tipo));
+    }
+  });
+}
+
+async function loadConfigurationsAsync() {
   try {
     const menuId = new URLSearchParams(window.location.search).get('id') || 'default';
     
-    const [settingsRes, menuTypesRes, promosRes] = await Promise.all([
-      fetch(`IDs/${menuId}/settings.json`),
-      fetch(`IDs/${menuId}/menuTypes.json`),
-      fetch(`IDs/${menuId}/promo.json`)
+    // Carica configurazioni con timeout
+    const results = await Promise.allSettled([
+      fetchWithTimeout(`IDs/${menuId}/settings.json`, 3000)
+        .then(r => r.ok ? r.json() : null),
+      fetchWithTimeout(`IDs/${menuId}/menuTypes.json`, 3000)
+        .then(r => r.ok ? r.json() : null),
+      fetchWithTimeout(`IDs/${menuId}/promo.json`, 3000)
+        .then(r => r.ok ? r.json() : null)
     ]);
     
-    SETTINGS = await settingsRes.json();
-    MENU_TYPES = await menuTypesRes.json();
-    PROMO_CODES = await promosRes.json();
+    SETTINGS = results[0].status === 'fulfilled' && results[0].value ? results[0].value : {};
+    MENU_TYPES = results[1].status === 'fulfilled' && results[1].value ? results[1].value : { menuTypes: [] };
+    PROMO_CODES = results[2].status === 'fulfilled' && results[2].value ? results[2].value : [];
+    
+    // Aggiorna visibilità box dopo aver caricato config
+    updateServiziVisibility();
+    
+    // Inizializza HERE config in background (non bloccante)
+    initHereConfig().catch(err => console.warn('HERE config error:', err));
+    
   } catch (error) {
-    console.error('❌ Errore caricamento configurazioni:', error);
+    console.warn('⚠️ Errore caricamento configurazioni:', error);
+    // Fallback: usa valori di default
     SETTINGS = {};
     MENU_TYPES = { menuTypes: [] };
     PROMO_CODES = [];
   }
 }
 
-async function initRestaurantLocation() {
-  if (!SETTINGS.restaurant || !SETTINGS.delivery) return;
-  if (SETTINGS.delivery.costType !== 'distance') return;
-  
-  const address = `${SETTINGS.restaurant.street} ${SETTINGS.restaurant.number}, ${SETTINGS.restaurant.cap}, Italia`;
-  restaurantCoords = await getCoordinates(address);
-  
-  if (!restaurantCoords) {
-    console.error('⚠️ Impossibile geocodificare indirizzo ristorante');
-  }
-}
-
-function getCurrentMenuType() {
-  if (!MENU_TYPES.menuTypes?.length) return null;
-  
-  const requestedType = new URLSearchParams(window.location.search).get('type') || 'default';
-  return MENU_TYPES.menuTypes.find(mt => mt.id === requestedType) || MENU_TYPES.menuTypes[0];
-}
-
-// ============================================
-// INIZIALIZZAZIONE SERVIZI
-// ============================================
-
-function initServizi() {
+function updateServiziVisibility() {
   const currentMenuType = getCurrentMenuType();
   const checkoutMethods = currentMenuType?.checkoutMethods || {};
   
@@ -118,12 +128,37 @@ function initServizi() {
     const element = document.getElementById(`servizio-${tipo}`);
     if (!element) return;
     
-    if (checkoutMethods[method]) {
-      element.addEventListener('click', () => openBottomSheet(tipo));
-    } else {
+    if (!checkoutMethods[method]) {
       element.style.display = 'none';
     }
   });
+}
+
+async function initRestaurantLocation() {
+  if (restaurantCoordsPromise) return restaurantCoordsPromise;
+  
+  restaurantCoordsPromise = (async () => {
+    if (!SETTINGS.restaurant || !SETTINGS.delivery) return null;
+    if (SETTINGS.delivery.costType !== 'distance') return null;
+    
+    const address = `${SETTINGS.restaurant.street} ${SETTINGS.restaurant.number}, ${SETTINGS.restaurant.cap}, Italia`;
+    restaurantCoords = await getCoordinates(address);
+    
+    if (!restaurantCoords) {
+      console.warn('⚠️ Impossibile geocodificare indirizzo ristorante');
+    }
+    
+    return restaurantCoords;
+  })();
+  
+  return restaurantCoordsPromise;
+}
+
+function getCurrentMenuType() {
+  if (!MENU_TYPES.menuTypes?.length) return null;
+  
+  const requestedType = new URLSearchParams(window.location.search).get('type') || 'default';
+  return MENU_TYPES.menuTypes.find(mt => mt.id === requestedType) || MENU_TYPES.menuTypes[0];
 }
 
 // ============================================
@@ -298,7 +333,7 @@ function saveDraft(tipo, data) {
   try {
     localStorage.setItem(`totemino_draft_${tipo}`, JSON.stringify(data));
   } catch (error) {
-    console.error('❌ Errore salvataggio draft:', error);
+    console.error('⚠️ Errore salvataggio draft:', error);
   }
 }
 
@@ -408,7 +443,6 @@ function formatTimeInput(e) {
     v = v.slice(0, 2) + ":" + v.slice(2);
   }
 
-  // Controlli HH e MM
   const [hh, mm] = v.split(":");
 
   if (hh && hh.length === 2 && Number(hh) > 23) {
@@ -421,17 +455,14 @@ function formatTimeInput(e) {
   e.target.value = v;
 }
 
-
 async function createOrder(tipo) {
   const selectedItems = JSON.parse(localStorage.getItem('totemino_selected') || '[]');
   const userId = localStorage.getItem('totemino_userId') || `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   
-  // Salva userId se è nuovo
   if (!localStorage.getItem('totemino_userId')) {
     localStorage.setItem('totemino_userId', userId);
   }
   
-  // Costruisci array items
   const items = [];
   for (let i = 0; i < selectedItems.length; i += 3) {
     const itemName = selectedItems[i];
@@ -450,10 +481,8 @@ async function createOrder(tipo) {
     });
   }
   
-  // Calcola totale
   const total = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
   
-  // Struttura base ordine
   const orderData = {
     userId: userId,
     items: items,
@@ -464,7 +493,6 @@ async function createOrder(tipo) {
     status: 'pending'
   };
   
-  // Aggiungi dati specifici per tipo
   if (tipo === 'tavolo') {
     const numeroTavolo = document.getElementById('numero-tavolo').value;
     orderData.table = [{
@@ -482,7 +510,6 @@ async function createOrder(tipo) {
       (selectedPayment.dataset.method === 'cash' ? 'In contanti' :
        selectedPayment.dataset.method === 'card' ? 'POS' : 'Carta in-App') : 'Non specificato';
     
-    // Calcola shipping e discount dalla UI
     const shippingText = document.getElementById('price-delivery')?.textContent || '€0.00';
     const discountText = document.getElementById('price-discount')?.textContent || '-';
     
@@ -557,7 +584,6 @@ async function validateAndConfirm(tipo) {
         valid = false; 
       }
       
-      // Controllo errore delivery
       const deliveryErrorText = document.getElementById('price-delivery')?.textContent;
       if (deliveryErrorText && (deliveryErrorText.includes('Fuori zona') || 
           deliveryErrorText.includes('non valido') || 
@@ -636,10 +662,8 @@ async function validateAndConfirm(tipo) {
 
   if (validators[tipo]?.()) {
     try {
-      // Crea ordine
       const orderData = await createOrder(tipo);
       
-      // Mappa tipo -> section
       const sectionMap = {
         tavolo: 'table',
         delivery: 'delivery',
@@ -649,7 +673,6 @@ async function validateAndConfirm(tipo) {
       const section = sectionMap[tipo];
       const restaurantId = orderData.restaurantId;
       
-      // Invia ordine al server
       const API_BASE = `${window.location.protocol}//${window.location.hostname}:8080`;
       const response = await fetch(`${API_BASE}/IDs/${restaurantId}/orders/${section}`, {
         method: 'POST',
@@ -663,17 +686,15 @@ async function validateAndConfirm(tipo) {
       
       const result = await response.json();
       
-      // Pulisci storage e chiudi
       localStorage.removeItem(`totemino_draft_${tipo}`);
       localStorage.removeItem('totemino_selected');
       
       closeBottomSheet();
       
-      // Redirect a success.html
       window.location.href = 'success.html';
       
     } catch (error) {
-      console.error('❌ Errore creazione ordine:', error);
+      console.error('⚠️ Errore creazione ordine:', error);
       alert('Errore nell\'invio dell\'ordine. Riprova.');
     }
   }
@@ -681,7 +702,6 @@ async function validateAndConfirm(tipo) {
 
 function showError(element) {
   element.classList.add('error');
-
   setTimeout(() => element.classList.remove('error'), 2000);
 }
 
@@ -738,6 +758,9 @@ async function calculatePricing() {
     if (SETTINGS.delivery.costType === 'fixed') {
       deliveryCost = SETTINGS.delivery.costFixed || 0;
     } else {
+      // Lazy init geocoding
+      await initRestaurantLocation();
+      
       const coords = geocodeCache.get(indirizzo) || await getCoordinates(indirizzo);
       
       if (coords && restaurantCoords) {
@@ -782,8 +805,6 @@ async function calculatePricing() {
         : promo.discountValue;
     }
   }
-  
-  const total = Math.max(0, orderTotal + deliveryCost - discount);
   
   if (hasValidAddress) {
     document.getElementById('price-delivery').innerHTML = deliveryError 
@@ -831,12 +852,13 @@ async function getCoordinates(address) {
     await initHereConfig();
     
     if (!HERE_API_CONFIG?.API_KEY) {
-      console.error('❌ HERE API KEY non disponibile');
+      console.warn('⚠️ HERE API KEY non disponibile');
       return null;
     }
     
-    const response = await fetch(
-      `https://geocode.search.hereapi.com/v1/geocode?q=${encodeURIComponent(address)}&apiKey=${HERE_API_CONFIG.API_KEY}&lang=it`
+    const response = await fetchWithTimeout(
+      `https://geocode.search.hereapi.com/v1/geocode?q=${encodeURIComponent(address)}&apiKey=${HERE_API_CONFIG.API_KEY}&lang=it`,
+      5000
     );
     
     if (!response.ok) {
@@ -853,7 +875,7 @@ async function getCoordinates(address) {
     }
     return null;
   } catch (error) {
-    console.error('❌ Errore geocodifica:', error);
+    console.warn('⚠️ Errore geocodifica:', error.message);
     return null;
   }
 }
@@ -972,7 +994,9 @@ function attachSwipeListeners(sheet, overlay) {
   const onMove = e => {
     if (!startY) return;
     const y = e.touches ? e.touches[0].clientY : e.clientY;
-    curY = y; const dy = curY - startY; down = dy > 0;
+    curY = y; 
+    const dy = curY - startY; 
+    down = dy > 0;
 
     if (drag) {
       e.preventDefault();
@@ -983,18 +1007,32 @@ function attachSwipeListeners(sheet, overlay) {
     }
 
     if (fromContent && ((down && top()) || (!down && bottom()))) {
-      drag = true; fromContent = false; lock(); sheet.style.transition = "none"; e.preventDefault();
+      drag = true; 
+      fromContent = false; 
+      lock(); 
+      sheet.style.transition = "none"; 
+      e.preventDefault();
     }
   };
 
   const onEnd = () => {
-    if (!drag) { startY = 0; unlock(); return; }
+    if (!drag) { 
+      startY = 0; 
+      unlock(); 
+      return; 
+    }
     const dy = curY - startY;
     const th = sheet.offsetHeight * (SHEET_CONFIG.CLOSE_THRESHOLD / 100);
     sheet.style.transition = "";
-    if (dy > th) closeBottomSheet();
-    else sheet.style.transform = desk ? "translateX(-50%) translateY(0)" : "translateY(0)";
-    overlay.style.opacity = ""; drag = false; startY = 0; unlock();
+    if (dy > th) {
+      closeBottomSheet();
+    } else {
+      sheet.style.transform = desk ? "translateX(-50%) translateY(0)" : "translateY(0)";
+    }
+    overlay.style.opacity = ""; 
+    drag = false; 
+    startY = 0; 
+    unlock();
   };
 
   const opt = { passive: false };
