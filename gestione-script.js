@@ -1,11 +1,12 @@
 // ============================================
-// ORDERS MANAGER - Sistema Unificato
+// ORDERS MANAGER - Sistema Unificato con Service Worker
 // ============================================
 
 const CONFIG = {
   restaurantId: new URLSearchParams(window.location.search).get('id') || '0000',
   apiBase: '/IDs',
-  refreshInterval: 30000
+  refreshInterval: 30000, // Fallback se push non supportato
+  swEnabled: false
 };
 
 // Configurazione sezioni - facilmente estendibile
@@ -38,7 +39,8 @@ const state = {
   expandedGroups: new Set(),
   currentDetailOrder: null,
   rotation: 0,
-  isRotating: false
+  isRotating: false,
+  autoRefreshInterval: null
 };
 
 // DOM Elements
@@ -56,16 +58,178 @@ const dom = {
 
 document.addEventListener('DOMContentLoaded', async () => {
   if (!await checkAccess()) return;
+  
   document.getElementById('back-btn').onclick = () => location.href = `profile.html`;
+  
   initSections();
   initEvents();
   switchSection('table');
+  
+  // Inizializza Service Worker e Push
+  await initServiceWorker();
+  
+  // Caricamento iniziale
   loadOrders();
-  setInterval(loadOrders, CONFIG.refreshInterval);
+  
+  // Fallback: auto-refresh se push non supportato
+  if (!CONFIG.swEnabled) {
+    console.log('⚠️ Push non supportato, uso polling');
+    state.autoRefreshInterval = setInterval(loadOrders, CONFIG.refreshInterval);
+  }
 });
 
+// ============================================
+// SERVICE WORKER & PUSH NOTIFICATIONS
+// ============================================
+
+async function initServiceWorker() {
+  if (!('serviceWorker' in navigator)) {
+    console.log('❌ Service Worker non supportato');
+    return false;
+  }
+  
+  try {
+    // Registra Service Worker
+    const registration = await navigator.serviceWorker.register('/sw.js');
+    console.log('✅ Service Worker registrato');
+    
+    // Ascolta messaggi dal SW
+    navigator.serviceWorker.addEventListener('message', handleSWMessage);
+    
+    // Controlla supporto push
+    if (!('PushManager' in window)) {
+      console.log('❌ Push notifications non supportate');
+      return false;
+    }
+    
+    // Richiedi permesso notifiche
+    const permission = await Notification.requestPermission();
+    
+    if (permission !== 'granted') {
+      console.log('⚠️ Permesso notifiche negato');
+      return false;
+    }
+    
+    // Subscribe a push notifications
+    await subscribeToPush(registration);
+    
+    CONFIG.swEnabled = true;
+    console.log('✅ Push notifications attive');
+    
+    // Mostra indicatore nella UI
+    showPushStatus(true);
+    
+    return true;
+    
+  } catch (error) {
+    console.error('❌ Errore Service Worker:', error);
+    return false;
+  }
+}
+
+async function subscribeToPush(registration) {
+  try {
+    // Ottieni VAPID public key dal server
+    const response = await fetch('/api/push/vapid-public-key');
+    const { publicKey } = await response.json();
+    
+    // Converti chiave in Uint8Array
+    const vapidKey = urlBase64ToUint8Array(publicKey);
+    
+    // Subscribe
+    const subscription = await registration.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: vapidKey
+    });
+    
+    // Invia subscription al server
+    await fetch('/api/push/subscribe', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ subscription })
+    });
+    
+    console.log('✅ Subscription salvata');
+    
+  } catch (error) {
+    console.error('❌ Errore subscription:', error);
+    throw error;
+  }
+}
+
+function handleSWMessage(event) {
+  console.log('📨 Messaggio da SW:', event.data);
+  
+  const { type } = event.data;
+  
+  if (type === 'NEW_ORDER') {
+    console.log('🔔 Nuovo ordine ricevuto');
+    loadOrders();
+    showNotificationBadge();
+  }
+  
+  if (type === 'RELOAD_ORDERS') {
+    console.log('🔄 Ricarico ordini da notifica');
+    loadOrders();
+  }
+}
+
+function showNotificationBadge() {
+  // Mostra badge temporaneo sul refresh button
+  const badge = document.createElement('div');
+  badge.className = 'notification-badge';
+  badge.textContent = '!';
+  dom.refreshBtn.appendChild(badge);
+  
+  setTimeout(() => badge.remove(), 3000);
+}
+
+function showPushStatus(enabled) {
+  const statusEl = document.createElement('div');
+  statusEl.className = 'push-status';
+  statusEl.innerHTML = enabled 
+    ? '🔔 Notifiche attive' 
+    : '⚠️ Notifiche disabilitate';
+  statusEl.style.cssText = `
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background: ${enabled ? '#4CAF50' : '#FF9800'};
+    color: white;
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-size: 14px;
+    z-index: 9999;
+    animation: slideIn 0.3s ease;
+  `;
+  
+  document.body.appendChild(statusEl);
+  setTimeout(() => statusEl.remove(), 3000);
+}
+
+// Utility per convertire VAPID key
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding)
+    .replace(/\-/g, '+')
+    .replace(/_/g, '/');
+  
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+  
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+  
+  return outputArray;
+}
+
+// ============================================
+// RESTO DEL CODICE INVARIATO
+// ============================================
+
 function initSections() {
-  // Genera navigation tabs
   const navHTML = Object.entries(SECTIONS)
     .map(([key, config]) => 
       `<button class="${key === 'table' ? 'active' : ''}" id="${key}-tab">${config.label}</button>`
@@ -73,7 +237,6 @@ function initSections() {
   
   dom.nav.innerHTML = '<div class="pill"></div>' + navHTML;
   
-  // Registra sezioni DOM
   Object.keys(SECTIONS).forEach(key => {
     dom.sections[key] = {
       active: document.querySelector(`.${key}-section:not(.completed)`),
@@ -83,26 +246,21 @@ function initSections() {
 }
 
 function initEvents() {
-  // Tab navigation
   Object.keys(SECTIONS).forEach(key => {
     document.getElementById(`${key}-tab`)?.addEventListener('click', () => switchSection(key));
   });
   
-  // Refresh
   dom.refreshBtn?.addEventListener('click', loadOrders);
   
-  // Popup
   document.querySelector('.gpopup-close-btn')?.addEventListener('click', hidePopup);
   dom.popup?.addEventListener('click', (e) => e.target === dom.popup && hidePopup());
   document.querySelector('.toggle-status')?.addEventListener('click', toggleStatus);
   
-  // Delete
   document.getElementById('open-delete-popup')?.addEventListener('click', showDeletePopup);
   document.getElementById('delete-btn')?.addEventListener('click', deleteOrder);
   document.getElementById('cancel-delete')?.addEventListener('click', hideDeletePopup);
   dom.deletePopup?.addEventListener('click', (e) => e.target === dom.deletePopup && hideDeletePopup());
   
-  // Utility buttons
   document.getElementById('fullscreen')?.addEventListener('click', toggleFullscreen);
   document.getElementById('stats')?.addEventListener('click', () => 
     window.location.href = `statistics.html?id=${CONFIG.restaurantId}`);
@@ -111,10 +269,6 @@ function initEvents() {
   
   window.addEventListener('resize', animatePill);
 }
-
-// ============================================
-// AUTENTICAZIONE
-// ============================================
 
 async function checkAccess() {
   try {
@@ -142,21 +296,15 @@ async function checkAccess() {
   }
 }
 
-// ============================================
-// NAVIGATION
-// ============================================
-
 function switchSection(section) {
   state.currentSection = section;
   state.viewingCompleted = false;
   state.expandedGroups.clear();
   
-  // Update tabs
   Object.keys(SECTIONS).forEach(key => {
     document.getElementById(`${key}-tab`)?.classList.toggle('active', key === section);
   });
   
-  // Update sections visibility
   Object.keys(SECTIONS).forEach(key => {
     const sections = dom.sections[key];
     if (sections) {
@@ -181,10 +329,6 @@ function animatePill() {
   pill.style.left = `${tabRect.left - navRect.left}px`;
   pill.style.width = `${tabRect.width}px`;
 }
-
-// ============================================
-// DATA LOADING
-// ============================================
 
 async function loadOrders() {
   rotateRefresh();
@@ -216,10 +360,6 @@ function rotateRefresh() {
   dom.refreshBtn.style.transform = `rotate(${state.rotation}deg)`;
   setTimeout(() => state.isRotating = false, 500);
 }
-
-// ============================================
-// RENDERING
-// ============================================
 
 function renderOrders() {
   const section = getActiveSection();
@@ -263,10 +403,6 @@ function renderOrders() {
   html += createNavButton(completedCount) + '</div>';
   section.innerHTML = html;
 }
-
-// ============================================
-// CARD CREATION
-// ============================================
 
 function createGroupCard(id, orders, color, hasMultiple) {
   const order = orders[0];
@@ -343,10 +479,6 @@ function createNavButton(completedCount) {
     </div>`;
 }
 
-// ============================================
-// ORDER DETAILS POPUP
-// ============================================
-
 function showOrderDetails(orderId) {
   const order = state.orders.find(o => o.id === orderId);
   if (!order) return;
@@ -392,7 +524,6 @@ function showGroupDetails(id) {
     document.querySelector('.gpopup-date').textContent = formatDateTimeFull(earliest.timestamp);
     document.querySelector('.gpopup-total').textContent = `€${total.toFixed(2)}`;
     
-    // Combina items
     const combined = {};
     orders.forEach((order, oi) => {
       order.items.forEach((item, ii) => {
@@ -428,10 +559,6 @@ function showGroupDetails(id) {
     showPopup();
   }
 }
-
-// ============================================
-// ORDER ACTIONS
-// ============================================
 
 async function deleteOrder() {
   if (!state.currentDetailOrder) return;
@@ -518,10 +645,6 @@ async function toggleStatus() {
   }
 }
 
-// ============================================
-// POPUP MANAGEMENT
-// ============================================
-
 function showPopup() {
   dom.popup.classList.remove('hidden');
   hideDeletePopup();
@@ -561,14 +684,9 @@ function updateStatusButton(status) {
   btn.disabled = false;
 }
 
-// ============================================
-// VIEW MANAGEMENT
-// ============================================
-
 function showCompleted() {
   state.viewingCompleted = true;
   
-  // Nascondi sezione active, mostra sezione completed
   const sections = dom.sections[state.currentSection];
   if (sections) {
     sections.active?.classList.add('hidden');
@@ -583,7 +701,6 @@ function showCompleted() {
 function showActive() {
   state.viewingCompleted = false;
   
-  // Mostra sezione active, nascondi sezione completed
   const sections = dom.sections[state.currentSection];
   if (sections) {
     sections.active?.classList.remove('hidden');
@@ -595,7 +712,6 @@ function showActive() {
   renderOrders();
 }
 
-
 function expandGroup(id) {
   state.expandedGroups.add(id);
   renderOrders();
@@ -605,10 +721,6 @@ function collapseGroup(id) {
   state.expandedGroups.delete(id);
   renderOrders();
 }
-
-// ============================================
-// UTILITY FUNCTIONS
-// ============================================
 
 function getActiveSection() {
   return state.viewingCompleted ? 
@@ -690,3 +802,10 @@ window.expandGroup = expandGroup;
 window.showCompleted = showCompleted;
 window.showActive = showActive;
 window.loadOrders = loadOrders;
+
+// Cleanup al termine
+window.addEventListener('beforeunload', () => {
+  if (state.autoRefreshInterval) {
+    clearInterval(state.autoRefreshInterval);
+  }
+});
