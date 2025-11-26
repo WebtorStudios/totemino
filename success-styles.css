@@ -57,6 +57,7 @@
   font-weight: 600;
   border-radius: 2rem;
   cursor: pointer;
+  transition: transform 0.2s ease;
 }
 
 .success-landing .start-btn:active {
@@ -95,6 +96,7 @@
     height: auto;
   }
 }
+
 
 
 
