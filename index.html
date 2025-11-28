@@ -17,33 +17,243 @@
           });
         })();
     </script>
-    <title>Totemino</title>
+    <title>Totemino - Menu Digitale per Ristoranti</title>
     <link rel="icon" type="image/png" href="img/favicon.png">
-
     <link rel="stylesheet" href="index-styles.css"/>
     <link rel="stylesheet" href="reviews-styles.css"/>
-    <link rel="stylesheet" href="billing-styles.css"/>
-    <link rel="stylesheet" href="cookie-banner.css"/>
 </head>
 <body>
     <div class="bg-light light1"></div>
     <div class="bg-light light2"></div>
     <div class="bg-light light3"></div>
     
-    <!-- Nav buttons -->
-    <div class="nav-buttons">
-        <a href="login.html" class="nav-btn" id="loginBtn">Accedi</a>
-        <button id="profiloBtn" class="index-header-btn" type="button" style="display: none;">
-            <img class="theme-img" data-light="img/profile_light.png" data-dark="img/profile_dark.png" alt="Profilo">
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="nav-brand">
+                <img class="theme-img" data-light="img/logo/1_light.png" data-dark="img/logo/1_dark.png" alt="Totemino Logo" id="logoSwap">
+                <h1>Totemino</h1>
+            </div>
+            <div class="nav-actions">
+                <button id="theme" class="nav-btn theme-btn" type="button">
+                    <img class="theme-img" data-light="img/theme_light.png" data-dark="img/theme_dark.png" alt="Tema">
+                </button>
+                <a href="login.html" class="nav-btn login-btn">Accedi</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="hero-container">
+            <div class="hero-content">
+                <h2 class="hero-title">Il futuro della ristorazione è digitale</h2>
+                <p class="hero-subtitle">Menu interattivi, ordini istantanei e gestione completa del tuo locale. Zero commissioni, massima libertà.</p>
+                <div class="hero-cta">
+                    <a href="login.html" class="btn-hero">Inizia con la Prova Gratuita</a>
+                    <span class="hero-note">Nessuna carta richiesta</span>
+                </div>
+            </div>
+            <div class="hero-image">
+                <img src="img/hero1.png" alt="WebApp Totemino su Telefono">
+                <img src="img/hero2.png" alt="Camerieri Felici">
+                <img src="img/hero3.png" alt="WebApp Totemino su Laptop">
+            </div>
+        </div>
+    </section>
+
+    <!-- Stats Bar -->
+    <section class="stats-bar">
+        <div class="stats-container">
+            <div class="stat-item">
+                <h3>0%</h3>
+                <p>Commissioni</p>
+            </div>
+            <div class="stat-item">
+                <h3>23+</h3>
+                <p>Ristoranti</p>
+            </div>
+            <div class="stat-item">
+                <h3>13800+</h3>
+                <p>Ordini al mese</p>
+            </div>
+            <div class="stat-item">
+                <h3>4.8/5</h3>
+                <p>Recensioni</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section class="features">
+        <div class="section-header">
+            <h2>Tutto ciò di cui hai bisogno</h2>
+            <p>Una piattaforma completa per modernizzare il tuo ristorante</p>
+        </div>
+        <div class="features-grid">
+            <div class="feature-card">
+                <div class="feature-icon">📱</div>
+                <h3>Menu Digitale</h3>
+                <p>Crea menu interattivi con foto, descrizioni, aggiunte e allergeni e cambia i prezzi quando vuoi</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">⚡</div>
+                <h3>Ordini Istantanei</h3>
+                <p>I clienti ordinano dal tavolo o da casa e gli ordini arrivano subito in cucina</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">📊</div>
+                <h3>Statistiche Avanzate</h3>
+                <p>Report dettagliati su vendite, prodotti più richiesti e performance del locale</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">💳</div>
+                <h3>Pagamenti Integrati</h3>
+                <p>Accetta pagamenti con carta direttamente dall'app, senza commissioni extra</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">🎯</div>
+                <h3>Marketing in-App</h3>
+                <p>Banner pubblicitari, codici sconto e suggerimenti AI per aumentare le vendite</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">🔧</div>
+                <h3>Supporto Dedicato</h3>
+                <p>Assistenza prioritaria e aggiornamenti continui per il successo del tuo business</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">🔔</div>
+                <h3>Responsività</h3>
+                <p>In modo da poter eseguire operazioni gestionali anche dalla comodità del telefono</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">💰</div>
+                <h3>Conveniente</h3>
+                <p>Ottieni tutti i vantaggi dei soliti menù "premium", ma senza pagare l'etichetta</p>
+            </div>
+        </div>
+        <button class="show-more-btn" id="showMoreFeatures">
+            <p>Mostra di più</p>
         </button>
-    </div>
+    </section>
 
-    <!-- Packages Section 
-    <div id="create-billing-comparison"></div> -->
+    <!-- How It Works -->
+    <section class="how-it-works">
+        <div class="section-header">
+            <h2>Semplice come 1, 2, 3</h2>
+            <p>Attiva Totemino in pochi minuti</p>
+        </div>
+        <div class="steps-container">
+            <div class="step">
+                <div class="step-number">1</div>
+                <div class="step-content">
+                    <h3>Crea il tuo menu</h3>
+                    <p>Aggiungi prodotti, foto e descrizioni dal pannello di controllo</p>
+                </div>
+            </div>
+            <div class="step">
+                <div class="step-number">2</div>
+                <div class="step-content">
+                    <h3>Genera QR code</h3>
+                    <p>Stampa i QR code personalizzati per ogni tavolo del tuo locale</p>
+                </div>
+            </div>
+            <div class="step">
+                <div class="step-number">3</div>
+                <div class="step-content">
+                    <h3>Inizia a ricevere ordini</h3>
+                    <p>I clienti ordinano in autonomia e tu gestisci tutto da un'unica dashboard</p>
+                </div>
+            </div>
+        </div>
+    </section>
 
-    <!-- Reviews Section
-    <div class="create-reviews-section"></div> -->
-    
+    <!-- Pricing Section -->
+    <section class="pricing">
+        <div class="section-header">
+            <h2>Prezzi sempre competitivi</h2>
+            <p>Scegli il piano perfetto per il tuo ristorante</p>
+        </div>
+        <div class="pricing-grid">
+            <!-- Hobby Plan -->
+            <div class="pricing-card">
+                <div class="pricing-header">
+                    <h3>Hobby</h3>
+                    <p>Alle prime armi con strumenti digitali</p>
+                    <div class="price">
+                        <span class="currency">€</span>
+                        <span class="amount">29</span>
+                        <span class="period">/mese IVA inclusa</span>
+                    </div>
+                </div>
+                <a href="login.html" class="btn-pricing">Inizia ora</a>
+                <ul class="features-list">
+                    <li><img src="img/check.png"> Menu solo visualizzazione</li>
+                    <li><img src="img/check.png"> Gestione menu semplice</li>
+                    <li><img src="img/check.png"> Aggiunta di prodotti illimitati</li>
+                    <li><img src="img/check.png"> QR code personalizzati</li>
+                    <li><img src="img/check.png"> Aggiornamenti futuri</li>
+                </ul>
+            </div>
+
+            <!-- Premium Plan (Most Popular) -->
+            <div class="pricing-card featured">
+                <div class="popular-badge">Consigliato</div>
+                <div class="pricing-header">
+                    <h3>Premium</h3>
+                    <p>Per gestione smart di ordini & comande</p>
+                    <div class="price">
+                        <span class="currency">€</span>
+                        <span class="amount">69</span>
+                        <span class="period">/mese IVA inclusa</span>
+                    </div>
+                </div>
+                <a href="login.html" class="btn-pricing">Inizia con la Prova Gratuita</a>
+                <ul class="features-list">
+                    <li><img src="img/check.png"> Tutte le funzioni Hobby</li>
+                    <li><img src="img/check.png"> Ordinazioni base dall'app</li>
+                    <li><img src="img/check.png"> Gestione delle comande LIVE</li>
+                    <li><img src="img/check.png"> Banner promozionali nel menu</li>
+                    <li><img src="img/check.png"> Supporto e formazione</li>
+                </ul>
+            </div>
+
+            <!-- Pro Plan -->
+            <div class="pricing-card">
+                <div class="pricing-header">
+                    <h3>Pro</h3>
+                    <p>Per automazione e controllo</p>
+                    <div class="price">
+                        <span class="currency">€</span>
+                        <span class="amount">89</span>
+                        <span class="period">/mese IVA inclusa</span>
+                    </div>
+                </div>
+                <a href="login.html" class="btn-pricing">Inizia con la Prova Gratuita</a>
+                <ul class="features-list">
+                    <li><img src="img/check.png"> Tutte le funzioni di Totemino</li>
+                    <li><img src="img/check.png"> Domicilio con 0% di commissioni</li>
+                    <li><img src="img/check.png"> Suggerimenti con IA al checkout</li>
+                    <li><img src="img/check.png"> Statistiche e report mensili</li>
+                    <li><img src="img/check.png"> Menu iniziale configurato da noi</li>
+                </ul>
+            </div>
+        </div>
+    </section>
+
+    <!-- Social Proof / Testimonials -->
+     
+    <div class="create-reviews-section"></div>
+
+    <!-- Final CTA -->
+    <section class="final-cta">
+        <div class="cta-container">
+            <h2>Pronto a fare la scelta giusta?</h2>
+            <p>Unisciti a centinaia di ristoratori che hanno già scelto Totemino</p>
+            <a href="login.html" class="btn-cta-large">Ottieni la Prova Gratuita</a>
+            <span class="cta-note">Nessuna carta richiesta - 14 giorni di prova</span>
+        </div>
+    </section>
 
     <!-- FAQ Section -->
     <section class="faq-section">
@@ -53,159 +263,63 @@
             <!-- FAQ Ristoratore -->
             <div class="faq-category">
                 <h3 class="faq-category-title">Per il Ristoratore</h3>
-                
+
                 <div class="faq-item">
                     <div class="faq-question">
-                        <span>Cos'è Totemino e come funziona per il ristoratore?</span>
-                        <span class="faq-icon"><img src="img/down_arrow.png" alt="Espandi elemento FAQ"></span>
+                        <span>Cos'è Totemino per i ristoratori?</span>
+                        <span class="faq-icon"><img src="img/down_arrow.png"></span>
                     </div>
                     <div class="faq-answer">
                         <div class="faq-answer-content">
-                            Totemino è una piattaforma digitale che permette di gestire ordini e menu del ristorante tramite un pannello online. Tutti gli ordini dei clienti arrivano in un'unica interfaccia, facilitando la gestione.
+                            Totemino è una piattaforma che gestisce menu, ordini, domicilio e statistiche da un'unica piattaforma.
                         </div>
                     </div>
                 </div>
 
                 <div class="faq-item">
                     <div class="faq-question">
-                        <span>Come registrarsi e accedere al pannello di gestione?</span>
-                        <span class="faq-icon"><img src="img/down_arrow.png" alt="Espandi elemento FAQ"></span>
+                        <span>Come registrarsi e accedere?</span>
+                        <span class="faq-icon"><img src="img/down_arrow.png"></span>
                     </div>
                     <div class="faq-answer">
                         <div class="faq-answer-content">
-                            Visita la pagina di login, seleziona "Registrati", scegli un ID a 4 cifre e una password sicura. Poi puoi accedere al pannello inserendo ID e password.
+                            Registrati scegliendo un ID univoco di 4 numeri e password, poi accedi tramite il portale di login sicuro.
                         </div>
                     </div>
                 </div>
 
                 <div class="faq-item">
                     <div class="faq-question">
-                        <span>Come creare e modificare il menu digitale?</span>
-                        <span class="faq-icon"><img src="img/down_arrow.png" alt="Espandi elemento FAQ"></span>
+                        <span>Come modificare il menu digitale?</span>
+                        <span class="faq-icon"><img src="img/down_arrow.png"></span>
                     </div>
                     <div class="faq-answer">
                         <div class="faq-answer-content">
-                            Dal pannello clicca su "Modifica Menu" per aggiungere, modificare o eliminare prodotti, aggiornare ingredienti e allergeni e caricare immagini personalizzate.
+                            Nel Profilo cerca la sezione "Modifica Menu", lì puoi aggiungere, cambiare, rimuovere o nascondere prodotti e immagini.
                         </div>
                     </div>
                 </div>
 
                 <div class="faq-item">
                     <div class="faq-question">
-                        <span>Come aggiungere immagini e allergeni ai prodotti?</span>
-                        <span class="faq-icon"><img src="img/down_arrow.png" alt="Espandi elemento FAQ"></span>
+                        <span>Quali piani offre Totemino?</span>
+                        <span class="faq-icon"><img src="img/down_arrow.png"></span>
                     </div>
                     <div class="faq-answer">
                         <div class="faq-answer-content">
-                            Durante la creazione o modifica del prodotto puoi caricare immagini dal dispositivo e selezionare gli allergeni presenti nella griglia dedicata.
+                            Hobby per funzioni base, Premium per la gestione delle comande e Pro per investire in AI, statistiche e crescita.
                         </div>
                     </div>
                 </div>
 
                 <div class="faq-item">
                     <div class="faq-question">
-                        <span>Come gestire prodotti nascosti o novità?</span>
-                        <span class="faq-icon"><img src="img/down_arrow.png" alt="Espandi elemento FAQ"></span>
+                        <span>Come funzionano le statistiche?</span>
+                        <span class="faq-icon"><img src="img/down_arrow.png"></span>
                     </div>
                     <div class="faq-answer">
                         <div class="faq-answer-content">
-                            Puoi nascondere temporaneamente un prodotto senza eliminarlo e segnarlo come novità per evidenziarlo nel menu.
-                        </div>
-                    </div>
-                </div>
-
-                <div class="faq-item">
-                    <div class="faq-question">
-                        <span>Come funzionano i backup del menu?</span>
-                        <span class="faq-icon"><img src="img/down_arrow.png" alt="Espandi elemento FAQ"></span>
-                    </div>
-                    <div class="faq-answer">
-                        <div class="faq-answer-content">
-                            Ogni salvataggio del menu genera automaticamente un backup. Il sistema mantiene fino a tre backup storici eliminando il più vecchio quando serve.
-                        </div>
-                    </div>
-                </div>
-
-                <div class="faq-item">
-                    <div class="faq-question">
-                        <span>Come vedere, aggiornare e cancellare ordini?</span>
-                        <span class="faq-icon"><img src="img/down_arrow.png" alt="Espandi elemento FAQ"></span>
-                    </div>
-                    <div class="faq-answer">
-                        <div class="faq-answer-content">
-                            Gli ordini arrivano nel pannello divisi per tavolo e ritiro al banco. Puoi cambiare lo stato, aggiornare la lista manualmente o eliminare ordini con conferma.
-                        </div>
-                    </div>
-                </div>
-
-                <div class="faq-item">
-                    <div class="faq-question">
-                        <span>Quali piani offre Totemino e differenze tra Free, Premium e Pro?</span>
-                        <span class="faq-icon"><img src="img/down_arrow.png" alt="Espandi elemento FAQ"></span>
-                    </div>
-                    <div class="faq-answer">
-                        <div class="faq-answer-content">
-                            Free è gratuito con funzionalità base, Premium offre menu completo e gestione ordini, Pro include tutto Premium più suggerimenti intelligenti, statistiche dettagliate e supporto prioritario.
-                        </div>
-                    </div>
-                </div>
-
-                <div class="faq-item">
-                    <div class="faq-question">
-                        <span>Cosa include il piano Pro e i suggerimenti con IA?</span>
-                        <span class="faq-icon"><img src="img/down_arrow.png" alt="Espandi elemento FAQ"></span>
-                    </div>
-                    <div class="faq-answer">
-                        <div class="faq-answer-content">
-                            Il piano Pro offre suggerimenti intelligenti che analizzano l'ordine del cliente e suggeriscono prodotti complementari, aumentando il valore medio dell'ordine.
-                        </div>
-                    </div>
-                </div>
-
-                <div class="faq-item">
-                    <div class="faq-question">
-                        <span>Come funzionano le statistiche e report sulle vendite?</span>
-                        <span class="faq-icon"><img src="img/down_arrow.png" alt="Espandi elemento FAQ"></span>
-                    </div>
-                    <div class="faq-answer">
-                        <div class="faq-answer-content">
-                            La dashboard mostra vendite, numero ordini, ticket medio, prodotti più e meno venduti e trend mensili, con possibilità di filtrare per categoria.
-                        </div>
-                    </div>
-                </div>
-
-                <div class="faq-item">
-                    <div class="faq-question">
-                        <span>I miei dati sono sicuri su Totemino?</span>
-                        <span class="faq-icon"><img src="img/down_arrow.png" alt="Espandi elemento FAQ"></span>
-                    </div>
-                    <div class="faq-answer">
-                        <div class="faq-answer-content">
-                            Le password sono criptate, le sessioni sono sicure e solo il ristoratore può accedere ai dati tramite credenziali.
-                        </div>
-                    </div>
-                </div>
-
-                <div class="faq-item">
-                    <div class="faq-question">
-                        <span>Posso usare Totemino da più dispositivi e offline?</span>
-                        <span class="faq-icon"><img src="img/down_arrow.png" alt="Espandi elemento FAQ"></span>
-                    </div>
-                    <div class="faq-answer">
-                        <div class="faq-answer-content">
-                            Puoi accedere da qualsiasi dispositivo con internet. Totemino non funziona offline.
-                        </div>
-                    </div>
-                </div>
-
-                <div class="faq-item">
-                    <div class="faq-question">
-                        <span>Come funziona l'assistenza e la risoluzione problemi per i ristoratori?</span>
-                        <span class="faq-icon"><img src="img/down_arrow.png" alt="Espandi elemento FAQ"></span>
-                    </div>
-                    <div class="faq-answer">
-                        <div class="faq-answer-content">
-                            Gli utenti Pro hanno supporto prioritario. In caso di problemi con ordini o accesso, puoi contattare il supporto tecnico.
+                            La sezione "Statistiche" è una dashboard moderna dove si possono approfondire: le vendite, quali piatti funzionano (e quali no), l'andamento degli ordini e i risultati dei suggerimenti AI. Trovi anche una panoramica sui tuoi clienti, i momenti della giornata in cui ordinano di più e molto altro.
                         </div>
                     </div>
                 </div>
@@ -214,83 +328,72 @@
             <!-- FAQ Cliente -->
             <div class="faq-category">
                 <h3 class="faq-category-title">Per il Cliente</h3>
-                
+
                 <div class="faq-item">
                     <div class="faq-question">
-                        <span>Cos'è Totemino e come funziona il menu digitale per il cliente?</span>
-                        <span class="faq-icon"><img src="img/down_arrow.png" alt="Espandi elemento FAQ"></span>
+                        <span>Cos'è Totemino per il cliente?</span>
+                        <span class="faq-icon"><img src="img/down_arrow.png"></span>
                     </div>
                     <div class="faq-answer">
                         <div class="faq-answer-content">
-                            Totemino permette di ordinare direttamente dal tavolo tramite codice PIN o QR code, senza parlare con il personale, accedendo a un menu digitale semplice e multilingua.
+                            Un menu digitale per ordinare con comodità direttamente dal tavolo o da casa.
                         </div>
                     </div>
                 </div>
 
                 <div class="faq-item">
                     <div class="faq-question">
-                        <span>Come ordinare al ristorante con Totemino?</span>
-                        <span class="faq-icon"><img src="img/down_arrow.png" alt="Espandi elemento FAQ"></span>
+                        <span>Come ordinare con Totemino?</span>
+                        <span class="faq-icon"><img src="img/down_arrow.png"></span>
                     </div>
                     <div class="faq-answer">
                         <div class="faq-answer-content">
-                            Scansiona il QR code o inserisci il codice PIN sul tavolo, scegli i prodotti e invia l'ordine direttamente alla cucina.
+                            Scansiona il QR, inserisci il PIN o controlla nella sezione "Recenti", scegli i prodotti e invia l’ordine.
                         </div>
                     </div>
                 </div>
 
                 <div class="faq-item">
                     <div class="faq-question">
-                        <span>Totemino supporta più lingue?</span>
-                        <span class="faq-icon"><img src="img/down_arrow.png" alt="Espandi elemento FAQ"></span>
+                        <span>Totemino è multilingua?</span>
+                        <span class="faq-icon"><img src="img/down_arrow.png"></span>
                     </div>
                     <div class="faq-answer">
                         <div class="faq-answer-content">
-                            Sì, il menu digitale è disponibile in diverse lingue, facilitando l'esperienza anche ai clienti stranieri.
+                            Sì, il menu è disponibile in varie lingue per i clienti stranieri.
                         </div>
                     </div>
                 </div>
 
                 <div class="faq-item">
                     <div class="faq-question">
-                        <span>Posso modificare un ordine già inviato?</span>
-                        <span class="faq-icon"><img src="img/down_arrow.png" alt="Espandi elemento FAQ"></span>
+                        <span>Posso modificare un ordine inviato?</span>
+                        <span class="faq-icon"><img src="img/down_arrow.png"></span>
                     </div>
                     <div class="faq-answer">
                         <div class="faq-answer-content">
-                            Dopo l'invio, occorre contattare il personale per eventuali modifiche, perché l'ordine arriva immediatamente al sistema.
+                            No, devi chiamare il personale perché l’ordine arriva subito al sistema.
                         </div>
                     </div>
                 </div>
 
                 <div class="faq-item">
                     <div class="faq-question">
-                        <span>Come vedere allergeni e informazioni sui prodotti?</span>
-                        <span class="faq-icon"><img src="img/down_arrow.png" alt="Espandi elemento FAQ"></span>
+                        <span>Come vedere allergeni e info prodotti?</span>
+                        <span class="faq-icon"><img src="img/down_arrow.png"></span>
                     </div>
                     <div class="faq-answer">
                         <div class="faq-answer-content">
-                            Ogni prodotto mostra gli allergeni presenti. Basta cliccare sul prodotto per visualizzare i dettagli prima di aggiungerlo al carrello.
+                            Clicca sull'icona di info ma ricorda che inserire queste info è a discrezione del ristorante, non di Totemino.
                         </div>
                     </div>
                 </div>
+
             </div>
         </div>
     </section>
 
-    <!-- CTA Section -->
-    <section class="cta-section">
-        <div class="cta-content">
-            <h2 class="cta-title">Pronto a fare la differenza?</h2>
-            <p class="cta-description">
-                Unisciti a migliaia di persone che hanno già scoperto il futuro dell'ordinazione digitale.
-                Semplice, veloce e senza parole.
-            </p>
-            <button class="cta-btn" onclick="document.querySelector('.packages-section').scrollIntoView({ behavior: 'smooth' })">
-                Inizia Ora
-            </button>
-        </div>
-    </section>
+    <!-- Footer -->
     <footer>
         <p>Fatto con amore da &copy; Webtor Studios<br>Cell. 351 054 8462</p>
         <div class="footer-img">
@@ -301,36 +404,9 @@
         <a href="termini-e-condizioni.html">Termini e condizioni</a> <a id="nohover"> | </a> <a href="cookie-policy.html">Informativa Privacy</a>
     </footer>
     
-    <script src="cookie-banner.js"></script>
-    <script src="collect-user-info.js"></script>
-    
-    <script src="auth-protection.js"></script>
     <script src="index-script.js"></script>
-    <script src="billing-script.js"></script>
     <script src="reviews-script.js"></script>
     <script src="theme.js"></script>
-  <script src="logo-pop.js"></script>
-
+    <script src="logo-pop.js"></script>
 </body>
-
 </html>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

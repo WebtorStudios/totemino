@@ -2,6 +2,87 @@
 /* Import styles */
 @import url("menu-styles.css");
 
+/* ===== NAVBAR ===== */
+.navbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  background: var(--bg-secondary);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--btn-secondary);
+  padding: 1rem 0;
+  transition: all 0.3s ease;
+}
+
+.nav-container {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 2rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.nav-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+}
+
+.nav-brand img {
+  height: 3rem;
+}
+
+.nav-brand h1 {
+  font-family: 'Magic';
+  font-size: 1.8rem;
+  color: var(--text-accent);
+  margin: 0;
+}
+
+.nav-actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.nav-btn {
+  padding: 0.6rem 1.5rem;
+  border-radius: 2rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  border: none;
+  background: transparent;
+}
+
+.theme-btn {
+  padding: 0rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.theme-btn img {
+  width: 1.6rem;
+  height: 1.6rem;
+}
+
+.login-btn {
+  background: var(--accent-gold);
+  color: var(--text-primary);
+  text-decoration: none;
+  display: inline-block;
+}
+
+.login-btn:hover {
+  transform: scale(1.08);
+}
+
+
 /* Login text wrapper */
 .login-text-wrapper {
     text-align: center;
@@ -13,6 +94,7 @@
     font-family: 'CalSans', sans-serif;
     font-size: clamp(2rem, 5vw, 3rem);
     color: var(--text-accent);
+    margin-top: 7.5rem;
     margin-bottom: 1rem;
 }
 
@@ -110,7 +192,7 @@
 .login-card {
     background: var(--card-bg);
     border: 1px solid var(--card-bg);
-    border-radius: 2rem;
+    border-radius: 2.8rem;
     padding: 2rem;
     transition: all 0.3s ease;
     box-shadow: 0 0 10px rgba(97, 97, 97, 0.2);
@@ -228,7 +310,7 @@
     border-radius: 1.5rem;
     border: 1px solid var(--text-accent);
     cursor: pointer;
-    margin: 1rem 0;
+    margin: 1rem 0 0;
     transition: all 0.2s ease;
     box-sizing: border-box;
 }

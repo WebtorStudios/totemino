@@ -37,7 +37,8 @@ document.addEventListener('DOMContentLoaded', () => {
 	
 	container.innerHTML = `
 		<div class="reviews-section">
-			<h3 class="reviews-title">Cosa dicono di noi.</h3>
+			<h3 class="reviews-title">Cosa dicono di noi</h3>
+			<p class="reviews-subtitle">Ristoratori soddisfatti in tutto il mondo</p>
 			<div class="carousel-wrapper">
 				<div class="carousel-track">
 					${tripleReviews.map(r => `

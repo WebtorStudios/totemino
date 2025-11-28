@@ -1,152 +1,114 @@
-// === GREETING ===
-const now = new Date();
-const utcHour = now.getUTCHours();
-const gmt1Hour = (utcHour + 1) % 24;
+// ===== INTERSECTION OBSERVER FOR SCROLL ANIMATIONS =====
+const observerOptions = {
+  threshold: 0.1,
+  rootMargin: '0px 0px -50px 0px'
+};
 
-let greeting = "";
-if (gmt1Hour >= 5 && gmt1Hour < 12) {
-  greeting = "Buongiorno!";
-} else if (gmt1Hour >= 12 && gmt1Hour < 18) {
-  greeting = "Buon pomeriggio!";
-} else {
-  greeting = "Buonasera!";
-}
-document.getElementById("greeting").textContent = greeting;
-
-// === ELEMENTI DOM ===
-const startBtn = document.querySelector('.start-btn');
-const loginCard = document.querySelector('.login-card');
-const logo = document.querySelector('.logo');
-const title = document.querySelector('.main-title');
-const inputs = document.querySelectorAll('.pin-inputs input');
-const submitBtn = document.querySelector('.submit-btn');
-const hero = document.querySelector('.hero');
-
-
-async function checkAuth() {
-  try {
-    const res = await fetch('/api/auth/me', { credentials: 'include' });
-    const data = await res.json();
-    
-    if (data.success) {
-      const profiloBtnEl = document.getElementById('profiloBtn');
-      if (profiloBtnEl) {
-        profiloBtnEl.style.display = 'inline-block';
-        const restaurantId = data.user.restaurantId; // ✅ prende l'id dalla sessione
-        profiloBtnEl.addEventListener('click', () => {
-          window.location.href = `profile.html?id=${restaurantId}`;
-        });
-      }
-      document.getElementById('loginBtn').style.display = 'none';
-    }
-  } catch (e) {
-    console.error('Errore checkAuth:', e);
-  }
-}
-
-// === AUTH CHECK ===
-async function checkAuth() {
-  try {
-    const res = await fetch('/api/auth/me', { credentials: 'include' });
-    const data = await res.json();
-    
-    if (data.success) {
-      document.getElementById('loginBtn').style.display = 'none';
-      const profiloBtnEl = document.getElementById('profiloBtn');
-      if (profiloBtnEl) {
-        profiloBtnEl.style.display = 'inline-block';
-        const restaurantId = data.user.restaurantId;
-        profiloBtnEl.addEventListener('click', () => {
-          window.location.href = `profile.html?id=${restaurantId}`;
-        });
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      entry.target.classList.add('visible');
+      // Non fare unobserve del logo per permettere animazioni infinite
+      if (!entry.target.id || entry.target.id !== 'logoSwap') {
+        observer.unobserve(entry.target);
       }
     }
-  } catch (e) {
-    console.error('Errore checkAuth:', e);
-  }
-}
+  });
+}, observerOptions);
 
-// === INIT ===
+// ===== OBSERVE ELEMENTS ON PAGE LOAD =====
 document.addEventListener('DOMContentLoaded', () => {
-  checkAuth();
+  // Observe section headers
+  const sectionHeaders = document.querySelectorAll('.section-header');
+  sectionHeaders.forEach(header => observer.observe(header));
+
+  // Observe stats
+  const statItems = document.querySelectorAll('.stat-item');
+  statItems.forEach((stat, index) => {
+    stat.style.animationDelay = `${index * 0.1}s`;
+    observer.observe(stat);
+  });
+
+  // Observe feature cards
+  const featureCards = document.querySelectorAll('.feature-card');
+  featureCards.forEach((card, index) => {
+    card.style.animationDelay = `${index * 0.1}s`;
+    observer.observe(card);
+  });
+
+  // Observe steps
+  const steps = document.querySelectorAll('.step');
+  steps.forEach((step, index) => {
+    step.style.animationDelay = `${index * 0.2}s`;
+    observer.observe(step);
+  });
+
+  // Observe pricing cards
+  const pricingCards = document.querySelectorAll('.pricing-card');
+  pricingCards.forEach((card, index) => {
+    // Ordine di animazione: prima (0s), terza (0.25s), centrale (0.5s)
+    let delay;
+    if (index === 0) delay = 0;        // Hobby - prima
+    else if (index === 1) delay = 0.4; // Premium - ultima
+    else if (index === 2) delay = 0.25; // Pro - seconda
+    
+    card.style.animationDelay = `${delay}s`;
+    observer.observe(card);
+  });
+
+  // Observe testimonials
+  const testimonials = document.querySelectorAll('.testimonial-card');
+  testimonials.forEach((testimonial, index) => {
+    testimonial.style.animationDelay = `${index * 0.15}s`;
+    observer.observe(testimonial);
+  });
+
+  // Initialize FAQ accordions
+  initFAQ();
+
+  // Navbar scroll effect
+  initNavbarScroll();
 });
 
-
-
-// === EXISTING LOGIC ===
-startBtn.addEventListener('click', () => {
-  document.querySelector('.hero').scrollIntoView({ behavior: 'smooth' })
-  loginCard.classList.add('active');
-  hero.classList.add('active');
-  startBtn.classList.add('hidden');
-  logo.style.transform = 'translateY(6.2em)';
-  logo.style.width = '16rem';
-  title.style.transform = 'translateY(-13.5rem)';
-  title.style.fontSize = '2.4rem';
-});
-
-function allInputsFilled() {
-  return Array.from(inputs).every(input => input.value.trim() !== '');
-}
-
-inputs.forEach((input, index) => {
-  input.addEventListener('focus', () => {
-    window.scrollTo(0, document.body.scrollHeight);
-  });
-
-  input.addEventListener('input', () => {
-    if (input.value && index < inputs.length - 1) {
-      inputs[index + 1].focus();
-    }
-    if (allInputsFilled()) {
-      inputs[inputs.length - 1].blur();
-    }
-  });
-
-  input.addEventListener('keydown', (e) => {
-    if (e.key === "Backspace" && !input.value && index > 0) {
-      inputs[index - 1].focus();
-    }
-  });
-});
-
-submitBtn.addEventListener('click', async () => {
-  const code = Array.from(inputs, i => i.value).join("");
+// ===== SHOW MORE FEATURES BUTTON (MOBILE) =====
+document.addEventListener('DOMContentLoaded', () => {
+  const showMoreBtn = document.getElementById('showMoreFeatures');
+  const featuresGrid = document.querySelector('.features-grid');
   
-  if (!/^\d{4}$/.test(code)) return;
-  
-  const users = await (await fetch('userdata/users.json')).json();
-  const isValid = users[code];
-  
-  inputs.forEach((input, i) => {
-    if (isValid) {
-      input.style.animationDelay = `${i * 0.15}s`;
-      input.classList.add('animate');
-      setTimeout(() => input.classList.add('success'), i * 150 + 200);
-    } else {
-      input.classList.add('error');
-    }
-  });
-  
-  setTimeout(() => {
-    if (isValid) {
-      window.location.href = `menu-select.html?id=${code}`;
-    } else {
-      inputs.forEach(i => {
-        i.classList.remove('error');
-        i.value = '';
+  if (showMoreBtn && featuresGrid) {
+    showMoreBtn.addEventListener('click', () => {
+      featuresGrid.classList.add('expanded');
+      
+      // Anima le card nascoste quando vengono mostrate
+      const hiddenCards = featuresGrid.querySelectorAll('.feature-card:nth-child(n+3)');
+      hiddenCards.forEach((card, index) => {
+        card.style.animationDelay = `${index * 0.1}s`;
+        card.classList.add('visible');
       });
-      inputs[0].focus();
+    });
+  }
+});
+
+// ===== NAVBAR SCROLL EFFECT =====
+function initNavbarScroll() {
+  const navbar = document.querySelector('.navbar');
+  let lastScroll = 0;
+
+  window.addEventListener('scroll', () => {
+    const currentScroll = window.pageYOffset;
+
+    if (currentScroll > 100) {
+      navbar.classList.add('scrolled');
+    } else {
+      navbar.classList.remove('scrolled');
     }
-  }, 1200);
-});
 
-submitBtn.addEventListener("click", function () {
-  this.classList.toggle("clicked");
-});
+    lastScroll = currentScroll;
+  });
+}
 
-// === FAQ ACCORDION ===
-document.addEventListener('DOMContentLoaded', () => {
+// ===== FAQ ACCORDION =====
+function initFAQ() {
   const faqItems = document.querySelectorAll('.faq-item');
   
   faqItems.forEach(item => {
@@ -178,4 +140,176 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
   });
+}
+
+// ===== SMOOTH SCROLL FOR ANCHOR LINKS =====
+document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+  anchor.addEventListener('click', function (e) {
+    const href = this.getAttribute('href');
+    if (href !== '#' && href.length > 1) {
+      e.preventDefault();
+      const target = document.querySelector(href);
+      if (target) {
+        const offsetTop = target.offsetTop - 80;
+        window.scrollTo({
+          top: offsetTop,
+          behavior: 'smooth'
+        });
+      }
+    }
+  });
+});
+
+// ===== PARALLAX EFFECT FOR HERO IMAGE (OPTIONAL) =====
+const heroImage = document.querySelector('.hero-image');
+if (heroImage) {
+  window.addEventListener('scroll', () => {
+    const scrolled = window.pageYOffset;
+    const rate = scrolled * 0.1;
+    
+    if (scrolled < window.innerHeight) {
+      heroImage.style.transform = `translateY(${rate}px)`;
+    }
+  });
+}
+
+// ===== ANIMATED COUNTER FOR STATS =====
+function animateCounter(element, target, suffix = '', duration = 2000) {
+  let current = 0;
+  const increment = target / (duration / 16);
+  const isDecimal = target.toString().includes('.');
+  
+  const timer = setInterval(() => {
+    current += increment;
+    if (current >= target) {
+      current = target;
+      clearInterval(timer);
+    }
+    
+    if (isDecimal) {
+      element.textContent = current.toFixed(1) + suffix;
+    } else if (target >= 1000) {
+      element.textContent = Math.floor(current).toLocaleString() + suffix;
+    } else {
+      element.textContent = Math.floor(current) + suffix;
+    }
+  }, 16);
+}
+
+// Trigger counter animation when stats become visible
+const statsObserver = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      const statItems = entry.target.querySelectorAll('.stat-item h3');
+      statItems.forEach(stat => {
+        const text = stat.textContent.trim();
+        let target;
+        let suffix = '';
+        
+        if (text.includes('%')) {
+          target = parseInt(text);
+          suffix = '%';
+          stat.textContent = '0%';
+          setTimeout(() => animateCounter(stat, target, suffix), 300);
+        } else if (text.includes('+')) {
+          target = parseInt(text.replace('+', ''));
+          suffix = '+';
+          stat.textContent = '0';
+          setTimeout(() => animateCounter(stat, target, suffix), 300);
+        } else if (text.includes('+')) {
+          target = parseInt(text.replace('+', ''));
+          suffix = '+';
+          stat.textContent = '0';
+          setTimeout(() => animateCounter(stat, target, suffix), 300);
+        } else if (text.includes('/')) {
+          const rating = parseFloat(text.split('/')[0]);
+          suffix = '/5';
+          stat.textContent = '0.0/5';
+          setTimeout(() => animateCounter(stat, rating, suffix), 300);
+        }
+      });
+      
+      statsObserver.unobserve(entry.target);
+    }
+  });
+}, { threshold: 0.5 });
+
+const statsBar = document.querySelector('.stats-bar');
+if (statsBar) {
+  statsObserver.observe(statsBar);
+}
+
+// ===== ADD RIPPLE EFFECT TO BUTTONS =====
+function createRipple(event) {
+  const button = event.currentTarget;
+  const ripple = document.createElement('span');
+  const rect = button.getBoundingClientRect();
+  const size = Math.max(rect.width, rect.height);
+  const x = event.clientX - rect.left - size / 2;
+  const y = event.clientY - rect.top - size / 2;
+
+  ripple.style.width = ripple.style.height = size + 'px';
+  ripple.style.left = x + 'px';
+  ripple.style.top = y + 'px';
+  ripple.classList.add('ripple');
+
+  button.appendChild(ripple);
+
+  setTimeout(() => {
+    ripple.remove();
+  }, 600);
+}
+
+// Apply ripple to buttons
+document.querySelectorAll('.btn-hero, .btn-pricing, .btn-cta-large').forEach(button => {
+  button.addEventListener('click', createRipple);
+});
+
+// ===== LAZY LOADING IMAGES =====
+if ('IntersectionObserver' in window) {
+  const imageObserver = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        const img = entry.target;
+        if (img.dataset.src) {
+          img.src = img.dataset.src;
+          img.removeAttribute('data-src');
+          imageObserver.unobserve(img);
+        }
+      }
+    });
+  });
+
+  document.querySelectorAll('img[data-src]').forEach(img => {
+    imageObserver.observe(img);
+  });
+}
+
+// ===== PERFORMANCE: DEBOUNCE SCROLL EVENTS =====
+function debounce(func, wait = 10) {
+  let timeout;
+  return function executedFunction(...args) {
+    const later = () => {
+      clearTimeout(timeout);
+      func(...args);
+    };
+    clearTimeout(timeout);
+    timeout = setTimeout(later, wait);
+  };
+}
+
+// ===== EASTER EGG: KONAMI CODE =====
+let konamiCode = [];
+const konamiSequence = [38, 38, 40, 40, 37, 39, 37, 39, 66, 65];
+
+document.addEventListener('keydown', (e) => {
+  konamiCode.push(e.keyCode);
+  konamiCode = konamiCode.slice(-10);
+  
+  if (konamiCode.join(',') === konamiSequence.join(',')) {
+    document.body.style.animation = 'rainbow 2s linear infinite';
+    setTimeout(() => {
+      document.body.style.animation = '';
+    }, 5000);
+  }
 });
