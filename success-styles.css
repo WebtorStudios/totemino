@@ -7,17 +7,13 @@
   height: 2.4rem;
 }
 
-.success-landing .close-popup img {
-  width: 60%;
-}
-
 .success-landing {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   text-align: center;
-  height: 76%;
+  height: 75vh;
 }
 
 .success-landing img {
@@ -57,11 +53,6 @@
   font-weight: 600;
   border-radius: 2rem;
   cursor: pointer;
-  transition: transform 0.2s ease;
-}
-
-.success-landing .start-btn:active {
-  transform: scale(0.98);
 }
 
 #get-app {
@@ -96,8 +87,3 @@
     height: auto;
   }
 }
-
-
-
-
-
