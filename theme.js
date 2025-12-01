@@ -5,7 +5,6 @@ class ThemeManager {
     this.html = document.documentElement;
     // FIX: Escludi #logoSwap dalla gestione automatica
     this.logo = document.querySelector('.theme-img:not(#logoSwap)');
-    this.faqSection = document.querySelector('.faq-section');
     this.oldTheme = null;
     this.init();
   }
@@ -16,7 +15,6 @@ class ThemeManager {
     this.setTheme(savedTheme);
     
     this.themeButton?.addEventListener('click', () => this.toggleTheme());
-    this.initFaqObserver();
   }
   
   setTheme(theme) {
@@ -38,30 +36,6 @@ class ThemeManager {
     this.setTheme(newTheme);
     this.themeButton?.classList.add('theme-clicked');
     setTimeout(() => this.themeButton?.classList.remove('theme-clicked'), 200);
-  }
-  
-  initFaqObserver() {
-    if (!this.faqSection || !this.logo) return;
-    
-    new IntersectionObserver((entries) => {
-      entries.forEach(entry => {
-        if (entry.isIntersecting) {
-          // Salva il tema corrente solo la prima volta
-          if (!this.oldTheme) {
-            this.oldTheme = this.html.getAttribute('data-theme');
-          }
-          this.logo.src = this.logo.getAttribute('data-dark');
-        } else {
-          // Ripristina il tema originale
-          if (this.oldTheme) {
-            this.logo.src = this.logo.getAttribute(`data-${this.oldTheme}`);
-          }
-        }
-      });
-    }, { 
-      threshold: 0,
-      rootMargin: '0px 0px -95% 0px' 
-    }).observe(this.faqSection);
   }
 }
 
