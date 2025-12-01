@@ -124,29 +124,41 @@
 	
  	<script src="index-script.js"></script>
     <script>
-        // Aspetta che billing-script.js abbia creato le card
-        document.addEventListener("DOMContentLoaded", function() {
-			const urlParams = new URLSearchParams(window.location.search);
-			const need = urlParams.get('need');
-			
+        // Recupera il piano attuale dal server e nasconde quello corrente + inferiori
+        document.addEventListener("DOMContentLoaded", async function() {
 			const hobbyCard = document.querySelector('#p-hobby');
 			const premiumCard = document.querySelector('#p-premium');
 			const proCard = document.querySelector('#p-pro');
 
-			if (need === 'premium') {
-				if (hobbyCard) {
-					hobbyCard.style.display = 'none';
+			try {
+				// Chiama l'endpoint /api/auth/me per ottenere il piano corrente
+				const response = await fetch('/api/auth/me', {
+					credentials: 'include'
+				});
+				
+				const data = await response.json();
+				
+				if (data.success && data.user && data.user.planType) {
+					const currentPlan = data.user.planType;
+					
+					// Gerarchia: hobby < premium < pro
+					if (currentPlan === 'hobby') {
+						// Nascondi hobby
+						if (hobbyCard) hobbyCard.style.display = 'none';
+					} else if (currentPlan === 'premium') {
+						// Nascondi hobby e premium
+						if (hobbyCard) hobbyCard.style.display = 'none';
+						if (premiumCard) premiumCard.style.display = 'none';
+					} else if (currentPlan === 'pro') {
+						// Utente già al piano massimo, reindirizza a profile.html
+						window.location.href = 'profile.html';
+						return;
+					}
 				}
+			} catch (error) {
+				console.error('Errore nel recupero del piano corrente:', error);
+				// In caso di errore, mostra tutti i piani
 			}
-			if (need === 'pro') {
-				if (hobbyCard) {
-					hobbyCard.style.display = 'none';
-				}
-				if (premiumCard) {
-					premiumCard.style.display = 'none';
-				}
-			}
-
         });
     </script>
     <script>
