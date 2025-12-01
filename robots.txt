@@ -3,3 +3,5 @@ Allow: /index.html
 Allow: /index-user.html
 Allow: /login.html
 Disallow: /
+
+Sitemap: http://totemino.it/sitemap.xml
