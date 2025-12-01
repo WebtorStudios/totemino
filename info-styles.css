@@ -1,5 +1,9 @@
 @import url("menu-styles.css");
 
+html, body {
+  scrollbar-width: auto;
+}
+
 /* ===== SETTINGS CONTAINER ===== */
 .settings-container {
   max-width: 900px;

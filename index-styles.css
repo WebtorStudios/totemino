@@ -445,7 +445,7 @@ section {
 
 .pricing-card {
   background: var(--card-bg);
-  border: 2px solid var(--card-border);
+  border: 3px solid var(--card-border);
   border-radius: 1rem;
   padding: 2rem 2rem 0.8rem 2rem;
   transition: all 0.3s ease;
@@ -463,14 +463,13 @@ section {
 
 .pricing-card.featured {
   border-color: var(--accent-gold);
-  box-shadow: 0 1px 9px var(--selected-glow);
   transform: scale(1.05);
-}
-
-
-[data-theme="light"] .pricing-card.featured {
-  border-color: #ffb16d;
-  box-shadow: 0 1px 9px #ffb10acf;
+  border: 3px solid transparent;
+  background-image: 
+    linear-gradient(var(--card-bg), var(--card-bg)),
+    linear-gradient(to right, var(--accent-gold), var(--accent-pink));
+  background-origin: border-box;
+  background-clip: padding-box, border-box;
 }
 
 .popular-badge {
@@ -478,8 +477,14 @@ section {
   top: -19px;
   left: 50%;
   transform: translateX(-50%);
-  background: var(--card-bg);
-  border: 2px solid #ffb16d;
+  
+  border: 2px solid transparent;
+  background-image: 
+    linear-gradient(var(--card-bg), var(--card-bg)),
+    linear-gradient(to right, var(--accent-gold), var(--accent-pink));
+  background-origin: border-box;
+  background-clip: padding-box, border-box;
+
   color: var(--text-accent);
   padding: 0.5rem 1.5rem;
   border-radius: 2rem;

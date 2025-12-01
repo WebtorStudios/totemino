@@ -1,18 +1,17 @@
-@import url("gestione-styles.css");
+@import url("menu-styles.css");
 
-/* ======================
-  CONTAINER
-  ====================== */
-.container {
-  max-width: 1400px;
-  margin: 0 auto;
-  padding: 0 1rem;
-  margin-bottom: 4rem;
+html, body {
+  scrollbar-width: auto;
 }
 
-/* ======================
-  HERO CARD
-  ====================== */
+/* Container */
+.container {
+  max-width: 1400px;
+  margin: 0 auto 4rem;
+  padding: 0 1rem;
+}
+
+/* Hero Card */
 .hero-card {
   background: var(--card-bg);
   border-radius: 1.5rem;
@@ -27,8 +26,7 @@
 .code-section {
   width: 333px;
   text-align: center;
-  margin: 0 auto;
-  margin-bottom: 2rem;
+  margin: 0 auto 2rem;
   padding-bottom: 1rem;
 }
 
@@ -42,9 +40,8 @@
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 0.75rem;
-  justify-content: center;
-  margin: 0 auto;
   max-width: 280px;
+  margin: 0 auto;
 }
 
 .code-digit {
@@ -62,8 +59,8 @@
 
 /* Plan Section */
 .plan-section {
-  width: 100%;  
-  max-width: 400px;
+  width: 90%;  
+  max-width: 300px;
   margin: 0 auto;
 }
 
@@ -72,10 +69,6 @@
   padding: 1.25rem 1.5rem;
   border-radius: 1rem;
   margin-bottom: 0.75rem;
-}
-
-.plan-card.free {
-  background: var(--input-bg);
 }
 
 .plan-card.premium,
@@ -89,6 +82,11 @@
   background: linear-gradient(125deg, rgba(255,255,255,0.95), rgba(240,248,255,0.95), rgba(255,240,255,0.95), rgba(240,255,250,0.95), rgba(255,255,255,0.95));
   color: #3f3150;
   box-shadow: 0 1px 0 rgba(255,255,255,0.8) inset, 0 3px 10px rgba(0,0,0,0.15);
+}
+
+.plan-card.trial {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
 }
 
 .plan-label {
@@ -111,16 +109,14 @@
   font-size: 1rem;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: opacity 0.2s;
 }
 
 .btn-manage:hover {
   opacity: 0.9;
 }
 
-/* ======================
-  SECTION TITLE
-  ====================== */
+/* Section Title */
 .section-title {
   font-family: 'Klein-Bold', sans-serif;
   font-size: 1.25rem;
@@ -129,9 +125,7 @@
   padding-left: 0.25rem;
 }
 
-/* ======================
-  MENU CARDS
-  ====================== */
+/* Menu Cards */
 .menu-card {
   background: var(--card-bg);
   border-radius: 1.5rem;
@@ -153,10 +147,6 @@
 
 .menu-item:last-child {
   border-bottom: none;
-}
-
-.menu-item:hover {
-  background: var(--input-bg);
 }
 
 .menu-left {
@@ -191,16 +181,13 @@
   font-size: 1.5rem;
 }
 
-/* ======================
-  LOGOUT SECTION
-  ====================== */
+/* Logout Section */
 .logout-section {
   background: var(--card-bg);
   border-radius: 1.5rem;
   box-shadow: 0 2px 8px var(--shadow-sm);
   max-width: 200px;
-  margin: 0 auto;
-  margin-top: 3rem; 
+  margin: 3rem auto 0;
 }
 
 .btn-logout {
@@ -213,7 +200,6 @@
   font-size: 1rem;
   font-weight: 600;
   cursor: pointer;
-  max-width: 500px;
   transition: background 0.2s;
 }
 
@@ -221,41 +207,14 @@
   background: hsl(0, 57%, 45%);
 }
 
-/* ======================
-  RESPONSIVE
-  ====================== */
-@media (min-width: 768px) {
-  .hero-card {
-    align-items: center;
-    justify-content: center!important;
-    flex-direction: row;
-  }
-
-  .code-section  {
-    margin-bottom: 0;
-  }
-
-  .container {
-      padding: 0 10rem;
-  }
-
-  .code-digit {
-      width: 70px;
-      height: 70px;
-      font-size: 2rem;
-  }
-
-}
-
-/* ======================
-  QR CODE POPUP
-  ====================== */
+/* Popups */
 .qr-popup-overlay {
   position: fixed;
   inset: 0;
   background: rgba(0, 0, 0, 0.7);
-  display: grid;
-  place-items: center;
+  display: flex;
+  justify-content: center;
+  align-items: center;
   z-index: 10000;
   opacity: 0;
   pointer-events: none;
@@ -271,125 +230,134 @@
   background: var(--card-bg);
   border-radius: 2rem;
   width: min(400px, 90%);
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+  max-height: 90vh;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+  overflow: hidden;
 }
 
 .qr-popup-header {
+  padding: 2rem 2rem 1.5rem;
   text-align: center;
-  margin-bottom: 1.5rem;
+  border-bottom: 1px solid var(--input-bg);
 }
 
 .qr-popup-header h1 {
   font-family: 'Klein-Bold', sans-serif;
   font-size: 1.5rem;
   color: var(--text-primary);
-  margin-bottom: 0.5rem;
+  margin: 0 0 0.5rem;
 }
 
 .qr-popup-header p {
   color: var(--text-secondary);
   font-size: 0.95rem;
+  margin: 0;
 }
 
-.qr-container {
-  background: white;
+.qr-popup-actions {
   padding: 1.5rem;
-  border-radius: 2rem;
-  display: grid;
-  place-items: center;
-  width: 304px;
-  height: 304px;
-  margin: 1.5rem auto;
-}
-
-.qr-actions {
+  background: var(--input-bg);
   display: flex;
   gap: 0.75rem;
 }
 
-.qr-actions button {
+.qr-popup-actions button {
   flex: 1;
-  padding: 0.85rem;
+  padding: 1rem;
   border: none;
-  border-radius: 0.75rem;
+  border-radius: 1rem;
   font-size: 1rem;
   font-weight: 600;
   cursor: pointer;
-  transition: opacity 0.2s;
-}
-
-.qr-actions button:hover {
-  opacity: 0.9;
-}
-
-#qrClose {
-  background: var(--input-bg);
+  transition: all 0.2s;
+  background: var(--card-bg);
   color: var(--text-primary);
+  border: 2px solid var(--input-bg);
 }
 
-#downloadQR {
+.btn-danger {
+  background: hsl(0, 67%, 55%) !important;
+  color: white !important;
+  border: none !important;
+}
+
+.btn-danger:hover {
+  background: hsl(0, 57%, 45%) !important;
+}
+
+.btn-primary {
+  background: var(--index-btn) !important;
+  color: white !important;
+  border: none !important;
+}
+
+/* QR Menu List */
+.qr-menu-list {
+  max-height: 400px;
+  overflow-y: auto;
+  padding: 1.5rem;
+}
+
+.qr-menu-item {
+  padding: 1.25rem 1.5rem;
+  background: var(--input-bg);
+  border-radius: 1rem;
+  margin-bottom: 0.75rem;
+  cursor: pointer;
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.qr-menu-item:hover {
   background: var(--index-btn);
   color: white;
 }
 
-
-.status-trial {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-    padding: 4px 12px;
-    border-radius: 12px;
-    font-size: 12px;
-    font-weight: bold;
+.qr-error {
+  text-align: center;
+  padding: 3rem 2rem;
+  color: var(--text-secondary);
+  font-size: 0.95rem;
 }
 
-.plan-card.trial {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
+/* QR Container */
+.qr-container {
+  background: white;
+  padding: 1.5rem;
+  display: grid;
+  place-items: center;
 }
 
-.plan-card.trial .plan-name {
-    color: white;
+#qrCanvas {
+  width: 256px;
+  height: 256px;
 }
 
-[data-trial-badge] {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-    padding: 8px 16px;
-    border-radius: 20px;
-    font-size: 13px;
-    font-weight: bold;
-    display: inline-block;
-    animation: pulse 2s infinite;
-    margin: 10px 0;
+/* Responsive */
+@media (min-width: 768px) {
+  .hero-card {
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .code-section {
+    margin-bottom: 0;
+  }
+
+  .container {
+    padding: 0 10rem;
+  }
+
+  .code-digit {
+    width: 70px;
+    height: 70px;
+    font-size: 2rem;
+  }
 }
 
-@keyframes pulse {
-    0%, 100% { 
-        transform: scale(1);
-        opacity: 1;
-    }
-    50% { 
-        transform: scale(1.02);
-        opacity: 0.9;
-    }
+@media (min-width: 1200px) {
+  .menu-item:hover {
+    background: var(--input-bg);
+  }
 }
-
-.trial-badge {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-    padding: 12px;
-    border-radius: 8px;
-    text-align: center;
-    margin-bottom: 15px;
-    font-weight: bold;
-    animation: pulse 2s infinite;
-
-}
-
-
-
-
-
-
-
-

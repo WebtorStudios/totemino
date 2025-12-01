@@ -2,7 +2,7 @@
 const urlParams = new URLSearchParams(window.location.search);
 const restaurantId = urlParams.get('id');
 
-// Se non c'è ID nell'URL, verifica la sessione
+// Check session if no ID in URL
 if (!restaurantId) {
     fetch('/api/auth/me')
         .then(res => res.json())
@@ -13,9 +13,7 @@ if (!restaurantId) {
                 window.location.href = `profile.html?id=${data.user.restaurantId}`;
             }
         })
-        .catch(() => {
-            window.location.href = 'index.html';
-        });
+        .catch(() => window.location.href = 'index.html');
 }
 
 // Display code digits
@@ -28,7 +26,7 @@ function displayCode() {
         .join('');
 }
 
-// Load and display user plan from session
+// Load user plan
 async function loadUserPlan() {
     try {
         const response = await fetch('/api/auth/me');
@@ -56,7 +54,7 @@ function updatePlanDisplay(plan, userData) {
     
     const displayPlan = plan.toLowerCase();
     
-    if (displayPlan === 'free' && userData && userData.isTrialActive) {
+    if (displayPlan === 'free' && userData?.isTrialActive) {
         planCard.classList.add('trial');
         planName.textContent = `Prova gratuita Pro (${userData.trialDaysLeft}g)`;
     } else {
@@ -86,60 +84,144 @@ function setMenuLinks() {
 // QR Code functionality
 function initQRCode() {
     const qrCard = document.getElementById('qrCard');
-    const qrPopup = document.getElementById('qrPopup');
-    const qrClose = document.getElementById('qrClose');
+    const qrMenuPopup = document.getElementById('qrMenuPopup');
+    const qrDisplayPopup = document.getElementById('qrDisplayPopup');
+    const closeMenuSelect = document.getElementById('closeMenuSelect');
+    const closeQR = document.getElementById('closeQR');
     const downloadQR = document.getElementById('downloadQR');
+    const qrMenuList = document.getElementById('qrMenuList');
     
-    if (!qrCard || !qrPopup || !qrClose || !downloadQR) return;
-    
-    let qrCode = null;
+    let currentMenuName = '';
 
-    qrCard.addEventListener('click', (e) => {
+    // Open menu selection
+    qrCard.addEventListener('click', async (e) => {
         e.preventDefault();
-        generateQRCode();
-        qrPopup.classList.add('show');
+        await loadMenuTypes();
+        qrMenuPopup.classList.add('show');
     });
 
-    qrClose.addEventListener('click', () => {
-        qrPopup.classList.remove('show');
+    // Close menu selection
+    closeMenuSelect.addEventListener('click', () => qrMenuPopup.classList.remove('show'));
+    qrMenuPopup.addEventListener('click', (e) => {
+        if (e.target === qrMenuPopup) qrMenuPopup.classList.remove('show');
     });
 
-    qrPopup.addEventListener('click', (e) => {
-        if (e.target === qrPopup) {
-            qrPopup.classList.remove('show');
+    // Close QR display
+    closeQR.addEventListener('click', () => qrDisplayPopup.classList.remove('show'));
+    qrDisplayPopup.addEventListener('click', (e) => {
+        if (e.target === qrDisplayPopup) qrDisplayPopup.classList.remove('show');
+    });
+
+    // Load menu types
+    async function loadMenuTypes() {
+        try {
+            const response = await fetch(`IDs/${restaurantId}/menuTypes.json`);
+            const data = await response.json();
+            
+            qrMenuList.innerHTML = '';
+            
+            // Add menu-select option
+            const selectItem = document.createElement('div');
+            selectItem.className = 'qr-menu-item';
+            selectItem.textContent = 'Selezione Menu';
+            selectItem.addEventListener('click', () => {
+                currentMenuName = 'Selezione Menu';
+                generateQRCode('menu-select');
+                qrMenuPopup.classList.remove('show');
+                qrDisplayPopup.classList.add('show');
+            });
+            qrMenuList.appendChild(selectItem);
+            
+            // Add other menu types
+            data.menuTypes.forEach(menu => {
+                const menuItem = document.createElement('div');
+                menuItem.className = 'qr-menu-item';
+                menuItem.textContent = menu.name;
+                menuItem.addEventListener('click', () => {
+                    currentMenuName = menu.name;
+                    generateQRCode(menu.id);
+                    qrMenuPopup.classList.remove('show');
+                    qrDisplayPopup.classList.add('show');
+                });
+                qrMenuList.appendChild(menuItem);
+            });
+            
+        } catch (error) {
+            console.error('Error loading menu types:', error);
+            qrMenuList.innerHTML = '<div class="qr-error">Errore nel caricamento dei menu</div>';
         }
-    });
-
-    function generateQRCode() {
-        const canvas = document.getElementById('qrCanvas');
-        if (!canvas) return;
-        
-        const menuUrl = `https://totemino.it/menu-select.html?id=${restaurantId}`;
-        
-        canvas.innerHTML = '';
-        
-        qrCode = new QRCode(canvas, {
-            text: menuUrl,
-            width: 256,
-            height: 256,
-            colorDark: "#000000",
-            colorLight: "#ffffff",
-            correctLevel: QRCode.CorrectLevel.H
-        });
     }
 
-    downloadQR.addEventListener('click', () => {
-        const canvas = document.querySelector('#qrCanvas canvas');
-        if (canvas) {
-            const link = document.createElement('a');
-            link.download = `totemino-qr-${restaurantId}.png`;
-            link.href = canvas.toDataURL();
-            link.click();
+    // Generate QR code using API with short URL and logo
+    async function generateQRCode(menuType) {
+        const canvas = document.getElementById('qrCanvas');
+        const qrMenuName = document.getElementById('qrMenuName');
+        
+        const menuUrl = menuType === 'menu-select' 
+            ? `https://totemino.it/menu-select.html?id=${restaurantId}`
+            : `https://totemino.it/menu.html?id=${restaurantId}&type=${menuType}`;
+        
+        qrMenuName.textContent = currentMenuName;
+        canvas.innerHTML = 'Generazione QR Code...';
+        
+        try {
+            // Usa is.gd per creare short URL (nessun redirect intermedio, gratis)
+            const shortUrlResponse = await fetch(`https://is.gd/create.php?format=json&url=${encodeURIComponent(menuUrl)}`);
+            const shortData = await shortUrlResponse.json();
+            
+            // Se is.gd fallisce, usa l'URL originale
+            const finalUrl = shortData.shorturl || menuUrl;
+            
+            // Genera QR Code con API gratuita (QuickChart.io) con logo
+            const qrImageUrl = `https://quickchart.io/qr?text=${encodeURIComponent(finalUrl)}&size=400&format=png&margin=1&ecLevel=H&centerImageUrl=${encodeURIComponent('https://totemino.it/img/faviconQR.png')}&centerImageSizeRatio=0.2`;
+            
+            // Crea immagine QR
+            const img = document.createElement('img');
+            img.src = qrImageUrl;
+            img.alt = 'QR Code';
+            img.style.width = '100%';
+            img.style.height = 'auto';
+            
+            canvas.innerHTML = '';
+            canvas.appendChild(img);
+            
+            // Salva l'URL dell'immagine per il download
+            canvas.dataset.qrImageUrl = qrImageUrl;
+            
+        } catch (error) {
+            console.error('Errore generazione QR:', error);
+            canvas.innerHTML = 'Errore nella generazione del QR Code';
+        }
+    }
+
+    // Download QR code
+    downloadQR.addEventListener('click', async () => {
+        const canvas = document.getElementById('qrCanvas');
+        const qrImageUrl = canvas.dataset.qrImageUrl;
+        
+        if (qrImageUrl) {
+            try {
+                // Scarica l'immagine dal servizio API
+                const response = await fetch(qrImageUrl);
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                
+                const link = document.createElement('a');
+                const fileName = currentMenuName.toLowerCase().replace(/\s+/g, '-');
+                link.download = `totemino-qr-${fileName}-${restaurantId}.png`;
+                link.href = url;
+                link.click();
+                
+                window.URL.revokeObjectURL(url);
+            } catch (error) {
+                console.error('Errore download QR:', error);
+                alert('Errore durante il download del QR Code');
+            }
         }
     });
 }
 
-// Manage billing button
+// Manage billing
 document.getElementById('manageBillingBtn').addEventListener('click', () => {
     window.location.href = 'accesso-negato.html';
 });
@@ -147,27 +229,23 @@ document.getElementById('manageBillingBtn').addEventListener('click', () => {
 // Logout functionality
 const logoutBtn = document.getElementById('logoutBtn');
 const logoutPopup = document.getElementById('logoutPopup');
-const cancelDelete = document.getElementById('cancel-delete');
-const deleteBtn = document.getElementById('delete-btn');
+const cancelLogout = document.getElementById('cancelLogout');
+const confirmLogout = document.getElementById('confirmLogout');
 
-logoutBtn.addEventListener('click', () => {
-    logoutPopup.classList.add('show');
+logoutBtn.addEventListener('click', () => logoutPopup.classList.add('show'));
+cancelLogout.addEventListener('click', () => logoutPopup.classList.remove('show'));
+logoutPopup.addEventListener('click', (e) => {
+    if (e.target === logoutPopup) logoutPopup.classList.remove('show');
 });
 
-cancelDelete.addEventListener('click', () => {
-    logoutPopup.classList.remove('show');
-});
-
-deleteBtn.addEventListener('click', async () => {
+confirmLogout.addEventListener('click', async () => {
     try {
-        deleteBtn.disabled = true;
-        deleteBtn.textContent = 'Disconnessione...';
+        confirmLogout.disabled = true;
+        confirmLogout.textContent = 'Disconnessione...';
         
         const response = await fetch('/api/auth/logout', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            }
+            headers: { 'Content-Type': 'application/json' }
         });
         
         const data = await response.json();
@@ -182,15 +260,8 @@ deleteBtn.addEventListener('click', async () => {
     } catch (error) {
         console.error('Errore durante il logout:', error);
         alert('Errore durante la disconnessione. Riprova.');
-        
-        deleteBtn.disabled = false;
-        deleteBtn.textContent = 'Esci';
-    }
-});
-
-logoutPopup.addEventListener('click', (e) => {
-    if (e.target === logoutPopup) {
-        logoutPopup.classList.remove('show');
+        confirmLogout.disabled = false;
+        confirmLogout.textContent = 'Esci';
     }
 });
 
@@ -201,10 +272,9 @@ if (restaurantId) {
     setMenuLinks();
 }
 
-// Inizializza QR Code quando tutto è caricato
+// Initialize QR Code (non serve più la libreria QRCode.js)
 window.addEventListener('load', () => {
-    if (restaurantId && typeof QRCode !== 'undefined') {
+    if (restaurantId) {
         initQRCode();
     }
 });
-

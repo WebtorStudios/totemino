@@ -1,4 +1,5 @@
 User-agent: *
+Allow: /index.html
 Allow: /index-user.html
 Allow: /login.html
 Disallow: /

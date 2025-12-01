@@ -1,5 +1,9 @@
 @import url("menu-styles.css");
 
+html, body {
+  scrollbar-width: auto;
+}
+
 * {
   margin: 0;
   padding: 0;

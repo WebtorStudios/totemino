@@ -1,6 +1,10 @@
 /* Import base styles from menu */
 @import url('menu-styles.css');
 
+html, body {
+  scrollbar-width: auto;
+}
+
 /* ===== VARIABILI E ANIMAZIONI ===== */
 @keyframes slideIn {
   from { opacity: 0; transform: translateY(20px); }
@@ -351,12 +355,6 @@
   color: var(--text-accent);
   font-family: 'Klein-Bold', sans-serif;
 }
-
-/* ===== SCROLLBAR PERSONALIZZATA ===== */
-::-webkit-scrollbar { width: 8px; height: 8px; }
-::-webkit-scrollbar-track { background: var(--btn-secondary); border-radius: 10px; }
-::-webkit-scrollbar-thumb { background: var(--accent-gold); border-radius: 10px; }
-::-webkit-scrollbar-thumb:hover { background: var(--accent-pink); }
 
 /* ===== RESPONSIVE ===== */
 @media (max-width: 968px) {
