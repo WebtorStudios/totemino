@@ -533,13 +533,13 @@ section {
 
 .btn-pricing {
   width: 100%;
+  background: var(--card-bg);
+  border: 2px solid var(--text-accent);
+  color: var(--text-accent);
+  font-weight: 700;
   padding: 0.7rem;
-  background: linear-gradient(135deg, var(--accent-gold), var(--accent-pink));
-  color: white;
-  border: none;
   border-radius: 0.5rem;
   font-size: 0.85rem;
-  font-weight: 600;
   cursor: pointer;
   text-decoration: none;
   text-align: center;
@@ -547,24 +547,24 @@ section {
   margin-bottom: 1.3rem;
 }
 
-.btn-pricing:hover {
-  transform: scale(1.02);
+.btn-pricing:hover {  
+  background: var(--close-bg);
+  transform: none;
 }
 
 .btn-pricing:active {
   transform: scale(0.97)!important;
 }
 
-.pricing-card:nth-child(odd) .btn-pricing {
-  background: var(--card-bg);
-  border: 2px solid var(--text-accent);
-  color: var(--text-accent);
-  font-weight: 700;
+.featured .btn-pricing {
+  background: linear-gradient(135deg, var(--accent-gold), var(--accent-pink));
+  color: white;
+  border: none;
+  font-weight: 600;
 }
 
-.pricing-card:nth-child(odd) .btn-pricing:hover {
-  background: var(--close-bg);
-  transform: none;
+.featured .btn-pricing:hover {
+  transform: scale(1.02);
 }
 
 .features-list {
