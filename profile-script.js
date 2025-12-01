@@ -215,6 +215,11 @@ function initQRCode() {
             try {
                 // Scarica l'immagine dal servizio API
                 const response = await fetch(qrImageUrl);
+                
+                if (!response.ok) {
+                    throw new Error('Impossibile scaricare il QR Code');
+                }
+                
                 const blob = await response.blob();
                 const url = window.URL.createObjectURL(blob);
                 
@@ -222,13 +227,19 @@ function initQRCode() {
                 const fileName = currentMenuName.toLowerCase().replace(/\s+/g, '-');
                 link.download = `totemino-qr-${fileName}-${restaurantId}.png`;
                 link.href = url;
+                document.body.appendChild(link); // Aggiungi al DOM
                 link.click();
+                document.body.removeChild(link); // Rimuovi dal DOM
                 
-                window.URL.revokeObjectURL(url);
+                // Libera memoria dopo un piccolo delay
+                setTimeout(() => window.URL.revokeObjectURL(url), 100);
+                
             } catch (error) {
                 console.error('Errore download QR:', error);
-                alert('Errore durante il download del QR Code');
+                alert('Errore durante il download del QR Code. Riprova.');
             }
+        } else {
+            alert('Nessun QR Code da scaricare. Genera prima un QR Code.');
         }
     });
 }
