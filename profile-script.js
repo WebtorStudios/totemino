@@ -165,15 +165,22 @@ function initQRCode() {
         canvas.innerHTML = 'Generazione QR Code...';
         
         try {
-            // Usa is.gd per creare short URL (nessun redirect intermedio, gratis)
-            const shortUrlResponse = await fetch(`https://is.gd/create.php?format=json&url=${encodeURIComponent(menuUrl)}`);
-            const shortData = await shortUrlResponse.json();
+            // Prova a creare short URL (opzionale, se fallisce usa l'originale)
+            let finalUrl = menuUrl;
             
-            // Se is.gd fallisce, usa l'URL originale
-            const finalUrl = shortData.shorturl || menuUrl;
+            try {
+                const shortUrlResponse = await fetch(`https://is.gd/create.php?format=json&url=${encodeURIComponent(menuUrl)}`);
+                const shortData = await shortUrlResponse.json();
+                if (shortData.shorturl) {
+                    finalUrl = shortData.shorturl;
+                }
+            } catch (err) {
+                console.log('Short URL fallito, uso URL completo');
+            }
             
-            // Genera QR Code con API gratuita (QuickChart.io) con logo
-            const qrImageUrl = `https://quickchart.io/qr?text=${encodeURIComponent(finalUrl)}&size=400&format=png&margin=1&ecLevel=H&centerImageUrl=${encodeURIComponent('https://totemino.it/img/faviconQR.png')}&centerImageSizeRatio=0.2`;
+            // Genera QR Code con logo più grande (0.3 = 30%)
+            // NON codificare due volte - QuickChart si aspetta parametri normali
+            const qrImageUrl = `https://quickchart.io/qr?text=${encodeURIComponent(finalUrl)}&size=400&format=png&margin=1&ecLevel=H&centerImageUrl=https://totemino.it/img/faviconQR.png&centerImageSizeRatio=0.3`;
             
             // Crea immagine QR
             const img = document.createElement('img');
@@ -181,6 +188,11 @@ function initQRCode() {
             img.alt = 'QR Code';
             img.style.width = '100%';
             img.style.height = 'auto';
+            
+            // Gestisci errore di caricamento immagine
+            img.onerror = () => {
+                canvas.innerHTML = 'Errore: impossibile generare il QR Code. Verifica che il logo sia accessibile.';
+            };
             
             canvas.innerHTML = '';
             canvas.appendChild(img);
