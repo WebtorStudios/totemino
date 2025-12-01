@@ -95,8 +95,8 @@ function checkPageAccess(user) {
     for (const [requiredPlan, pages] of Object.entries(CONFIG.PROTECTED_PAGES)) {
         if (pages.includes(currentPage)) {
             if (!hasAccess(userLevel, requiredPlan)) {
-                // Redirect a accesso-negato.html con parametro need
-                window.location.href = `accesso-negato.html?need=${requiredPlan}`;
+                // Redirect a upgrade.html con parametro need
+                window.location.href = `upgrade.html?need=${requiredPlan}`;
                 return false;
             }
         }
