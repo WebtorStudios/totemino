@@ -73,8 +73,41 @@
 
             } catch (error) {
                 console.error('Errore verifica:', error);
-                showError(error.message);
+                showError(error.message || 'Errore sconosciuto durante la verifica');
             }
+        }
+
+        function showSuccess(planType) {
+            document.getElementById('loading-section').style.display = 'none';
+            
+            const planSection = document.getElementById('plan-section');
+            const planName = document.getElementById('plan-name');
+            
+            // ✅ Gestisci tutti i casi possibili
+            const planNames = {
+                'hobby': 'Piano Hobby',
+                'premium': 'Piano Premium',
+                'pro': 'Piano Pro'
+            };
+            
+            planName.textContent = planNames[planType] || 'Piano Premium';
+            planSection.style.display = 'block';
+        }
+
+        function showError(message) {
+            document.getElementById('loading-section').style.display = 'none';
+            
+            const statusIcon = document.getElementById('status-icon');
+            statusIcon.innerHTML = '<div class="errormark"></div>';
+            
+            document.getElementById('status-title').textContent = 'Pagamento Non Riuscito';
+            document.getElementById('status-message').textContent = 'Si è verificato un problema durante il processo di pagamento.';
+            
+            const errorSection = document.getElementById('error-section');
+            const errorMessage = document.getElementById('error-message');
+            
+            errorMessage.textContent = message;
+            errorSection.style.display = 'block';
         }
 
         function showSuccess(planType) {

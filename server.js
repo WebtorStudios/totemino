@@ -60,11 +60,19 @@ app.post('/webhook/stripe',
     if (event.type === 'checkout.session.completed') {
       const session = event.data.object;
       const userCode = session.metadata?.userCode;
-      const planType = session.metadata?.planType || 'premium';
+      const planType = session.metadata?.planType;
       
+      console.log('📦 Webhook ricevuto:', { userCode, planType, sessionId: session.id });
+      
+      // ❌ Se mancano i dati critici, ERRORE
       if (!userCode) {
         console.error('❌ UserCode mancante nei metadata');
         return res.status(400).json({ error: 'UserCode mancante' });
+      }
+      
+      if (!planType) {
+        console.error('❌ PlanType mancante nei metadata');
+        return res.status(400).json({ error: 'PlanType mancante' });
       }
       
       try {
@@ -75,13 +83,11 @@ app.post('/webhook/stripe',
           return res.status(404).json({ error: 'Utente non trovato' });
         }
         
-        // ✅ USA SOLO planType
         users[userCode].planType = planType; // 'hobby' | 'premium' | 'pro'
         users[userCode].paymentDate = new Date().toISOString();
         users[userCode].stripeSessionId = session.id;
         users[userCode].stripeCustomerId = session.customer;
         
-        // ✅ Rimuovi trial quando passa a pagamento
         delete users[userCode].trialEndsAt;
         
         await FileManager.saveUsers(users);
@@ -95,6 +101,7 @@ app.post('/webhook/stripe',
       }
     }
     
+    // Altri eventi Stripe
     res.json({ received: true });
   }
 );
@@ -938,22 +945,29 @@ app.post('/api/create-checkout', requireAuth, async (req, res) => {
   try {
     // ✅ Recupera i metadata dal Price
     const price = await stripe.prices.retrieve(priceId);
-    const planType = price.metadata?.planType || 'premium';
+    const planType = price.metadata?.planType;
+    
+    // ❌ Se mancano i metadata, ERRORE - non regalare piani!
+    if (!planType) {
+      console.error('❌ Metadata planType mancante per price:', priceId);
+      return res.status(500).json({ 
+        error: 'Configurazione piano mancante. Contatta il supporto.' 
+      });
+    }
+
+    console.log(`✅ Checkout per ${userCode} → Piano: ${planType}`);
 
     const origin = 'https://totemino.it';
     
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
-      line_items: [{
-        price: priceId,
-        quantity: 1,
-      }],
+      line_items: [{ price: priceId, quantity: 1 }],
       mode: 'subscription',
       success_url: `${origin}/payment-success.html?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${origin}/profile.html?id=${userCode}`,
       metadata: {
         userCode: userCode,
-        planType: planType  // ✅ Usa il planType dai metadata del Price
+        planType: planType  // ✅ Qui viene copiato dai metadata del Price
       },
       client_reference_id: userCode
     });
@@ -977,29 +991,31 @@ app.get('/api/verify-payment/:sessionId', requireAuth, async (req, res) => {
       const users = await FileManager.loadUsers();
       
       if (users[userCode]) {
-        const planType = session.metadata.planType || 'premium';
+        // ✅ Estrai planType dai metadata della sessione
+        const planType = session.metadata?.planType || 'premium';
         
-        // ✅ RIMUOVI status, usa solo planType
         users[userCode].planType = planType;
         users[userCode].paymentDate = new Date().toISOString();
         users[userCode].stripeSessionId = session.id;
         users[userCode].stripeCustomerId = session.customer;
         
-        // ✅ Rimuovi trial
         delete users[userCode].trialEndsAt;
         
         await FileManager.saveUsers(users);
         
         // ✅ Aggiorna sessione
         req.session.user.planType = planType;
+        
+        // ✅ Ritorna il planType corretto
+        res.json({
+          success: true,
+          paid: true,
+          planType: planType,  
+          currentPlan: users[userCode].planType
+        });
+      } else {
+        throw new Error('Utente non trovato');
       }
-      
-      res.json({
-        success: true,
-        paid: true,
-        planType: planType,
-        currentPlan: users[userCode]?.planType || 'free'
-      });
     } else {
       res.json({
         success: true,
@@ -1009,7 +1025,10 @@ app.get('/api/verify-payment/:sessionId', requireAuth, async (req, res) => {
     }
   } catch (error) {
     console.error('❌ Errore verifica pagamento:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ 
+      success: false,
+      error: error.message 
+    });
   }
 });
 
