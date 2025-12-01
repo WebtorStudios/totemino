@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<script>
+		(function() {
+		  const saved = localStorage.getItem('totemino_theme');
+		  const theme = saved || 
+			(window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+		  document.documentElement.setAttribute('data-theme', theme);
+		})();
+	</script>	
+    <title>Accesso Negato - Totemino</title>
+    <link rel="icon" type="image/png" href="img/favicon.png">
+    <link rel="stylesheet" href="index-styles.css">
+</head>
+<body>
+
+	<div class="bg-light light1"></div>
+	<div class="bg-light light2"></div>
+	<div class="bg-light light3"></div>
+	
+	<!-- Header -->
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="nav-brand">
+                <img class="theme-img" data-light="img/logo/1_light.png" data-dark="img/logo/1_dark.png" alt="Totemino Logo" id="logoSwap">
+                <a href="index.html"><h1>Totemino</h1></a>
+            </div>
+            <div class="nav-actions">
+                <button id="theme" class="nav-btn theme-btn" type="button">
+                    <img class="theme-img" data-light="img/theme_light.png" data-dark="img/theme_dark.png" alt="Tema">
+                </button>
+                <a href="login.html" class="nav-btn login-btn">Profilo</a>
+            </div>
+        </div>
+    </nav>
+
+
+    <!-- Pricing Section -->
+    <section class="pricing" style="margin-top: 2rem;">
+        <div class="section-header">
+            <h2>Migliora il tuo Ristorante</h2>
+            <p>Per aumentare le tue vendite e la tua presenza online, fai l'upgrade al piano</p>
+        </div>
+        <div class="pricing-grid">
+            <!-- Hobby Plan -->
+            <div class="pricing-card" id="p-hobby">
+                <div class="pricing-header">
+                    <h3>Hobby</h3>
+                    <p>Alle prime armi con strumenti digitali</p>
+                    <div class="price">
+                        <span class="currency">€</span>
+                        <span class="amount">29</span>
+                        <span class="period">/mese + IVA</span>
+                    </div>
+                </div>
+                <a class="btn-pricing" data-price-id="price_1SZbHF7dAnRE04PkLfBWEbxw">Passa a Hobby</a>
+                <ul class="features-list">
+                    <li><img src="img/check.png"> Menu solo visualizzazione</li>
+                    <li><img src="img/check.png"> Gestione menu semplice</li>
+                    <li><img src="img/check.png"> Aggiunta di prodotti illimitati</li>
+                    <li><img src="img/check.png"> QR code personalizzati</li>
+                    <li><img src="img/check.png"> Aggiornamenti futuri</li>
+                </ul>
+            </div>
+
+            <!-- Premium Plan -->
+            <div class="pricing-card" id="p-premium">
+                <div class="pricing-header">
+                    <h3>Premium</h3>
+                    <p>Per gestione smart di ordini & comande</p>
+                    <div class="price">
+                        <span class="currency">€</span>
+                        <span class="amount">69</span>
+                        <span class="period">/mese + IVA</span>
+                    </div>
+                </div>
+                <a class="btn-pricing" data-price-id="price_1SZbHk7dAnRE04PkSiNByGm0">Passa a Premium</a>
+                <ul class="features-list">
+                    <li><img src="img/check.png"> Tutte le funzioni Hobby</li>
+                    <li><img src="img/check.png"> Ordinazioni base dall'app</li>
+                    <li><img src="img/check.png"> Gestione delle comande LIVE</li>
+                    <li><img src="img/check.png"> Banner promozionali nel menu</li>
+                    <li><img src="img/check.png"> Supporto e formazione</li>
+                </ul>
+            </div>
+			
+            <!-- Pro Plan -->
+            <div class="pricing-card featured" id="p-pro">
+                <div class="popular-badge">Consigliato</div>
+                <div class="pricing-header">
+                    <h3>Pro</h3>
+                    <p>Per automazione e controllo</p>
+                    <div class="price">
+                        <span class="currency">€</span>
+                        <span class="amount">89</span>
+                        <span class="period">/mese + IVA</span>
+                    </div>
+                </div>
+                <a class="btn-pricing" data-price-id="price_1SZf3v7dAnRE04PkYCh9lOoO">Diventa Pro</a>
+                <ul class="features-list">
+                    <li><img src="img/check.png"> Tutte le funzioni di Premium</li>
+                    <li><img src="img/check.png"> Domicilio con 0% di commissioni</li>
+                    <li><img src="img/check.png"> Suggerimenti con IA al checkout</li>
+                    <li><img src="img/check.png"> Statistiche e report mensili</li>
+                    <li><img src="img/check.png"> Menu iniziale configurato da noi</li>
+                </ul>
+            </div>
+        </div>
+    </section>
+
+
+	<footer>
+        <p>Fatto con amore da &copy; Webtor Studios<br>Cell. 351 054 8462</p>
+        <div class="footer-img">
+          <a href="https://wa.me/+393510548462"><img src="img/whatsapp-logo.png" title="WhatsApp" draggable="false"></a>
+          <a href="https://instagram.com/webtorstudios"><img src="img/instagram-logo.png" title="Instagram" draggable="false"></a>
+          <a href="https://bit.ly/4buVxwY"><img src="img/mail-logo.png" title="Invia una email" draggable="false"></a>
+        </div>
+        <a href="termini-e-condizioni.html">Termini e condizioni</a> <a id="nohover"> | </a> <a href="cookie-policy.html">Informativa Privacy</a>
+    </footer>
+	
+ 	<script src="index-script.js"></script>
+    <script>
+        // Aspetta che billing-script.js abbia creato le card
+        document.addEventListener("DOMContentLoaded", function() {
+			const urlParams = new URLSearchParams(window.location.search);
+			const need = urlParams.get('need');
+			
+			const hobbyCard = document.querySelector('#p-hobby');
+			const premiumCard = document.querySelector('#p-premium');
+			const proCard = document.querySelector('#p-pro');
+
+			if (need === 'premium') {
+				if (hobbyCard) {
+					hobbyCard.style.display = 'none';
+				}
+			}
+			if (need === 'pro') {
+				if (hobbyCard) {
+					hobbyCard.style.display = 'none';
+				}
+				if (premiumCard) {
+					premiumCard.style.display = 'none';
+				}
+			}
+
+        });
+    </script>
+    <script>
+        document.querySelectorAll('.btn-pricing').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                e.preventDefault();
+                const priceId = btn.dataset.priceId;
+                
+                try {
+                    const response = await fetch('/api/create-checkout', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        credentials: 'include',
+                        body: JSON.stringify({ priceId })  // ✅ Solo priceId
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (data.url) {
+                        window.location.href = data.url;
+                    } else {
+                        alert('Errore: ' + (data.error || 'Impossibile creare la sessione'));
+                    }
+                } catch (error) {
+                    console.error('Errore:', error);
+                    alert('Errore di connessione. Riprova.');
+                }
+            });
+        });
+    </script>
+	<script src="theme.js"></script>
+ 	<script src="logo-pop.js"></script>
+</body>
+</html>

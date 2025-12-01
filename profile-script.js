@@ -247,7 +247,7 @@ function initQRCode() {
 
 // Manage billing
 document.getElementById('manageBillingBtn').addEventListener('click', () => {
-    window.location.href = 'accesso-negato.html';
+    window.location.href = 'upgrade.html';
 });
 
 // Logout functionality
