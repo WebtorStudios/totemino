@@ -57,7 +57,6 @@ const dom = {
 // ============================================
 
 document.addEventListener('DOMContentLoaded', async () => {
-  if (!await checkAccess()) return;
   
   document.getElementById('back-btn').onclick = () => location.href = `profile.html`;
   
@@ -249,32 +248,6 @@ function initEvents() {
   dom.nav.addEventListener('scroll', () => {
     requestAnimationFrame(animatePill);
   });
-}
-
-async function checkAccess() {
-  try {
-    const res = await fetch('/api/auth/me', { credentials: 'include' });
-    const data = await res.json();
-    
-    if (!data.success || !data.user) {
-      window.location.href = 'login.html';
-      return false;
-    }
-    
-    const hasAccess = ['premium', 'paid', 'pro'].includes(data.user.status) || data.user.isTrialActive;
-    
-    if (!hasAccess) {
-      alert('La gestione ordini richiede un piano Premium o superiore');
-      setTimeout(() => window.location.href = 'index.html', 2000);
-      return false;
-    }
-    
-    return true;
-  } catch (error) {
-    console.error('Errore verifica accesso:', error);
-    window.location.href = 'login.html';
-    return false;
-  }
 }
 
 function switchSection(section) {

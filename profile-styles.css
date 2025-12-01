@@ -71,8 +71,20 @@ html, body {
   margin-bottom: 0.75rem;
 }
 
-.plan-card.premium,
-.plan-card.paid {
+.plan-card.hobby {
+  background-color: #694300; /* base legno scuro */
+  background-image:
+    url("https://www.transparenttextures.com/patterns/wood-pattern.png"),
+    linear-gradient(135deg, #7a4d00, #5c3400);
+  
+  background-blend-mode: overlay;
+  color: #fdf8db;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+  
+  background-size: cover;
+}
+
+.plan-card.premium {
   background: linear-gradient(135deg, #c9a961, #d4b76a, #e6d5a0, #d4b76a, #b8965f, #9d7e4a);
   color: #2a2012;
   box-shadow: 0 1px 0 rgba(255,255,255,0.4) inset, 0 -1px 0 rgba(0,0,0,0.2) inset, 0 5px 15px rgba(0,0,0,0.2);

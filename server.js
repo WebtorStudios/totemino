@@ -57,8 +57,6 @@ app.post('/webhook/stripe',
       return res.status(400).send(`Webhook Error: ${err.message}`);
     }
     
-    
-    
     if (event.type === 'checkout.session.completed') {
       const session = event.data.object;
       const userCode = session.metadata?.userCode;
@@ -77,18 +75,19 @@ app.post('/webhook/stripe',
           return res.status(404).json({ error: 'Utente non trovato' });
         }
         
-        const newStatus = planType === 'pro' ? 'pro' : 'paid';
-        
-        users[userCode].status = newStatus;
-        users[userCode].planType = planType;
+        // ✅ USA SOLO planType
+        users[userCode].planType = planType; // 'hobby' | 'premium' | 'pro'
         users[userCode].paymentDate = new Date().toISOString();
         users[userCode].stripeSessionId = session.id;
         users[userCode].stripeCustomerId = session.customer;
         
+        // ✅ Rimuovi trial quando passa a pagamento
+        delete users[userCode].trialEndsAt;
+        
         await FileManager.saveUsers(users);
         
-        
-        return res.json({ received: true, userCode, status: newStatus });
+        console.log(`✅ Pagamento completato: ${userCode} → ${planType}`);
+        return res.json({ received: true, userCode, planType });
         
       } catch (error) {
         console.error('❌ Errore elaborazione pagamento:', error);
@@ -226,6 +225,7 @@ const FileManager = {
     
     return { fileName, filePath };
   },
+  
   async loadSubscriptions() {
     try {
       this.ensureDir(path.dirname(this.PATHS.subscriptions));
@@ -251,7 +251,6 @@ const FileManager = {
   }
 };
   
-
 FileManager.initDirectories();
 
 // ==================== SESSIONS ====================
@@ -279,7 +278,7 @@ app.use(session({
   cookie: {
     secure: false,
     httpOnly: true,
-    maxAge: 14 * 24 * 60 * 60 * 1000,  // 1 settimana
+    maxAge: 14 * 24 * 60 * 60 * 1000,
     sameSite: 'lax'
   }
 }));
@@ -313,14 +312,12 @@ const CustomizationParser = {
    */
   async calculateItemPrice(restaurantId, itemName, customizations = {}) {
     try {
-      // Carica menu e customization data
       const menuPath = path.join(__dirname, 'IDs', restaurantId, 'menu.json');
       const customPath = path.join(__dirname, 'IDs', restaurantId, 'customization.json');
       
       const menuData = await FileManager.loadJSON(menuPath, { categories: [] });
       const customizationData = await FileManager.loadJSON(customPath, {});
       
-      // Trova l'item base
       let baseItem = null;
       for (const category of menuData.categories) {
         const found = category.items.find(i => i.name === itemName);
@@ -335,7 +332,6 @@ const CustomizationParser = {
       let finalPrice = baseItem.price;
       const customizationDetails = [];
       
-      // Aggiungi modificatori
       if (baseItem.customizable && baseItem.customizationGroup) {
         const group = customizationData[baseItem.customizationGroup];
         if (group) {
@@ -370,11 +366,9 @@ const CustomizationParser = {
   async processOrderItems(restaurantId, rawItems) {
     const processedItems = [];
     
-    // rawItems è l'array che arriva dal client
     for (const item of rawItems) {
       const { name, quantity, category, ingredients, isSuggested, isCoperto, customizations = {} } = item;
       
-      // Se è coperto, usa il prezzo diretto
       if (isCoperto) {
         processedItems.push({
           name,
@@ -391,7 +385,6 @@ const CustomizationParser = {
         continue;
       }
       
-      // Calcola prezzo con customizzazioni
       const priceData = await this.calculateItemPrice(restaurantId, name, customizations);
       
       processedItems.push({
@@ -422,7 +415,6 @@ const StatisticsManager = {
     const usersPath = path.join(__dirname, 'IDs', restaurantId, 'statistics', 'users', 'general.json');
     
     try {
-      // === CARICA STATISTICHE ===
       let stats = await FileManager.loadJSON(statsPath, {
         totale_ordini: 0,
         totale_incasso: 0,
@@ -438,7 +430,6 @@ const StatisticsManager = {
         }
       });
       
-      // === AGGIORNA TOTALI ===
       stats.totale_ordini += 1;
       if (orderData.total && typeof orderData.total === 'number') {
         stats.totale_incasso = parseFloat((stats.totale_incasso + orderData.total).toFixed(2));
@@ -447,27 +438,23 @@ const StatisticsManager = {
         ? Math.round((stats.totale_incasso / stats.totale_ordini) * 100) / 100 
         : 0;
       
-      // === TRACCIA PIATTI E CUSTOMIZZAZIONI ===
       if (orderData.items && Array.isArray(orderData.items)) {
         orderData.items.forEach(item => {
           const itemName = item.name;
           const quantity = item.quantity || 1;
           const finalPrice = item.finalPrice || item.price || 0;
           
-          // Conta piatti venduti (con prezzo finale corretto)
           if (!stats.numero_piatti_venduti[itemName]) {
             stats.numero_piatti_venduti[itemName] = { count: 0, revenue: 0 };
           }
           stats.numero_piatti_venduti[itemName].count += quantity;
           stats.numero_piatti_venduti[itemName].revenue += finalPrice * quantity;
           
-          // Conta categorie
           if (item.category) {
             stats.numero_categorie_venduti[item.category] = 
               (stats.numero_categorie_venduti[item.category] || 0) + quantity;
           }
           
-          // Traccia customizzazioni popolari
           if (item.customizationDetails && item.customizationDetails.length > 0) {
             item.customizationDetails.forEach(custom => {
               if (!stats.customizzazioni_popolari[custom.name]) {
@@ -477,7 +464,6 @@ const StatisticsManager = {
             });
           }
           
-          // Traccia suggerimenti
           if (item.isSuggested) {
             stats.suggerimenti.totale_items_suggeriti += quantity;
             stats.suggerimenti.totale_valore_suggeriti = parseFloat(
@@ -497,7 +483,6 @@ const StatisticsManager = {
       
       await FileManager.saveJSON(statsPath, stats);
       
-      // === VENDITE GIORNALIERE ===
       let salesData = await FileManager.loadJSON(salesPath, []);
       
       const day = now.getDate();
@@ -517,7 +502,6 @@ const StatisticsManager = {
       
       await fs.writeFile(salesPath, jsonString, 'utf8');
       
-      // === TRACCIA UTENTI ===
       if (orderData.userId) {
         let usersData = await FileManager.loadJSON(usersPath, {});
         
@@ -561,7 +545,6 @@ const PreferencesManager = {
         const quantity = item.quantity || 1;
         const ingredients = item.ingredients || [];
         
-        // Traccia ingredienti base
         ingredients.forEach(ingredient => {
           const cleanIngredient = ingredient.trim().toLowerCase();
           if (cleanIngredient) {
@@ -570,7 +553,6 @@ const PreferencesManager = {
           }
         });
         
-        // Traccia customizzazioni come preferenze
         if (item.customizationDetails && item.customizationDetails.length > 0) {
           item.customizationDetails.forEach(custom => {
             const cleanCustom = `custom_${custom.name.trim().toLowerCase()}`;
@@ -742,30 +724,26 @@ const PushNotificationManager = {
 // ==================== TRIAL MANAGER ====================
 const TrialManager = {
   async checkAndExpireTrials() {
-    
-    
     try {
       const users = await FileManager.loadUsers();
       let expiredCount = 0;
       const now = new Date();
       
       for (const [userCode, userData] of Object.entries(users)) {
-        if (userData.status === 'free' && userData.trialEndsAt) {
+        // ✅ Rimuovi solo trialEndsAt se scaduto
+        if (userData.planType === 'free' && userData.trialEndsAt) {
           const trialEnd = new Date(userData.trialEndsAt);
           
           if (now >= trialEnd) {
             delete users[userCode].trialEndsAt;
             expiredCount++;
-            
           }
         }
       }
       
       if (expiredCount > 0) {
         await FileManager.saveUsers(users);
-        
-      } else {
-        
+        console.log(`✅ ${expiredCount} trial scaduti`);
       }
       
     } catch (error) {
@@ -776,13 +754,13 @@ const TrialManager = {
 
 // Cron job per trial (ogni giorno a mezzanotte)
 cron.schedule('0 0 * * *', () => {
-  
+  console.log('🔄 Controllo trial scaduti...');
   TrialManager.checkAndExpireTrials();
 });
 
 // Controllo all'avvio del server
 setTimeout(() => {
-  
+  console.log('🔄 Controllo iniziale trial...');
   TrialManager.checkAndExpireTrials();
 }, 5000);
 
@@ -811,8 +789,7 @@ app.post('/api/auth/login', async (req, res) => {
     req.session.user = {
       userCode,
       restaurantId: userCode,
-      status: user.status || 'free',
-      planType: user.planType || null
+      planType: user.planType || 'free'
     };
 
     res.json({
@@ -871,23 +848,20 @@ app.post('/api/auth/register', async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, 10);
     users[userCode] = {
       password: hashedPassword,
-      status: 'free',
+      planType: 'free',
       createdAt: now.toISOString(),
       trialEndsAt: trialEnd.toISOString()
     };
 
     await FileManager.saveUsers(users);
     
-    const userDir = path.join(__dirname, 'IDs', userCode);
-    FileManager.ensureDir(userDir);
-
     res.json({
       success: true,
       message: 'Registrazione completata con successo',
       user: { 
         userCode, 
         restaurantId: userCode, 
-        status: 'free',
+        planType: 'free', 
         trialEndsAt: trialEnd.toISOString()
       }
     });
@@ -917,7 +891,8 @@ app.get('/api/auth/me', async (req, res) => {
   let isTrialActive = false;
   let trialDaysLeft = 0;
 
-  if (freshUser.status === 'free' && freshUser.trialEndsAt) {
+  // ✅ Trial è attivo solo se planType='free' E trialEndsAt è futuro
+  if (freshUser.planType === 'free' && freshUser.trialEndsAt) {
     const now = new Date();
     const trialEnd = new Date(freshUser.trialEndsAt);
     
@@ -927,10 +902,10 @@ app.get('/api/auth/me', async (req, res) => {
     }
   }
 
-  req.session.user.status = freshUser.status;
+  // ✅ Aggiorna sessione
+  req.session.user.planType = freshUser.planType;
   req.session.user.isTrialActive = isTrialActive;
   req.session.user.trialDaysLeft = trialDaysLeft;
-  req.session.user.planType = freshUser.planType;
 
   return res.json({ 
     success: true, 
@@ -953,7 +928,7 @@ app.post('/api/auth/logout', (req, res) => {
 
 // ==================== STRIPE ROUTES ====================
 app.post('/api/create-checkout', requireAuth, async (req, res) => {
-  const { priceId, planType } = req.body;
+  const { priceId } = req.body;
   const userCode = req.session.user.userCode;
   
   if (!priceId) {
@@ -961,11 +936,11 @@ app.post('/api/create-checkout', requireAuth, async (req, res) => {
   }
   
   try {
+    // ✅ Recupera i metadata dal Price
+    const price = await stripe.prices.retrieve(priceId);
+    const planType = price.metadata?.planType || 'premium';
 
-    const origin = 'http://192.168.0.60:8080';
-    //const origin = process.env.NODE_ENV === 'production' 
-    //  ? process.env.PRODUCTION_URL 
-    //  : `http://localhost:${process.env.PORT || 3000}`;
+    const origin = 'https://totemino.it';
     
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
@@ -975,10 +950,10 @@ app.post('/api/create-checkout', requireAuth, async (req, res) => {
       }],
       mode: 'subscription',
       success_url: `${origin}/payment-success.html?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${origin}/gestione.html?id=${userCode}`,
+      cancel_url: `${origin}/profile.html?id=${userCode}`,
       metadata: {
         userCode: userCode,
-        planType: planType || 'premium'
+        planType: planType  // ✅ Usa il planType dai metadata del Price
       },
       client_reference_id: userCode
     });
@@ -998,34 +973,32 @@ app.get('/api/verify-payment/:sessionId', requireAuth, async (req, res) => {
   try {
     const session = await stripe.checkout.sessions.retrieve(sessionId);
     
-    if (session.metadata.userCode !== userCode) {
-      return res.status(403).json({ error: 'Accesso non autorizzato' });
-    }
-    
     if (session.payment_status === 'paid') {
       const users = await FileManager.loadUsers();
       
       if (users[userCode]) {
         const planType = session.metadata.planType || 'premium';
-        const newStatus = planType === 'pro' ? 'pro' : 'paid';
         
-        users[userCode].status = newStatus;
+        // ✅ RIMUOVI status, usa solo planType
         users[userCode].planType = planType;
         users[userCode].paymentDate = new Date().toISOString();
         users[userCode].stripeSessionId = session.id;
         users[userCode].stripeCustomerId = session.customer;
         
+        // ✅ Rimuovi trial
+        delete users[userCode].trialEndsAt;
+        
         await FileManager.saveUsers(users);
         
-        req.session.user.status = newStatus;
+        // ✅ Aggiorna sessione
         req.session.user.planType = planType;
       }
       
       res.json({
         success: true,
         paid: true,
-        planType: session.metadata.planType,
-        currentStatus: users[userCode]?.status || 'free'
+        planType: planType,
+        currentPlan: users[userCode]?.planType || 'free'
       });
     } else {
       res.json({
@@ -1034,7 +1007,6 @@ app.get('/api/verify-payment/:sessionId', requireAuth, async (req, res) => {
         paymentStatus: session.payment_status
       });
     }
-    
   } catch (error) {
     console.error('❌ Errore verifica pagamento:', error);
     res.status(500).json({ error: error.message });
@@ -1267,13 +1239,13 @@ app.get('/api/restaurant-status/:restaurantId', async (req, res) => {
     
     if (!user) {
       return res.json({ 
-        status: 'free', 
+        planType: 'free', 
         isTrialActive: false 
       });
     }
     
     let isTrialActive = false;
-    if (user.status === 'free' && user.trialEndsAt) {
+    if (user.planType === 'free' && user.trialEndsAt) {
       const now = new Date();
       const trialEnd = new Date(user.trialEndsAt);
       
@@ -1283,15 +1255,14 @@ app.get('/api/restaurant-status/:restaurantId', async (req, res) => {
     }
     
     res.json({
-      status: user.status,
-      isTrialActive: isTrialActive,
-      planType: user.planType || null
+      planType: user.planType,
+      isTrialActive: isTrialActive
     });
     
   } catch (error) {
     console.error('❌ Errore caricamento status ristorante:', error);
     res.status(500).json({ 
-      status: 'free', 
+      planType: 'free', 
       isTrialActive: false 
     });
   }

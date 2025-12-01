@@ -20,7 +20,6 @@ const allergens = {
 
 // ===== INIT =====
 document.addEventListener('DOMContentLoaded', async () => {
-  if (!await checkAccess()) return;
   
   restaurantId = new URLSearchParams(window.location.search).get("id") || "default";
   
@@ -63,29 +62,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   await loadMenu();
   await loadCustomizations();
 });
-
-async function checkAccess() {
-  try {
-    const res = await fetch('/api/auth/me', { credentials: 'include' });
-    const data = await res.json();
-    
-    if (!data.success || !data.user) {
-      location.href = 'login.html';
-      return false;
-    }
-    
-    const hasAccess = ['premium', 'paid', 'pro'].includes(data.user.status) || data.user.isTrialActive;
-    if (!hasAccess) {
-      notify('Serve un piano Premium', 'error');
-      setTimeout(() => location.href = `gestione.html?id=${restaurantId}`, 2000);
-      return false;
-    }
-    return true;
-  } catch (err) {
-    location.href = 'login.html';
-    return false;
-  }
-}
 
 // ===== VERIFICA SETTINGS PER DELIVERY =====
 async function checkDeliverySettings() {

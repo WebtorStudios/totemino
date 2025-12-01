@@ -37,7 +37,7 @@ async function loadUserPlan() {
             return;
         }
         
-        const userPlan = data.user.status || 'free';
+        const userPlan = data.user.planType || 'free';
         updatePlanDisplay(userPlan, data.user);
         
     } catch (error) {
@@ -50,7 +50,7 @@ function updatePlanDisplay(plan, userData) {
     const planCard = document.getElementById('planCard');
     const planName = document.getElementById('planName');
     
-    planCard.classList.remove('free', 'premium', 'paid', 'pro', 'trial');
+    planCard.classList.remove('free', 'premium', 'pro', 'trial');
     
     const displayPlan = plan.toLowerCase();
     
@@ -59,10 +59,11 @@ function updatePlanDisplay(plan, userData) {
         planName.textContent = `Prova gratuita Pro (${userData.trialDaysLeft}g)`;
     } else {
         const planNames = {
+            'free': 'Free',
+            'hobby': 'Hobby',
             'premium': 'Premium',
-            'paid': 'Premium',
             'pro': 'Pro',
-            'free': 'Free'
+            'trial': 'Prova gratuita'
         };
         
         planCard.classList.add(displayPlan);
@@ -123,9 +124,9 @@ function initQRCode() {
             // Add menu-select option
             const selectItem = document.createElement('div');
             selectItem.className = 'qr-menu-item';
-            selectItem.textContent = 'Selezione Menu';
+            selectItem.textContent = 'Pagina Scegli Menu';
             selectItem.addEventListener('click', () => {
-                currentMenuName = 'Selezione Menu';
+                currentMenuName = 'Pagina Scegli Menu';
                 generateQRCode('menu-select');
                 qrMenuPopup.classList.remove('show');
                 qrDisplayPopup.classList.add('show');
@@ -300,5 +301,4 @@ window.addEventListener('load', () => {
     if (restaurantId) {
         initQRCode();
     }
-
 });

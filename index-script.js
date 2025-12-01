@@ -44,17 +44,26 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // Observe pricing cards
-  const pricingCards = document.querySelectorAll('.pricing-card');
+ const pricingCards = document.querySelectorAll('.pricing-card');
+
   pricingCards.forEach((card, index) => {
-    // Ordine di animazione: prima (0s), terza (0.25s), centrale (0.5s)
     let delay;
-    if (index === 0) delay = 0;        // Hobby - prima
-    else if (index === 1) delay = 0.4; // Premium - ultima
-    else if (index === 2) delay = 0.25; // Pro - seconda
-    
+
+    const isFeatured = card.classList.contains('featured');
+
+    // Ordine: prima (0s), terza (0.25s), centrale/featured (0.4s)
+    if (!isFeatured && index === 0) {
+      delay = 0;
+    } else if (!isFeatured && index !== 0) {
+      delay = 0.25;
+    } else if (isFeatured) {
+      delay = 0.5;
+    }
+
     card.style.animationDelay = `${delay}s`;
     observer.observe(card);
   });
+
 
   // Observe testimonials
   const testimonials = document.querySelectorAll('.testimonial-card');
