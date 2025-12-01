@@ -180,7 +180,7 @@ function initQRCode() {
             
             // Genera QR Code con logo più grande (0.3 = 30%)
             // NON codificare due volte - QuickChart si aspetta parametri normali
-            const qrImageUrl = `https://quickchart.io/qr?text=${encodeURIComponent(finalUrl)}&size=400&format=png&margin=1&ecLevel=H&centerImageUrl=https://totemino.it/img/faviconQR.png&centerImageSizeRatio=0.3`;
+            const qrImageUrl = `https://quickchart.io/qr?text=${encodeURIComponent(finalUrl)}&size=400&format=png&margin=1&ecLevel=H&centerImageUrl=https://totemino.it/img/faviconQR.png&centerImageSizeRatio=0.293`;
             
             // Crea immagine QR
             const img = document.createElement('img');
@@ -300,4 +300,5 @@ window.addEventListener('load', () => {
     if (restaurantId) {
         initQRCode();
     }
+
 });
