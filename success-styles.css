@@ -18,7 +18,7 @@
   align-items: center;
   justify-content: center;
   text-align: center;
-  height: 76vh;
+  height: 78vh;
 }
 
 .success-landing img {
@@ -91,4 +91,5 @@
     max-width: 240px;
     height: auto;
   }
+
 }
