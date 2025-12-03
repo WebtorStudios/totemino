@@ -271,7 +271,7 @@
   background: hsl(0, 67%, 55%);
   color: white;
   border: none;
-  padding: 1.2rem 1.5rem;
+  padding: 1.1rem 1.5rem;
   border-radius: 2rem;
   box-shadow: 0 0 8px var(--shadow-sm);
   font-size: 1rem;
@@ -427,4 +427,5 @@
   .menu-item:hover {
     background: var(--input-bg);
   }
+
 }
