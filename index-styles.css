@@ -6,9 +6,6 @@ body {
   overflow-x: hidden;
 }
 
-html, body {
-  scrollbar-width: auto;
-}
 
 /* ===== KONAMI CODE EASTER EGG ===== */
 @keyframes rainbow {
@@ -514,9 +511,9 @@ section {
 }
 
 .currency {
-  font-size: 1.2rem;
-  color: var(--text-primary);
-  opacity: 0.6;
+  font-family: 'Klein-Bold';
+  font-size: 2rem;
+  color: var(--text-accent);
 }
 
 .amount {
@@ -536,7 +533,7 @@ section {
   background: var(--card-bg);
   border: 2px solid var(--text-accent);
   color: var(--text-accent);
-  font-weight: 700;
+  font-weight: 600;
   padding: 0.7rem;
   border-radius: 0.5rem;
   font-size: 0.85rem;
@@ -544,7 +541,6 @@ section {
   text-decoration: none;
   text-align: center;
   margin-bottom: 1.3rem;
-  will-change: transform;
   transition: background 0.3s ease, transform 0.2s ease;
 }
 

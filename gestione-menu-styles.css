@@ -1,8 +1,5 @@
 @import url("menu-styles.css");
 
-html, body {
-  scrollbar-width: auto;
-}
 
 .category-header h2 {
   font-family: 'Klein-Bold';

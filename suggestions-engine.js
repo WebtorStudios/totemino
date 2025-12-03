@@ -251,9 +251,9 @@ class SuggestionsEngine {
     for (const category of categoriesToSuggest) {
       const categoryItems = itemsByCategory[category].filter(
         item => !currentItemNames.has(item.name) && 
-               !item.customizable &&  // Solo non customizzabili
-               item.price > 0 &&      // Escludi gratis
-               item.price <= 5        // Prezzo basso (modifica a piacere)
+               !item.customizable &&
+               item.price > 0 &&
+               item.price <= 5
       );
       
       if (categoryItems.length === 0) {
@@ -271,7 +271,7 @@ class SuggestionsEngine {
       
       if (scoredItems.some(item => item.preferenceScore > 0)) {
         scoredItems.sort((a, b) => b.preferenceScore - a.preferenceScore);
-        selectedFromCategory = scoredItems.slice(0, 1); // Solo 1 per categoria
+        selectedFromCategory = scoredItems.slice(0, 1);
       } else {
         const shuffled = this.seededShuffle(scoredItems, seed + suggestions.length);
         selectedFromCategory = shuffled.slice(0, 1);
@@ -496,6 +496,3 @@ async function initializeSuggestions(menuData, restaurantId) {
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = { SuggestionsEngine, initializeSuggestions };
 }
-
-
-

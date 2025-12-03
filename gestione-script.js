@@ -59,7 +59,7 @@ const dom = {
 document.addEventListener('DOMContentLoaded', async () => {
   
   document.getElementById('back-btn').onclick = () => location.href = `profile.html`;
-  
+
   initSections();
   initEvents();
   switchSection('table');
@@ -72,7 +72,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   
   // Fallback: auto-refresh se push non supportato
   if (!CONFIG.swEnabled) {
-    console.log('⚠️ Push non supportato, uso polling');
+    
     state.autoRefreshInterval = setInterval(loadOrders, CONFIG.refreshInterval);
   }
 });
@@ -83,21 +83,21 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 async function initServiceWorker() {
   if (!('serviceWorker' in navigator)) {
-    console.log('❌ Service Worker non supportato');
+    
     return false;
   }
   
   try {
     // Registra Service Worker
     const registration = await navigator.serviceWorker.register('/sw.js');
-    console.log('✅ Service Worker registrato');
+    
     
     // Ascolta messaggi dal SW
     navigator.serviceWorker.addEventListener('message', handleSWMessage);
     
     // Controlla supporto push
     if (!('PushManager' in window)) {
-      console.log('❌ Push notifications non supportate');
+      
       return false;
     }
     
@@ -105,7 +105,7 @@ async function initServiceWorker() {
     const permission = await Notification.requestPermission();
     
     if (permission !== 'granted') {
-      console.log('⚠️ Permesso notifiche negato');
+      
       return false;
     }
     
@@ -113,7 +113,7 @@ async function initServiceWorker() {
     await subscribeToPush(registration);
     
     CONFIG.swEnabled = true;
-    console.log('✅ Push notifications attive');
+    
     
     return true;
     
@@ -146,7 +146,7 @@ async function subscribeToPush(registration) {
       body: JSON.stringify({ subscription })
     });
     
-    console.log('✅ Subscription salvata');
+    
     
   } catch (error) {
     console.error('❌ Errore subscription:', error);
@@ -155,18 +155,18 @@ async function subscribeToPush(registration) {
 }
 
 function handleSWMessage(event) {
-  console.log('📨 Messaggio da SW:', event.data);
+  
   
   const { type } = event.data;
   
   if (type === 'NEW_ORDER') {
-    console.log('🔔 Nuovo ordine ricevuto');
+    
     loadOrders();
     showNotificationBadge();
   }
   
   if (type === 'RELOAD_ORDERS') {
-    console.log('🔄 Ricarico ordini da notifica');
+    
     loadOrders();
   }
 }
@@ -278,20 +278,13 @@ function animatePill() {
   const activeTab = document.getElementById(`${state.currentSection}-tab`);
   if (!pill || !activeTab) return;
   
-  // Forza il reflow prima di calcolare le posizioni
-  pill.style.transition = 'none';
-  void pill.offsetWidth;
-  
   const tabRect = activeTab.getBoundingClientRect();
   const navRect = dom.nav.getBoundingClientRect();
   
-  pill.style.left = `${tabRect.left - navRect.left}px`;
-  pill.style.width = `${tabRect.width}px`;
+  const scrollOffset = dom.nav.scrollLeft;
   
-  // Riattiva la transizione
-  requestAnimationFrame(() => {
-    pill.style.transition = '';
-  });
+  pill.style.left = `${tabRect.left - navRect.left + scrollOffset}px`;
+  pill.style.width = `${tabRect.width}px`;
 }
 
 async function loadOrders() {
@@ -328,11 +321,11 @@ function rotateRefresh() {
 function renderOrders() {
   const section = getActiveSection();
   const orders = state.orders.filter(o => 
-    state.viewingCompleted ? o.status === 'completed' : o.status !== 'completed'
+    state.viewingCompleted ? o.orderStatus === 'completed' : o.orderStatus !== 'completed'
   );
   
   const grouped = groupOrders(orders);
-  const completedCount = state.orders.filter(o => o.status === 'completed').length;
+  const completedCount = state.orders.filter(o => o.orderStatus === 'completed').length;
   
   if (orders.length === 0) {
     section.innerHTML = `
@@ -453,17 +446,32 @@ function showOrderDetails(orderId) {
   // Titolo personalizzato per categoria
   const titles = {
     table: `Tavolo #${id}`,
-    takeaway: `Orario ${id}`,
+    takeaway: `Ritiro ${id}`,
     delivery: `Consegna ${id}`
   };
   
   document.querySelector('.gpopup-title').textContent = titles[state.currentSection] || `Ordine #${id}`;
   
-  // Data formattata: "Ordinato alle XX:XX del giorno DD/MM"
+  // Info header personalizzate per tipo ordine
+  let headerInfo = '';
   const d = new Date(order.timestamp);
   const time = `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`;
-  const date = `${d.getDate().toString().padStart(2, '0')}/${(d.getMonth() + 1).toString().padStart(2, '0')}`;
-  document.querySelector('.gpopup-date').textContent = `Ordinato alle ${time} del giorno ${date}`;
+  
+  if (state.currentSection === 'table') {
+    headerInfo = `Ordinato alle ${time}`;
+  } else if (state.currentSection === 'takeaway') {
+    const customer = order.takeaway?.[0]?.customer || 'N/A';
+    const phone = order.takeaway?.[0]?.phone || '';
+    headerInfo = `${customer}${phone ? ` • ${phone}` : ''}`;
+  } else if (state.currentSection === 'delivery') {
+    const customer = order.delivery?.[0]?.customer || 'N/A';
+    const phone = order.delivery?.[0]?.phone || '';
+    const address = order.delivery?.[0]?.address || 'N/A';
+    const paymentMethod = order.delivery?.[0]?.paymentMethod || 'N/A';
+    headerInfo = `${customer}${phone ? ` • ${phone}` : ''}<br>${address}<br>${paymentMethod}`;
+  }
+  
+  document.querySelector('.gpopup-date').innerHTML = headerInfo;
   
   document.querySelector('.gpopup-total').textContent = `€${order.total.toFixed(2)}`;
   
@@ -481,7 +489,7 @@ function showOrderDetails(orderId) {
       </div>`;
   }).join('');
   
-  updateStatusButton(order.status);
+  updateStatusButton(order.orderStatus);
   showPopup();
 }
 
@@ -497,20 +505,35 @@ function showGroupDetails(id) {
       new Date(o.timestamp) < new Date(e.timestamp) ? o : e
     );
     
-    // Titolo personalizzato per categoria (senza trattino)
+    // Titolo personalizzato per categoria
     const titles = {
       table: `Tavolo #${id} (${orders.length} ordini)`,
-      takeaway: `Orario ${id} (${orders.length} ordini)`,
+      takeaway: `Ritiro ${id} (${orders.length} ordini)`,
       delivery: `Consegna ${id} (${orders.length} ordini)`
     };
     
     document.querySelector('.gpopup-title').textContent = titles[state.currentSection] || `Ordine #${id} (${orders.length} ordini)`;
     
-    // Data formattata: "Ordinato alle XX:XX del giorno DD/MM"
+    // Info header personalizzate per tipo ordine
+    let headerInfo = '';
     const d = new Date(earliest.timestamp);
     const time = `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`;
-    const date = `${d.getDate().toString().padStart(2, '0')}/${(d.getMonth() + 1).toString().padStart(2, '0')}`;
-    document.querySelector('.gpopup-date').textContent = `Ordinato alle ${time} del giorno ${date}`;
+    
+    if (state.currentSection === 'table') {
+      headerInfo = `Primo ordine alle ${time}`;
+    } else if (state.currentSection === 'takeaway') {
+      const customer = earliest.takeaway?.[0]?.customer || 'N/A';
+      const phone = earliest.takeaway?.[0]?.phone || '';
+      headerInfo = `${customer}${phone ? ` • ${phone}` : ''}`;
+    } else if (state.currentSection === 'delivery') {
+      const customer = earliest.delivery?.[0]?.customer || 'N/A';
+      const phone = earliest.delivery?.[0]?.phone || '';
+      const address = earliest.delivery?.[0]?.address || 'N/A';
+      const paymentMethod = earliest.delivery?.[0]?.paymentMethod || 'N/A';
+      headerInfo = `${customer}${phone ? ` • ${phone}` : ''}<br>${address}<br>${paymentMethod}`;
+    }
+    
+    document.querySelector('.gpopup-date').innerHTML = headerInfo;
     
     document.querySelector('.gpopup-total').textContent = `€${total.toFixed(2)}`;
     
@@ -545,7 +568,7 @@ function showGroupDetails(id) {
         </div>`;
     }).join('');
     
-    updateStatusButton(orders[0].status);
+    updateStatusButton(orders[0].orderStatus);
     showPopup();
   }
 }
@@ -596,7 +619,7 @@ async function toggleStatus() {
   const orders = state.currentDetailOrder.isGroup ? 
     state.currentDetailOrder.orders : [state.currentDetailOrder];
   
-  const newStatus = orders[0].status === 'completed' ? 'pending' : 'completed';
+  const newStatus = orders[0].orderStatus === 'completed' ? 'pending' : 'completed';
   const btn = document.querySelector('.toggle-status');
   btn.disabled = true;
   
@@ -615,11 +638,11 @@ async function toggleStatus() {
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       
       const idx = state.orders.findIndex(o => o.id === order.id);
-      if (idx !== -1) state.orders[idx].status = newStatus;
+      if (idx !== -1) state.orders[idx].orderStatus = newStatus;
     }));
     
     if (!state.currentDetailOrder.isGroup) {
-      state.currentDetailOrder.status = newStatus;
+      state.currentDetailOrder.orderStatus = newStatus;
     }
     
     updateStatusButton(newStatus);
@@ -747,7 +770,7 @@ function groupOrders(orders) {
 
 function getOrdersByIdentifier(id) {
   const orders = state.orders.filter(o => 
-    (state.viewingCompleted ? o.status === 'completed' : o.status !== 'completed') &&
+    (state.viewingCompleted ? o.orderStatus === 'completed' : o.orderStatus !== 'completed') &&
     getOrderIdentifier(o) === id
   );
   return orders.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
@@ -780,7 +803,7 @@ function isNewOrder(timestamp) {
 
 function formatDateTime(timestamp) {
   const d = new Date(timestamp);
-  return `${d.getDate().toString().padStart(2, '0')}/${(d.getMonth() + 1).toString().padStart(2, '0')}<br>${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`;
+  return `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}<br>${d.getDate().toString().padStart(2, '0')}/${(d.getMonth() + 1).toString().padStart(2, '0')}`;
 }
 
 function formatDateTimeFull(timestamp) {
@@ -807,4 +830,3 @@ window.addEventListener('beforeunload', () => {
     clearInterval(state.autoRefreshInterval);
   }
 });
-

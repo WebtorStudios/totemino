@@ -4,16 +4,76 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 	<script>
-		(function() {
-		  const saved = localStorage.getItem('totemino_theme');
-		  const theme = saved || 
-			(window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
-		  document.documentElement.setAttribute('data-theme', theme);
-		})();
+        (function() {
+            const saved = localStorage.getItem('totemino_theme');
+            const theme = saved || 
+                (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+            document.documentElement.setAttribute('data-theme', theme);
+            
+            window.addEventListener('pageshow', function(event) {
+                if (event.persisted || performance.getEntriesByType('navigation')[0]?.type === 'back_forward') {
+                location.reload();
+                }
+            });
+        })();
 	</script>	
     <title>Accesso Negato - Totemino</title>
     <link rel="icon" type="image/png" href="img/favicon.png">
     <link rel="stylesheet" href="index-styles.css">
+    <style>
+        /* Animazione loading dots per bottoni pricing */
+        .btn-pricing.loading {
+            pointer-events: none;
+        }
+
+        .btn-pricing .btn-text {
+            display: inline;
+            font-weight: 600;
+        }
+
+        .btn-pricing.loading .btn-text {   
+            display: none;
+        }
+
+        .loading-dots {
+            display: none;
+            gap: 8px;
+        }
+
+        .btn-pricing.loading .loading-dots {
+            display: flex;
+            margin: 5px auto;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .loading-dots span {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background-color: currentColor;
+            animation: loadingDot 1.4s infinite ease-in-out both;
+        }
+
+        .loading-dots span:nth-child(1) {
+            animation-delay: -0.32s;
+        }
+
+        .loading-dots span:nth-child(2) {
+            animation-delay: -0.16s;
+        }
+
+        @keyframes loadingDot {
+            0%, 80%, 100% {
+                transform: scale(0.8);
+                opacity: 0.5;
+            }
+            40% {
+                transform: scale(1.2);
+                opacity: 1;
+            }
+        }
+    </style>
 </head>
 <body>
 
@@ -56,7 +116,14 @@
                         <span class="period">/mese + IVA</span>
                     </div>
                 </div>
-                <a class="btn-pricing" data-price-id="price_1SZbHF7dAnRE04PkLfBWEbxw">Passa a Hobby</a>
+                <a class="btn-pricing" data-price-id="price_1SZbHF7dAnRE04PkLfBWEbxw">
+                    <span class="btn-text">Passa a Hobby</span>
+                    <span class="loading-dots">
+                        <span></span>
+                        <span></span>
+                        <span></span>
+                    </span>
+                </a>
                 <ul class="features-list">
                     <li><img src="img/check.png"> Menu solo visualizzazione</li>
                     <li><img src="img/check.png"> Gestione menu semplice</li>
@@ -77,7 +144,14 @@
                         <span class="period">/mese + IVA</span>
                     </div>
                 </div>
-                <a class="btn-pricing" data-price-id="price_1SZbHk7dAnRE04PkSiNByGm0">Passa a Premium</a>
+                <a class="btn-pricing" data-price-id="price_1SZbHk7dAnRE04PkSiNByGm0">
+                    <span class="btn-text">Passa a Premium</span>
+                    <span class="loading-dots">
+                        <span></span>
+                        <span></span>
+                        <span></span>
+                    </span>
+                </a>
                 <ul class="features-list">
                     <li><img src="img/check.png"> Tutte le funzioni Hobby</li>
                     <li><img src="img/check.png"> Ordinazioni base dall'app</li>
@@ -99,7 +173,14 @@
                         <span class="period">/mese + IVA</span>
                     </div>
                 </div>
-                <a class="btn-pricing" data-price-id="price_1SZbIj7dAnRE04Pkrb19TFyx">Diventa Pro</a>
+                <a class="btn-pricing" data-price-id="price_1SZbIj7dAnRE04Pkrb19TFyx">
+                    <span class="btn-text">Diventa Pro</span>
+                    <span class="loading-dots">
+                        <span></span>
+                        <span></span>
+                        <span></span>
+                    </span>
+                </a>
                 <ul class="features-list">
                     <li><img src="img/check.png"> Tutte le funzioni di Premium</li>
                     <li><img src="img/check.png"> Domicilio con 0% di commissioni</li>
@@ -165,6 +246,10 @@
         document.querySelectorAll('.btn-pricing').forEach(btn => {
             btn.addEventListener('click', async (e) => {
                 e.preventDefault();
+                
+                // Aggiungi classe loading
+                btn.classList.add('loading');
+                
                 const priceId = btn.dataset.priceId;
                 
                 try {
@@ -172,7 +257,7 @@
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         credentials: 'include',
-                        body: JSON.stringify({ priceId })  // ✅ Solo priceId
+                        body: JSON.stringify({ priceId })
                     });
                     
                     const data = await response.json();
@@ -180,9 +265,13 @@
                     if (data.url) {
                         window.location.href = data.url;
                     } else {
+                        // Rimuovi loading in caso di errore
+                        btn.classList.remove('loading');
                         alert('Errore: ' + (data.error || 'Impossibile creare la sessione'));
                     }
                 } catch (error) {
+                    // Rimuovi loading in caso di errore
+                    btn.classList.remove('loading');
                     console.error('Errore:', error);
                     alert('Errore di connessione. Riprova.');
                 }
@@ -192,5 +281,4 @@
 	<script src="theme.js"></script>
  	<script src="logo-pop.js"></script>
 </body>
-
 </html>

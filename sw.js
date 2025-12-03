@@ -1,12 +1,24 @@
 // sw.js - Service Worker per Push Notifications
+const SW_VERSION = 'v1.0.0';
+
+// ============================================
+// INSTALL
+// ============================================
 self.addEventListener('install', (event) => {
-  console.log('✅ Service Worker installato');
+  console.log(`[SW ${SW_VERSION}] Installing...`);
   self.skipWaiting();
 });
 
+// ============================================
+// ACTIVATE
+// ============================================
 self.addEventListener('activate', (event) => {
-  console.log('✅ Service Worker attivato');
-  event.waitUntil(clients.claim());
+  console.log(`[SW ${SW_VERSION}] Activating...`);
+  event.waitUntil(
+    clients.claim().then(() => {
+      console.log(`[SW ${SW_VERSION}] Activated and controlling pages`);
+    })
+  );
 });
 
 // ============================================
@@ -20,7 +32,7 @@ self.addEventListener('fetch', (event) => {
 // PUSH - Gestione Notifiche Push
 // ============================================
 self.addEventListener('push', (event) => {
-  console.log('🔔 Notifica push ricevuta');
+  console.log('[SW] Push received:', event);
   
   let data = {};
   
@@ -28,7 +40,7 @@ self.addEventListener('push', (event) => {
     try {
       data = event.data.json();
     } catch (e) {
-      console.error('❌ Errore parsing notifica:', e);
+      console.error('[SW] Errore parsing notifica:', e);
       data = { 
         title: 'Totemino - Nuovo Ordine', 
         body: event.data.text() || 'Hai ricevuto un nuovo ordine'
@@ -39,6 +51,7 @@ self.addEventListener('push', (event) => {
   const title = data.title || 'Totemino - Nuovo Ordine';
   const options = {
     body: data.body || 'Hai ricevuto un nuovo ordine',
+    icon: data.icon || '/img/favicon.png',
     badge: data.badge || '/img/favicon.png',
     tag: data.tag || `order-${Date.now()}`,
     requireInteraction: true,
@@ -56,6 +69,7 @@ self.addEventListener('push', (event) => {
   event.waitUntil(
     self.registration.showNotification(title, options)
       .then(() => {
+        console.log('[SW] Notification shown');
         return self.clients.matchAll({ type: 'window', includeUncontrolled: true });
       })
       .then(clients => {
@@ -66,15 +80,17 @@ self.addEventListener('push', (event) => {
           });
         });
       })
+      .catch(err => {
+        console.error('[SW] Errore show notification:', err);
+      })
   );
 });
 
 // ============================================
-// NOTIFICATION CLICK - Apertura App
+// NOTIFICATION CLICK
 // ============================================
 self.addEventListener('notificationclick', (event) => {
-  console.log('🖱️ Click su notifica');
-  
+  console.log('[SW] Notification clicked:', event);
   event.notification.close();
   
   const urlToOpen = event.notification.data?.url || '/gestione.html';
@@ -99,6 +115,9 @@ self.addEventListener('notificationclick', (event) => {
         return clients.openWindow(urlToOpen);
       }
     })
+    .catch(err => {
+      console.error('[SW] Errore notification click:', err);
+    })
   );
 });
 
@@ -106,16 +125,27 @@ self.addEventListener('notificationclick', (event) => {
 // NOTIFICATION CLOSE
 // ============================================
 self.addEventListener('notificationclose', (event) => {
-  console.log('🔕 Notifica chiusa');
+  console.log('[SW] Notification closed');
 });
 
 // ============================================
 // MESSAGE - Comunicazione con il client
 // ============================================
 self.addEventListener('message', (event) => {
-  console.log('📨 Messaggio ricevuto dal client:', event.data);
+  console.log('[SW] Message received:', event.data);
   
   if (event.data.type === 'SKIP_WAITING') {
     self.skipWaiting();
   }
+});
+
+// ============================================
+// ERROR HANDLING
+// ============================================
+self.addEventListener('error', (event) => {
+  console.error('[SW] Error:', event.error);
+});
+
+self.addEventListener('unhandledrejection', (event) => {
+  console.error('[SW] Unhandled rejection:', event.reason);
 });

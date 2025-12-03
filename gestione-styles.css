@@ -1,8 +1,5 @@
 @import url("checkout-styles.css");
 
-html, body {
-  scrollbar-width: auto;
-}
 
 /* ============================================
    SCROLLBAR
@@ -272,6 +269,10 @@ main {
 
 .gpopup.hidden {
   display: none;
+}
+
+.gpopup-date {
+  line-height: 1.6rem;
 }
 
 .gpopup-content {
@@ -663,10 +664,6 @@ main {
   .gpopup-content {
     width: 95%;
     max-height: 90vh;
-  }
-  
-  #table-nav {
-    justify-content: space-between;
   }
 }
 

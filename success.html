@@ -44,7 +44,7 @@
 		</div>
 		
 		<button class="start-btn" id="shop-again">Ordina ancora</button>
-		<button class="start-btn" id="get-app">Scarica l'app</button>
+		<button class="start-btn" id="get-app">Scarica l'app per tracciare l'ordine</button>
 	</div>
 
 	<!-- REGISTRAZIONE SERVICE WORKER -->
@@ -53,7 +53,7 @@
 			window.addEventListener('load', () => {
 				navigator.serviceWorker.register('/sw.js')
 					.then(registration => {
-						console.log('✅ Service Worker registrato:', registration.scope);
+						
 					})
 					.catch(error => {
 						console.error('❌ Errore registrazione Service Worker:', error);

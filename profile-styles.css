@@ -1,7 +1,73 @@
 @import url("menu-styles.css");
 
-html, body {
-  scrollbar-width: auto;
+
+/* ===== NAVBAR ===== */
+.navbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  background: var(--bg-secondary);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--btn-secondary);
+  padding: 1rem 0;
+  transition: all 0.3s ease;
+}
+
+.nav-container {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 2rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.nav-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+}
+
+.nav-brand img {
+  height: 3rem;
+}
+
+.nav-brand h1 {
+  font-family: 'Magic';
+  font-size: 1.8rem;
+  color: var(--text-accent);
+  margin-top: 0.3rem;
+}
+
+.nav-actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.nav-btn {
+  padding: 0.6rem 1.5rem;
+  border-radius: 2rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  border: none;
+  background: transparent;
+}
+
+.theme-btn {
+  padding: 0rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.theme-btn img {
+  width: 1.6rem;
+  height: 1.6rem;
 }
 
 /* Container */
@@ -15,18 +81,20 @@ html, body {
 .hero-card {
   background: var(--card-bg);
   border-radius: 1.5rem;
-  padding: 2rem 1rem;
-  margin: 1.5rem 0;
+  padding: 1.5rem 1rem;
+  margin: 6.5rem 0 1.5rem;
   box-shadow: 0 2px 8px var(--shadow-sm);
   display: flex;
   flex-direction: column;
+  gap: 1.5rem;
 }
 
 /* Code Section */
 .code-section {
-  width: 333px;
+  width: 100%;
+  max-width: 333px;
   text-align: center;
-  margin: 0 auto 2rem;
+  margin: 0 auto;
   padding-bottom: 1rem;
 }
 
@@ -45,22 +113,21 @@ html, body {
 }
 
 .code-digit {
-  width: 68px;
-  height: 68px;
   background: linear-gradient(135deg, #f4c430, #ffdb58);
+  aspect-ratio: 1;
   border-radius: 1rem;
   display: flex;
   align-items: center;
   justify-content: center;
   font-family: 'Klein-Bold', sans-serif;
-  font-size: 1.8rem;
+  font-size: 1.7rem;
   color: #3a0f24;
 }
 
 /* Plan Section */
 .plan-section {
-  width: 90%;  
-  max-width: 300px;
+  width: 100%;  
+  max-width: 333px;
   margin: 0 auto;
 }
 
@@ -195,9 +262,6 @@ html, body {
 
 /* Logout Section */
 .logout-section {
-  background: var(--card-bg);
-  border-radius: 1.5rem;
-  box-shadow: 0 2px 8px var(--shadow-sm);
   max-width: 200px;
   margin: 3rem auto 0;
 }
@@ -208,7 +272,8 @@ html, body {
   color: white;
   border: none;
   padding: 1.2rem 1.5rem;
-  border-radius: 1.5rem;
+  border-radius: 2rem;
+  box-shadow: 0 0 8px var(--shadow-sm);
   font-size: 1rem;
   font-weight: 600;
   cursor: pointer;
@@ -351,20 +416,10 @@ html, body {
     flex-direction: row;
     align-items: center;
     justify-content: center;
+    gap: 1rem;
   }
-
-  .code-section {
-    margin-bottom: 0;
-  }
-
   .container {
     padding: 0 10rem;
-  }
-
-  .code-digit {
-    width: 70px;
-    height: 70px;
-    font-size: 2rem;
   }
 }
 

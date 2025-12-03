@@ -23,7 +23,9 @@ function setupEventListeners() {
     field.addEventListener('input', saveToLocalStorage);
     field.addEventListener('change', saveToLocalStorage);
   });
-
+   document.getElementById('back-btn').addEventListener('click', () => {
+      window.location.href = `profile.html?id=${restaurantId}`;
+  });
   document.getElementById('logo-input').addEventListener('change', handleLogoUpload);
   
   document.getElementById('delivery-cost-type').addEventListener('change', e => {
@@ -64,36 +66,68 @@ async function handleNotificationToggle(e) {
 // ===== ENABLE PUSH NOTIFICATIONS =====
 async function enablePushNotifications() {
   try {
+    console.log('🔔 Tentativo attivazione notifiche...');
+    
     // 1. Verifica supporto
-    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
-      notify('Il tuo browser non supporta le notifiche push', 'error');
+    if (!('serviceWorker' in navigator)) {
+      notify('Il browser non supporta i Service Worker', 'error');
       return false;
     }
     
-    // 2. Richiedi permesso (QUESTO MOSTRA IL POPUP DEL BROWSER)
-    console.log('🔔 Richiesta permesso notifiche...');
-    const permission = await Notification.requestPermission();
-    console.log('✅ Permesso:', permission);
-    
-    if (permission !== 'granted') {
-      notify('Devi concedere il permesso per ricevere notifiche', 'error');
+    if (!('PushManager' in window)) {
+      notify('Il browser non supporta le notifiche push', 'error');
       return false;
     }
     
-    // 3. Registra Service Worker
-    let registration;
-    try {
-      registration = await navigator.serviceWorker.register('/sw.js');
-      await navigator.serviceWorker.ready;
-      console.log('✅ Service Worker registrato');
-    } catch (err) {
-      console.error('❌ Errore SW:', err);
-      notify('Errore nella registrazione del service worker', 'error');
+    if (!('Notification' in window)) {
+      notify('Il browser non supporta le notifiche', 'error');
       return false;
     }
     
-    // 4. Carica chiave VAPID
+    // 2. Controlla permesso esistente
+    console.log('📋 Permesso attuale:', Notification.permission);
+    
+    if (Notification.permission === 'denied') {
+      notify('Hai bloccato le notifiche. Abilitale nelle impostazioni del browser', 'error');
+      return false;
+    }
+    
+    // 3. Richiedi permesso se necessario
+    if (Notification.permission === 'default') {
+      console.log('🔔 Richiesta permesso...');
+      const permission = await Notification.requestPermission();
+      console.log('✅ Permesso ricevuto:', permission);
+      
+      if (permission !== 'granted') {
+        notify('Devi concedere il permesso per ricevere notifiche', 'error');
+        return false;
+      }
+    }
+    
+    // 4. Disregistra SW vecchi
+    const registrations = await navigator.serviceWorker.getRegistrations();
+    console.log('🔍 SW registrati:', registrations.length);
+    
+    for (const reg of registrations) {
+      console.log('❌ Rimozione SW vecchio...');
+      await reg.unregister();
+    }
+    
+    // 5. Registra nuovo SW
+    console.log('📝 Registrazione nuovo SW...');
+    const registration = await navigator.serviceWorker.register('/sw.js', {
+      scope: '/'
+    });
+    
+    console.log('✅ SW registrato:', registration);
+    
+    // 6. Aspetta che sia pronto
+    await navigator.serviceWorker.ready;
+    console.log('✅ SW pronto');
+    
+    // 7. Carica chiave VAPID
     if (!VAPID_PUBLIC_KEY) {
+      console.log('🔑 Caricamento chiave VAPID...');
       await loadVapidKey();
     }
     
@@ -102,13 +136,26 @@ async function enablePushNotifications() {
       return false;
     }
     
-    // 5. Sottoscrivi
+    console.log('🔑 Chiave VAPID caricata');
+    
+    // 8. Rimuovi subscription vecchia
+    const oldSub = await registration.pushManager.getSubscription();
+    if (oldSub) {
+      console.log('❌ Rimozione subscription vecchia...');
+      await oldSub.unsubscribe();
+    }
+    
+    // 9. Crea nuova subscription
+    console.log('📝 Creazione subscription...');
     const subscription = await registration.pushManager.subscribe({
       userVisibleOnly: true,
       applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
     });
     
-    // 6. Invia al server
+    console.log('✅ Subscription creata:', subscription);
+    
+    // 10. Invia al server
+    console.log('📤 Invio al server...');
     const res = await fetch('/api/push/subscribe', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -116,6 +163,7 @@ async function enablePushNotifications() {
     });
     
     const data = await res.json();
+    console.log('📥 Risposta server:', data);
     
     if (!data.success) {
       throw new Error(data.message || 'Errore nella sottoscrizione');
@@ -134,6 +182,8 @@ async function enablePushNotifications() {
 // ===== DISABLE PUSH NOTIFICATIONS =====
 async function disablePushNotifications() {
   try {
+    console.log('🔕 Disattivazione notifiche...');
+    
     const registration = await navigator.serviceWorker.ready;
     const subscription = await registration.pushManager.getSubscription();
     
@@ -142,13 +192,17 @@ async function disablePushNotifications() {
       return;
     }
     
+    // Rimuovi dal server
     await fetch('/api/push/unsubscribe', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ endpoint: subscription.endpoint })
     });
     
+    // Disiscriviti
     await subscription.unsubscribe();
+    console.log('✅ Notifiche disattivate');
+    
     notify('Notifiche push disattivate', 'success');
     
   } catch (err) {
@@ -160,21 +214,60 @@ async function disablePushNotifications() {
 // ===== CHECK NOTIFICATION STATUS =====
 async function checkNotificationStatus() {
   try {
+    console.log('🔍 Verifica stato notifiche...');
+    
+    const checkbox = document.getElementById('notify-app');
+    
+    // Verifica supporto
     if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
-      document.getElementById('notify-app').disabled = true;
-      document.getElementById('notify-app').checked = false;
+      console.log('❌ Browser non supportato');
+      checkbox.disabled = true;
+      checkbox.checked = false;
+      const card = checkbox.closest('.option-card');
+      card.classList.add('disabled');
       return;
     }
     
-    const registration = await navigator.serviceWorker.ready;
-    const subscription = await registration.pushManager.getSubscription();
-    
-    // Parte SPENTO
-    if (subscription) {
-      document.getElementById('notify-app').checked = true;
-    } else {
-      document.getElementById('notify-app').checked = false;
+    // Verifica permesso
+    if (Notification.permission === 'denied') {
+      console.log('❌ Permesso negato');
+      checkbox.disabled = true;
+      checkbox.checked = false;
+      const card = checkbox.closest('.option-card');
+      card.classList.add('disabled');
+      return;
     }
+    
+    // Verifica subscription
+    try {
+      const registration = await navigator.serviceWorker.ready;
+      const subscription = await registration.pushManager.getSubscription();
+      
+    if (subscription) {
+      console.log('✅ Subscription attiva');
+      checkbox.checked = true;
+      checkbox.disabled = false;
+
+      const card = checkbox.closest('.option-card');
+      card.classList.remove('disabled');
+
+    } else {
+      console.log('ℹ️ Nessuna subscription');
+      checkbox.checked = false;
+      checkbox.disabled = false;
+
+      const card = checkbox.closest('.option-card');
+      card.classList.remove('disabled');
+    }
+
+    } catch (err) {
+      console.log('⚠️ SW non registrato');
+      checkbox.checked = false;
+      checkbox.disabled = false;
+
+      const card = checkbox.closest('.option-card');
+      card.classList.remove('disabled');
+    }    
   } catch (err) {
     console.error('❌ Errore verifica notifiche:', err);
     document.getElementById('notify-app').checked = false;
@@ -184,11 +277,25 @@ async function checkNotificationStatus() {
 // ===== LOAD VAPID KEY =====
 async function loadVapidKey() {
   try {
+    console.log('🔑 Caricamento chiave VAPID...');
     const res = await fetch('/api/push/vapid-public-key');
+    
+    if (!res.ok) {
+      throw new Error('Errore caricamento chiave VAPID');
+    }
+    
     const data = await res.json();
+    
+    if (!data.success || !data.publicKey) {
+      throw new Error('Chiave VAPID non trovata');
+    }
+    
     VAPID_PUBLIC_KEY = data.publicKey;
+    console.log('✅ Chiave VAPID caricata');
+    
   } catch (err) {
     console.error('❌ Errore caricamento VAPID:', err);
+    throw err;
   }
 }
 
@@ -624,7 +731,7 @@ async function loadSettings() {
     saveToLocalStorage();
     
   } catch (err) {
-    console.log('Nessun settings esistente');
+    
   }
 }
 

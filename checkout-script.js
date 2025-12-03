@@ -67,7 +67,7 @@ const STATE = {
   menuData: {},
   selectedCategories: new Set(),
   suggestionsShown: false,
-  restaurantStatus: 'free',
+  planType: 'free',
   isTrialActive: false,
   customizationData: {},
   currentMenuType: null,
@@ -182,21 +182,22 @@ const Utils = {
 };
 
 // ==================== GESTIONE DATI ====================
+// ==================== GESTIONE DATI ====================
 const DataManager = {
   async loadRestaurantStatus() {
     try {
       const response = await fetch('/api/restaurant-status/' + CONFIG.restaurantId);
       if (response.ok) {
         const data = await response.json();
-        STATE.restaurantStatus = data.status;
+        STATE.planType = data.planType;
         STATE.isTrialActive = data.isTrialActive || false;
         return true;
       }
     } catch (error) {
-      console.error('Errore caricamento status:', error);
+      console.error('Errore caricamento planType:', error);
     }
     
-    STATE.restaurantStatus = 'free';
+    STATE.planType = 'free';
     STATE.isTrialActive = false;
     const wrapper = document.querySelector('.suggestions-wrapper');
     if (wrapper) wrapper.style.display = 'none';
@@ -204,7 +205,7 @@ const DataManager = {
   },
 
   canShowSuggestions() {
-    return STATE.restaurantStatus === 'pro' || STATE.isTrialActive;
+    return STATE.planType === 'pro' || STATE.isTrialActive;
   },
 
   loadSelectedItems() {
@@ -248,7 +249,6 @@ const DataManager = {
     const availableMenuTypes = settings.menuTypes || [];
     let menuTypeFilter = null;
   
-    // Se manca il type, usa 'default' ma NON reindirizzare
     if (!requestedType || requestedType === 'default' || requestedType === 'view' || requestedType === 'readonly') {
       menuTypeFilter = 'default';
     } else {
@@ -256,7 +256,6 @@ const DataManager = {
       if (typeConfig) {
         menuTypeFilter = requestedType;
       } else {
-        // Type non valido, reindirizza a default
         const newUrl = new URL(window.location.href);
         newUrl.searchParams.set('type', 'default');
         window.location.replace(newUrl.toString());

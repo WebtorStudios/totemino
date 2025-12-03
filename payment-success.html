@@ -3,27 +3,34 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
     <script>
-      (function() {
-        const saved = localStorage.getItem('totemino_theme');
-        const theme = saved || 
-          (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
-        document.documentElement.setAttribute('data-theme', theme);
-      })();
+        (function() {
+            const saved = localStorage.getItem('totemino_theme');
+            const theme = saved ||
+                (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+            document.documentElement.setAttribute('data-theme', theme);
+        })();
     </script>
+
     <title>Pagamento - Totemino</title>
+
     <link rel="icon" type="image/png" href="img/favicon.png">
-    <link rel="stylesheet" href="payment-success-styles.css"/>
+    <link rel="stylesheet" href="payment-success-styles.css" />
 </head>
+
 <body>
     <div class="success-container">
+
         <div class="success-icon" id="status-icon">
             <div class="checkmark"></div>
         </div>
-        
+
         <h1 id="status-title">Pagamento Completato!</h1>
-        <p class="message" id="status-message">Grazie per aver scelto il nostro servizio.</p>
-        
+        <p class="message" id="status-message">
+            Grazie per aver scelto il nostro servizio.
+        </p>
+
         <div id="loading-section" class="loading">
             <div class="spinner"></div>
             <p>Verifica del pagamento in corso...</p>
@@ -31,7 +38,9 @@
 
         <div id="plan-section" class="plan-info" style="display: none;">
             <div class="plan-name" id="plan-name"></div>
-            <div class="plan-details">Il tuo account è stato aggiornato con successo</div>
+            <div class="plan-details">
+                Il tuo account è stato aggiornato con successo
+            </div>
         </div>
 
         <div id="error-section" class="error-container" style="display: none;">
@@ -42,6 +51,7 @@
         <div class="btn-container">
             <a href="/profile.html" class="btn" id="dashboard-btn">Vai alla Dashboard</a>
         </div>
+
     </div>
 
     <script>
@@ -60,6 +70,12 @@
                 });
 
                 const data = await response.json();
+
+                // ✅ Gestisci errore sessione già utilizzata
+                if (data.alreadyProcessed) {
+                    showError('Questo link di pagamento è stato già utilizzato.');
+                    return;
+                }
 
                 if (!response.ok) {
                     throw new Error(data.error || 'Errore nella verifica del pagamento');
@@ -83,7 +99,6 @@
             const planSection = document.getElementById('plan-section');
             const planName = document.getElementById('plan-name');
             
-            // ✅ Gestisci tutti i casi possibili
             const planNames = {
                 'hobby': 'Piano Hobby',
                 'premium': 'Piano Premium',
@@ -92,6 +107,9 @@
             
             planName.textContent = planNames[planType] || 'Piano Premium';
             planSection.style.display = 'block';
+            
+            // ✅ Rimuovi session_id dall'URL dopo successo
+            window.history.replaceState({}, document.title, '/payment-success.html');
         }
 
         function showError(message) {
@@ -108,35 +126,9 @@
             
             errorMessage.textContent = message;
             errorSection.style.display = 'block';
-        }
-
-        function showSuccess(planType) {
-            document.getElementById('loading-section').style.display = 'none';
             
-            const planSection = document.getElementById('plan-section');
-            const planName = document.getElementById('plan-name');
-            
-            planName.textContent = planType === 'pro' ? 'Piano Pro' : 'Piano Premium';
-            planSection.style.display = 'block';
-        }
-
-        function showError(message) {
-            document.getElementById('loading-section').style.display = 'none';
-            
-            // Cambia icona in X rossa
-            const statusIcon = document.getElementById('status-icon');
-            statusIcon.innerHTML = '<div class="errormark"></div>';
-            
-            // Cambia titolo e messaggio principale
-            document.getElementById('status-title').textContent = 'Pagamento Non Riuscito';
-            document.getElementById('status-message').textContent = 'Si è verificato un problema durante il processo di pagamento.';
-            
-            // Mostra dettagli errore
-            const errorSection = document.getElementById('error-section');
-            const errorMessage = document.getElementById('error-message');
-            
-            errorMessage.textContent = message;
-            errorSection.style.display = 'block';
+            // ✅ Rimuovi session_id dall'URL anche in caso di errore
+            window.history.replaceState({}, document.title, '/payment-success.html');
         }
 
         window.addEventListener('DOMContentLoaded', verifyPayment);

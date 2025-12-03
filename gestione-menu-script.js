@@ -32,6 +32,22 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('cancel-delete').onclick = hideConfirm;
   document.getElementById('confirm-delete').onclick = deleteItem;
   document.getElementById('save-menu').onclick = saveMenu;
+    document.getElementById('edit-method-table')?.addEventListener('change', (e) => {
+      const form = document.querySelector('#edit-menu-type-popup #coperto-form');
+      form.style.display = e.target.checked ? 'block' : 'none';
+
+      if (!e.target.checked) {
+          document.getElementById('menu-type-coperto-edit').value = 0;
+      }
+  });
+  document.getElementById('new-method-table')?.addEventListener('change', (e) => {
+      const form = document.querySelector('#add-menu-type-popup #coperto-form');
+      form.style.display = e.target.checked ? 'block' : 'none';
+
+      if (!e.target.checked) {
+          document.getElementById('new-menu-type-coperto').value = 0;
+      }
+  });
   document.getElementById('menu-type-filter').onchange = () => {
     filterType = document.getElementById('menu-type-filter').value;
     render();
@@ -210,30 +226,38 @@ function renderMenuTypes() {
 
 async function openEditMenuTypePopup(idx) {
   const type = menuTypes[idx];
-  const isDefault = type.id === 'default';
-  
-  menuIconIndex = type.icon || 1;  // AGGIUNTO: Carica l'icona salvata
-  updateMenuIconDisplay();  // AGGIUNTO: Mostra l'icona
-  
+  const methods = type.methods || { table: true };
+
+  menuIconIndex = type.icon || 1;
+  updateMenuIconDisplay();
+
   document.getElementById('editing-menu-type-id').value = idx;
   document.getElementById('menu-type-name-edit').value = type.name;
   document.getElementById('menu-type-coperto-edit').value = type.coperto || 0;
-  
-  const methods = type.methods || { table: true, delivery: true, takeaway: true, show: true };
+
   document.getElementById('edit-method-table').checked = methods.table !== false;
   document.getElementById('edit-method-delivery').checked = methods.delivery !== false;
   document.getElementById('edit-method-takeaway').checked = methods.takeaway !== false;
   document.getElementById('edit-method-show').checked = methods.show !== false;
   document.getElementById('menu-type-visibility-edit').checked = type.visible !== false;
-  
+
   const canEnableDelivery = await checkDeliverySettings();
   updateDeliveryCheckboxState('edit-method-delivery', canEnableDelivery);
-  
+
+  // Mostra/nascondi correttamente il coperto
+  const copertoForm = document.querySelector('#edit-menu-type-popup #coperto-form');
+  const isTableEnabled = methods.table !== false;
+
+  copertoForm.style.display = isTableEnabled ? 'block' : 'none';
+  if (!isTableEnabled) {
+    copertoForm.querySelector('input').value = 0;
+  }
+
   const deleteBtn = document.querySelector('#edit-menu-type-popup .btn-danger');
   if (deleteBtn) {
     deleteBtn.style.display = type.id === 'default' ? 'none' : 'inline-block';
   }
-  
+
   document.getElementById('edit-menu-type-popup').classList.remove('hidden');
 }
 
@@ -658,7 +682,7 @@ function deleteCategory(name) {
 
 // ===== MENU TYPES =====
 async function openAddMenuTypePopup() {
-  menuIconIndex = 1; // Reset all'icona 1
+  menuIconIndex = 1;
   document.getElementById('new-menu-type-name').value = '';
   document.getElementById('new-menu-type-coperto').value = '0.00';
   document.getElementById('new-method-table').checked = false;
@@ -666,16 +690,24 @@ async function openAddMenuTypePopup() {
   document.getElementById('new-method-takeaway').checked = false;
   document.getElementById('new-method-show').checked = false;
   document.getElementById('new-menu-type-visibility').checked = true;
-  
-  // Aggiorna l'immagine dell'icona
+
   updateMenuIconDisplay();
-  
-  // Controlla se settings è configurato
+
   const canEnableDelivery = await checkDeliverySettings();
   updateDeliveryCheckboxState('new-method-delivery', canEnableDelivery);
-  
+
+  // Mostra/nascondi correttamente il coperto
+  const copertoForm = document.querySelector('#add-menu-type-popup #coperto-form');
+  const isTableEnabled = document.getElementById('new-method-table').checked;
+
+  copertoForm.style.display = isTableEnabled ? 'block' : 'none';
+  if (!isTableEnabled) {
+    copertoForm.querySelector('input').value = 0;
+  }
+
   document.getElementById('add-menu-type-popup').classList.remove('hidden');
 }
+
 
 // ===== AGGIUNGI QUESTA FUNZIONE PER CAMBIARE ICONA NELLA POPUP DI CREAZIONE =====
 

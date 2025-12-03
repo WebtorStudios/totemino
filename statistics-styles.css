@@ -1,9 +1,6 @@
 /* Import base styles from menu */
 @import url('menu-styles.css');
 
-html, body {
-  scrollbar-width: auto;
-}
 
 /* ===== VARIABILI E ANIMAZIONI ===== */
 @keyframes slideIn {

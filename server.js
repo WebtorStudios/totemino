@@ -62,17 +62,11 @@ app.post('/webhook/stripe',
       const userCode = session.metadata?.userCode;
       const planType = session.metadata?.planType;
       
-      console.log('📦 Webhook ricevuto:', { userCode, planType, sessionId: session.id });
       
-      // ❌ Se mancano i dati critici, ERRORE
-      if (!userCode) {
-        console.error('❌ UserCode mancante nei metadata');
-        return res.status(400).json({ error: 'UserCode mancante' });
-      }
       
-      if (!planType) {
-        console.error('❌ PlanType mancante nei metadata');
-        return res.status(400).json({ error: 'PlanType mancante' });
+      if (!userCode || !planType) {
+        console.error('❌ Metadata mancanti');
+        return res.status(400).json({ error: 'Metadata mancanti' });
       }
       
       try {
@@ -83,17 +77,42 @@ app.post('/webhook/stripe',
           return res.status(404).json({ error: 'Utente non trovato' });
         }
         
-        users[userCode].planType = planType; // 'hobby' | 'premium' | 'pro'
-        users[userCode].paymentDate = new Date().toISOString();
-        users[userCode].stripeSessionId = session.id;
-        users[userCode].stripeCustomerId = session.customer;
+        // ✅ NUOVO: Cancella abbonamento precedente se esiste
+        if (users[userCode].stripeSubscriptionId) {
+          try {
+            await stripe.subscriptions.cancel(users[userCode].stripeSubscriptionId);
+            
+          } catch (cancelError) {
+            console.warn('⚠️ Errore cancellazione abbonamento precedente:', cancelError.message);
+          }
+        }
         
-        delete users[userCode].trialEndsAt;
+        // ✅ Recupera subscription ID dalla sessione
+        const subscriptionId = session.subscription;
         
-        await FileManager.saveUsers(users);
-        
-        console.log(`✅ Pagamento completato: ${userCode} → ${planType}`);
-        return res.json({ received: true, userCode, planType });
+        if (subscriptionId) {
+          const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+          
+          users[userCode].planType = planType;
+          users[userCode].paymentDate = new Date().toISOString();
+          users[userCode].stripeSessionId = session.id;
+          users[userCode].stripeCustomerId = session.customer;
+          users[userCode].stripeSubscriptionId = subscriptionId;
+          users[userCode].subscriptionEndsAt = new Date(
+            subscription.current_period_end * 1000
+          ).toISOString();
+          
+          delete users[userCode].trialEndsAt;
+          
+          await FileManager.saveUsers(users);
+          
+          
+          
+          
+          return res.json({ received: true, userCode, planType });
+        } else {
+          throw new Error('Subscription ID non trovato nella sessione');
+        }
         
       } catch (error) {
         console.error('❌ Errore elaborazione pagamento:', error);
@@ -101,13 +120,199 @@ app.post('/webhook/stripe',
       }
     }
     
-    // Altri eventi Stripe
     res.json({ received: true });
+  }
+);
+
+// ==================== SUBSCRIPTION MANAGER ====================
+const SubscriptionManager = {
+  async checkExpiredSubscriptions() {
+    try {
+      const users = await FileManager.loadUsers();
+      let expiredCount = 0;
+      const now = new Date();
+      
+      for (const [userCode, userData] of Object.entries(users)) {
+        // Controlla se l'abbonamento è scaduto
+        if (userData.planType !== 'free' && userData.subscriptionEndsAt) {
+          const endDate = new Date(userData.subscriptionEndsAt);
+          
+          // ✅ Grace period di 2 giorni
+          const gracePeriod = new Date(endDate);
+          gracePeriod.setDate(gracePeriod.getDate() + 2);
+          
+          if (now >= gracePeriod) {
+            // Verifica su Stripe se l'abbonamento è ancora attivo
+            if (userData.stripeSubscriptionId) {
+              try {
+                const subscription = await stripe.subscriptions.retrieve(
+                  userData.stripeSubscriptionId
+                );
+                
+                if (subscription.status !== 'active' && subscription.status !== 'trialing') {
+                  // Abbonamento non attivo, downgrade a free
+                  users[userCode].planType = 'free';
+                  delete users[userCode].stripeSubscriptionId;
+                  delete users[userCode].subscriptionEndsAt;
+                  expiredCount++;
+                  
+                  
+                }
+              } catch (stripeError) {
+                console.error(`❌ Errore verifica subscription per ${userCode}:`, stripeError.message);
+                
+                // Se l'abbonamento non esiste più su Stripe, downgrade
+                if (stripeError.statusCode === 404) {
+                  users[userCode].planType = 'free';
+                  delete users[userCode].stripeSubscriptionId;
+                  delete users[userCode].subscriptionEndsAt;
+                  expiredCount++;
+                  
+                }
+              }
+            } else {
+              // Nessun subscription ID ma data scaduta -> downgrade
+              users[userCode].planType = 'free';
+              delete users[userCode].subscriptionEndsAt;
+              expiredCount++;
+              
+            }
+          }
+        }
+      }
+      
+      if (expiredCount > 0) {
+        await FileManager.saveUsers(users);
+        
+      }
+      
+    } catch (error) {
+      console.error('❌ Errore controllo abbonamenti:', error);
+    }
+  }
+};
+
+// ==================== CRON JOB ABBONAMENTI ====================
+// Controlla ogni giorno alle 2:00 AM
+cron.schedule('0 2 * * *', () => {
+  
+  SubscriptionManager.checkExpiredSubscriptions();
+});
+
+// Controllo all'avvio del server
+setTimeout(() => {
+  
+  SubscriptionManager.checkExpiredSubscriptions();
+}, 5000);
+
+app.post('/webhook/stripe-subscription', 
+  express.raw({ type: 'application/json' }), 
+  async (req, res) => {
+    const sig = req.headers['stripe-signature'];
+    const webhookSecret = process.env.STRIPE_SUBSCRIPTION_WEBHOOK_SECRET;
+    
+    let event;
+    try {
+      event = stripe.webhooks.constructEvent(req.body, sig, webhookSecret);
+    } catch (err) {
+      console.error('❌ Webhook subscription signature failed:', err.message);
+      return res.status(400).send(`Webhook Error: ${err.message}`);
+    }
+    
+    try {
+      const users = await FileManager.loadUsers();
+      
+      switch (event.type) {
+        case 'customer.subscription.deleted':
+          // Abbonamento cancellato/scaduto
+          const deletedSub = event.data.object;
+          const userToDowngrade = Object.values(users).find(u => 
+            u.stripeSubscriptionId === deletedSub.id
+          );
+          
+          if (userToDowngrade) {
+            const userCode = Object.keys(users).find(k => users[k] === userToDowngrade);
+            users[userCode].planType = 'free';
+            delete users[userCode].stripeSubscriptionId;
+            delete users[userCode].subscriptionEndsAt;
+            await FileManager.saveUsers(users);
+            
+          }
+          break;
+          
+        case 'customer.subscription.updated':
+          // Rinnovo abbonamento o cambio piano
+          const updatedSub = event.data.object;
+          const userToUpdate = Object.values(users).find(u => 
+            u.stripeSubscriptionId === updatedSub.id
+          );
+          
+          if (userToUpdate) {
+            const userCode = Object.keys(users).find(k => users[k] === userToUpdate);
+            
+            // Aggiorna data di scadenza
+            users[userCode].subscriptionEndsAt = new Date(
+              updatedSub.current_period_end * 1000
+            ).toISOString();
+            
+            await FileManager.saveUsers(users);
+            
+          }
+          break;
+          
+        case 'invoice.payment_failed':
+          // Pagamento fallito
+          const failedInvoice = event.data.object;
+          const userWithFailedPayment = Object.values(users).find(u => 
+            u.stripeCustomerId === failedInvoice.customer
+          );
+          
+          if (userWithFailedPayment) {
+            const userCode = Object.keys(users).find(k => users[k] === userWithFailedPayment);
+            console.warn(`⚠️ Pagamento fallito per ${userCode}`);
+            // Opzionale: invia notifica via email
+          }
+          break;
+      }
+      
+      res.json({ received: true });
+      
+    } catch (error) {
+      console.error('❌ Errore elaborazione webhook subscription:', error);
+      return res.status(500).json({ error: error.message });
+    }
   }
 );
 
 // Middleware per body parsing
 app.use(express.static(__dirname));
+
+app.get('/sw.js', (req, res) => {
+  res.setHeader('Content-Type', 'application/javascript');
+  res.setHeader('Service-Worker-Allowed', '/');
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  res.sendFile(path.join(__dirname, 'sw.js'));
+});
+
+app.get('/manifest.json', (req, res) => {
+  res.setHeader('Content-Type', 'application/json');
+  res.json({
+    name: 'Totemino',
+    short_name: 'Totemino',
+    start_url: '/',
+    display: 'standalone',
+    background_color: '#ffffff',
+    theme_color: '#000000',
+    icons: [
+      {
+        src: '/img/favicon.png',
+        sizes: '192x192',
+        type: 'image/png'
+      }
+    ]
+  });
+});
+
 app.use(express.json({ limit: '50mb' }));
 
 // Middleware di autenticazione
@@ -626,7 +831,7 @@ const PushNotificationManager = {
       if (!exists) {
         subscriptions[restaurantId].push(subscription);
         await this.saveSubscriptions(subscriptions);
-        console.log(`✅ Subscription aggiunta per ${restaurantId}`);
+        
       }
       
       return true;
@@ -654,7 +859,7 @@ const PushNotificationManager = {
       
       if (removed) {
         await this.saveSubscriptions(subscriptions);
-        console.log('✅ Subscription rimossa');
+        
       }
       
       return removed;
@@ -670,7 +875,7 @@ const PushNotificationManager = {
       const restaurantSubs = subscriptions[restaurantId] || [];
       
       if (restaurantSubs.length === 0) {
-        console.log('ℹ️ Nessuna subscription attiva');
+        
         return;
       }
 
@@ -710,7 +915,7 @@ const PushNotificationManager = {
       const promises = restaurantSubs.map(async (subscription) => {
         try {
           await webpush.sendNotification(subscription, payload);
-          console.log('✅ Notifica inviata');
+          
         } catch (error) {
           console.error('❌ Errore invio notifica:', error);
           
@@ -750,7 +955,7 @@ const TrialManager = {
       
       if (expiredCount > 0) {
         await FileManager.saveUsers(users);
-        console.log(`✅ ${expiredCount} trial scaduti`);
+        
       }
       
     } catch (error) {
@@ -761,13 +966,13 @@ const TrialManager = {
 
 // Cron job per trial (ogni giorno a mezzanotte)
 cron.schedule('0 0 * * *', () => {
-  console.log('🔄 Controllo trial scaduti...');
+  
   TrialManager.checkAndExpireTrials();
 });
 
 // Controllo all'avvio del server
 setTimeout(() => {
-  console.log('🔄 Controllo iniziale trial...');
+  
   TrialManager.checkAndExpireTrials();
 }, 5000);
 
@@ -898,7 +1103,7 @@ app.get('/api/auth/me', async (req, res) => {
   let isTrialActive = false;
   let trialDaysLeft = 0;
 
-  // ✅ Trial è attivo solo se planType='free' E trialEndsAt è futuro
+  // Trial attivo solo se planType='free' E trialEndsAt è futuro
   if (freshUser.planType === 'free' && freshUser.trialEndsAt) {
     const now = new Date();
     const trialEnd = new Date(freshUser.trialEndsAt);
@@ -909,10 +1114,12 @@ app.get('/api/auth/me', async (req, res) => {
     }
   }
 
-  // ✅ Aggiorna sessione
+  // ✅ Aggiorna sessione con info abbonamento
   req.session.user.planType = freshUser.planType;
   req.session.user.isTrialActive = isTrialActive;
   req.session.user.trialDaysLeft = trialDaysLeft;
+  req.session.user.subscriptionEndsAt = freshUser.subscriptionEndsAt;
+  req.session.user.stripeSubscriptionId = freshUser.stripeSubscriptionId;
 
   return res.json({ 
     success: true, 
@@ -943,11 +1150,32 @@ app.post('/api/create-checkout', requireAuth, async (req, res) => {
   }
   
   try {
-    // ✅ Recupera i metadata dal Price
+    const users = await FileManager.loadUsers();
+    const user = users[userCode];
+    
+    // ✅ VERIFICA: Non permettere nuovo checkout se abbonamento attivo
+    if (user.stripeSubscriptionId) {
+      try {
+        const subscription = await stripe.subscriptions.retrieve(user.stripeSubscriptionId);
+        
+        if (subscription.status === 'active' || subscription.status === 'trialing') {
+          return res.status(400).json({ 
+            error: 'Hai già un abbonamento attivo. Cancellalo prima di sottoscriverne uno nuovo.',
+            currentSubscription: {
+              status: subscription.status,
+              currentPeriodEnd: new Date(subscription.current_period_end * 1000).toISOString()
+            }
+          });
+        }
+      } catch (stripeError) {
+        // Se l'abbonamento non esiste più, puoi procedere
+        
+      }
+    }
+    
     const price = await stripe.prices.retrieve(priceId);
     const planType = price.metadata?.planType;
     
-    // ❌ Se mancano i metadata, ERRORE - non regalare piani!
     if (!planType) {
       console.error('❌ Metadata planType mancante per price:', priceId);
       return res.status(500).json({ 
@@ -955,9 +1183,11 @@ app.post('/api/create-checkout', requireAuth, async (req, res) => {
       });
     }
 
-    console.log(`✅ Checkout per ${userCode} → Piano: ${planType}`);
+    
 
-    const origin = 'https://totemino.it';
+    const origin = process.env.NODE_ENV === 'production'
+      ? 'https://totemino.it'
+      : `http://localhost:${process.env.PORT || 3000}`;
     
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
@@ -967,9 +1197,10 @@ app.post('/api/create-checkout', requireAuth, async (req, res) => {
       cancel_url: `${origin}/profile.html?id=${userCode}`,
       metadata: {
         userCode: userCode,
-        planType: planType  // ✅ Qui viene copiato dai metadata del Price
+        planType: planType
       },
-      client_reference_id: userCode
+      client_reference_id: userCode,
+      customer: user.stripeCustomerId || undefined // Riusa customer se esiste
     });
     
     res.json({ url: session.url, sessionId: session.id });
@@ -985,19 +1216,57 @@ app.get('/api/verify-payment/:sessionId', requireAuth, async (req, res) => {
   const userCode = req.session.user.userCode;
   
   try {
+    const users = await FileManager.loadUsers();
+    
+    // ✅ CONTROLLO 1: Verifica se questa sessione è già stata usata
+    if (users[userCode].stripeSessionId === sessionId) {
+      return res.status(400).json({
+        success: false,
+        error: 'Questa sessione di pagamento è già stata utilizzata',
+        alreadyProcessed: true
+      });
+    }
+    
+    // ✅ CONTROLLO 2: Verifica lo stato del pagamento su Stripe
     const session = await stripe.checkout.sessions.retrieve(sessionId);
     
+    // ✅ CONTROLLO 3: Verifica che la sessione appartenga all'utente corrente
+    if (session.metadata?.userCode !== userCode) {
+      return res.status(403).json({
+        success: false,
+        error: 'Questa sessione non appartiene al tuo account'
+      });
+    }
+    
     if (session.payment_status === 'paid') {
-      const users = await FileManager.loadUsers();
+      // ✅ Estrai planType dai metadata della sessione
+      const planType = session.metadata?.planType || 'premium';
       
-      if (users[userCode]) {
-        // ✅ Estrai planType dai metadata della sessione
-        const planType = session.metadata?.planType || 'premium';
+      // ✅ CONTROLLO 4: Cancella abbonamento precedente se esiste
+      if (users[userCode].stripeSubscriptionId) {
+        try {
+          await stripe.subscriptions.cancel(users[userCode].stripeSubscriptionId);
+          console.log(`✅ Abbonamento precedente cancellato per ${userCode}`);
+        } catch (cancelError) {
+          console.warn('⚠️ Errore cancellazione abbonamento precedente:', cancelError.message);
+        }
+      }
+      
+      // ✅ Recupera subscription ID dalla sessione
+      const subscriptionId = session.subscription;
+      
+      if (subscriptionId) {
+        const subscription = await stripe.subscriptions.retrieve(subscriptionId);
         
+        // ✅ Aggiorna l'utente con i nuovi dati
         users[userCode].planType = planType;
         users[userCode].paymentDate = new Date().toISOString();
-        users[userCode].stripeSessionId = session.id;
+        users[userCode].stripeSessionId = sessionId; // ✅ Salva per prevenire riutilizzo
         users[userCode].stripeCustomerId = session.customer;
+        users[userCode].stripeSubscriptionId = subscriptionId;
+        users[userCode].subscriptionEndsAt = new Date(
+          subscription.current_period_end * 1000
+        ).toISOString();
         
         delete users[userCode].trialEndsAt;
         
@@ -1006,15 +1275,16 @@ app.get('/api/verify-payment/:sessionId', requireAuth, async (req, res) => {
         // ✅ Aggiorna sessione
         req.session.user.planType = planType;
         
-        // ✅ Ritorna il planType corretto
+        console.log(`✅ Pagamento verificato per ${userCode} - Piano: ${planType}`);
+        
         res.json({
           success: true,
           paid: true,
-          planType: planType,  
+          planType: planType,
           currentPlan: users[userCode].planType
         });
       } else {
-        throw new Error('Utente non trovato');
+        throw new Error('Subscription ID non trovato nella sessione');
       }
     } else {
       res.json({
@@ -1362,7 +1632,7 @@ app.post('/upload-image', requireAuth, async (req, res) => {
           Key: oldKey
         }));
       } catch (err) {
-        console.log(`⚠️ Errore eliminazione: ${oldKey}`);
+        
       }
     }
     
@@ -1596,7 +1866,7 @@ app.post('/IDs/:restaurantId/orders/:section', async (req, res) => {
       timestamp: new Date().toISOString(),
       type: section,
       restaurantId,
-      status: 'pending'
+      orderStatus: 'pending' // ✅ Rinominato da 'status' a 'orderStatus'
     };
 
     if (orderData.table) completeOrderData.table = orderData.table;
@@ -1670,21 +1940,17 @@ app.get('/IDs/:restaurantId/orders/:section', requireAuth, async (req, res) => {
 
 app.patch('/IDs/:restaurantId/orders/:section/:orderId', requireAuth, async (req, res) => {
   const { restaurantId, section, orderId } = req.params;
-  const { status } = req.body;
+  const { status } = req.body; // Mantieni 'status' per compatibilità API
 
   if (req.session.user.restaurantId !== restaurantId) {
     return res.status(403).json({ error: 'Accesso non autorizzato' });
   }
   
   const ordersDir = path.join(__dirname, 'IDs', restaurantId, 'orders', section);
-  
-  // Il nuovo gestione-script.js passa il filename senza estensione
-  // Formato: "2025-01-15 - 14.30.25" (dal timestamp)
   const orderFile = path.join(ordersDir, `${orderId}.json`);
   
   try {
     if (!fsSync.existsSync(orderFile)) {
-      // Prova a cercare il file con pattern matching se non trovato direttamente
       const files = await fs.readdir(ordersDir);
       const matchingFile = files.find(f => f.includes(orderId) || f.replace('.json', '') === orderId);
       
@@ -1696,7 +1962,7 @@ app.patch('/IDs/:restaurantId/orders/:section/:orderId', requireAuth, async (req
       const fileContent = await fs.readFile(actualFile, 'utf8');
       const orderData = JSON.parse(fileContent);
       
-      orderData.status = status;
+      orderData.orderStatus = status; // ✅ Usa 'orderStatus'
       orderData.lastModified = new Date().toISOString();
       
       await fs.writeFile(actualFile, JSON.stringify(orderData, null, 2));
@@ -1706,7 +1972,7 @@ app.patch('/IDs/:restaurantId/orders/:section/:orderId', requireAuth, async (req
     const fileContent = await fs.readFile(orderFile, 'utf8');
     const orderData = JSON.parse(fileContent);
     
-    orderData.status = status;
+    orderData.orderStatus = status; // ✅ Usa 'orderStatus'
     orderData.lastModified = new Date().toISOString();
     
     await fs.writeFile(orderFile, JSON.stringify(orderData, null, 2));
@@ -1744,7 +2010,7 @@ app.delete('/IDs/:restaurantId/orders/:section/:orderId', requireAuth, async (re
       
       // Elimina definitivamente il file
       await fs.unlink(actualFile);
-      console.log(`✅ Ordine eliminato: ${matchingFile}`);
+      
       
       return res.json({ 
         success: true, 
@@ -1755,7 +2021,7 @@ app.delete('/IDs/:restaurantId/orders/:section/:orderId', requireAuth, async (re
     
     // Elimina definitivamente il file
     await fs.unlink(orderFile);
-    console.log(`✅ Ordine eliminato: ${orderId}.json`);
+    
     
     res.json({ 
       success: true, 
@@ -1938,8 +2204,8 @@ FileManager.initDirectories();
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
-  console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
+  
+  
 });
 
 

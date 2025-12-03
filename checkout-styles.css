@@ -1,8 +1,5 @@
 @import url("menu-styles.css");
 
-html, body {
-  scrollbar-width: auto;
-}
 
 * {
   margin: 0;
@@ -251,7 +248,7 @@ html, body {
   padding: 1rem 1.5rem;
   margin: 1rem;
   box-shadow: 0 0 10px var(--selected-glow);
-  margin-bottom: 12rem;
+  margin-bottom: 7rem;
   border: 5px solid var(--accent-gold);
 }
 
@@ -354,6 +351,7 @@ html, body {
   padding: 2rem 2rem;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
   gap: 1.5rem;
+  transition: all 0.2s ease;
   cursor: pointer;
 }
 
@@ -486,6 +484,10 @@ html, body {
     margin: 0 auto 2rem;
   }
   
+  .servizio-box:hover {
+      transform: translateY(-3px);
+  }
+  
   .checkout-item img {
     width: 6rem;
     height: 6rem;
@@ -507,7 +509,7 @@ html, body {
     margin: 1rem auto;
     max-width: 800px;
     padding: 2rem 2.5rem;
-    margin-bottom: 14rem;
+    margin-bottom: 7rem;
   }
   
   .suggested-single img {

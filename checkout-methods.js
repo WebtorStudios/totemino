@@ -41,7 +41,7 @@ async function initHereConfig() {
   if (HERE_API_CONFIG) return HERE_API_CONFIG;
   if (configLoadPromise) return configLoadPromise;
 
-  const API_BASE = `${window.location.protocol}//${window.location.hostname}`;
+  const API_BASE = `${window.location.protocol}//${window.location.host}`;
   
   configLoadPromise = (async () => {
     try {
@@ -490,7 +490,7 @@ async function createOrder(tipo) {
     total: total,
     timestamp: new Date().toISOString(),
     restaurantId: new URLSearchParams(window.location.search).get('id') || 'default',
-    status: 'pending'
+    orderStatus: 'pending'
   };
   
   if (tipo === 'tavolo') {
@@ -673,7 +673,7 @@ async function validateAndConfirm(tipo) {
       const section = sectionMap[tipo];
       const restaurantId = orderData.restaurantId;
       
-      const API_BASE = `${window.location.protocol}//${window.location.hostname}`;
+      const API_BASE = `${window.location.protocol}//${window.location.host}`;
       const response = await fetch(`${API_BASE}/IDs/${restaurantId}/orders/${section}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

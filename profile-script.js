@@ -49,6 +49,7 @@ async function loadUserPlan() {
 function updatePlanDisplay(plan, userData) {
     const planCard = document.getElementById('planCard');
     const planName = document.getElementById('planName');
+    const manageBillingBtn = document.getElementById('manageBillingBtn');
     
     planCard.classList.remove('free', 'premium', 'pro', 'trial');
     
@@ -68,6 +69,13 @@ function updatePlanDisplay(plan, userData) {
         
         planCard.classList.add(displayPlan);
         planName.textContent = planNames[displayPlan] || 'Free';
+    }
+    
+    // Update button for Pro plan
+    if (displayPlan === 'pro') {
+        manageBillingBtn.textContent = 'Hai il piano migliore!';
+        manageBillingBtn.onclick = (e) => e.preventDefault();
+        manageBillingBtn.setAttribute('href', '#');
     }
 }
 
@@ -176,7 +184,7 @@ function initQRCode() {
                     finalUrl = shortData.shorturl;
                 }
             } catch (err) {
-                console.log('Short URL fallito, uso URL completo');
+                
             }
             
             // Genera QR Code con logo più grande (0.3 = 30%)
@@ -246,7 +254,15 @@ function initQRCode() {
 }
 
 // Manage billing
-document.getElementById('manageBillingBtn').addEventListener('click', () => {
+document.getElementById('manageBillingBtn').addEventListener('click', async () => {
+    const response = await fetch('/api/auth/me');
+    const data = await response.json();
+    const userPlan = data.user?.planType?.toLowerCase();
+    
+    if (userPlan === 'pro') {
+        return;
+    }
+    
     window.location.href = 'upgrade.html';
 });
 

@@ -21,6 +21,60 @@
     <link rel="icon" type="image/png" href="img/favicon.png">
     <link rel="stylesheet" href="index-styles.css"/>
     <link rel="stylesheet" href="reviews-styles.css"/>
+    <style>
+        /* Animazione loading dots per bottoni pricing */
+        .btn-pricing.loading {
+            pointer-events: none;
+        }
+
+        .btn-pricing .btn-text {
+            display: inline;
+            font-weight: 600;
+        }
+
+        .btn-pricing.loading .btn-text {   
+            display: none;
+        }
+
+        .loading-dots {
+            display: none;
+            gap: 8px;
+        }
+
+        .btn-pricing.loading .loading-dots {
+            display: flex;
+            margin: 5px auto;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .loading-dots span {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background-color: currentColor;
+            animation: loadingDot 1.4s infinite ease-in-out both;
+        }
+
+        .loading-dots span:nth-child(1) {
+            animation-delay: -0.32s;
+        }
+
+        .loading-dots span:nth-child(2) {
+            animation-delay: -0.16s;
+        }
+
+        @keyframes loadingDot {
+            0%, 80%, 100% {
+                transform: scale(0.8);
+                opacity: 0.5;
+            }
+            40% {
+                transform: scale(1.2);
+                opacity: 1;
+            }
+        }
+    </style>
 </head>
 <body>
     <div class="bg-light light1"></div>
@@ -38,7 +92,7 @@
                 <button id="theme" class="nav-btn theme-btn" type="button">
                     <img class="theme-img" data-light="img/theme_light.png" data-dark="img/theme_dark.png" alt="Tema">
                 </button>
-                <a href="login.html" class="nav-btn login-btn">Accedi</a>
+                <a href="login.html" class="nav-btn login-btn" id="navLoginBtn">Accedi</a>
             </div>
         </div>
     </nav>
@@ -51,7 +105,7 @@
                 <p class="hero-subtitle">Menu interattivi, ordini istantanei e gestione completa del tuo locale. Zero commissioni, massima libertà.</p>
                 <div class="hero-cta">
                     <a href="login.html" class="btn-hero">Inizia con la Prova Gratuita</a>
-                    <span class="hero-note">Nessuna carta richiesta</span>
+                    <span class="hero-note">Nessuna carta richiesta - 14 giorni di prova</span>
                 </div>
             </div>
             <div class="hero-image">
@@ -122,7 +176,7 @@
                 <p>Assistenza prioritaria e aggiornamenti continui per il successo del tuo business</p>
             </div>
             <div class="feature-card">
-                <div class="feature-icon">🔔</div>
+                <div class="feature-icon">📲</div>
                 <h3>Responsività</h3>
                 <p>In modo da poter eseguire operazioni gestionali anche dalla comodità del telefono</p>
             </div>
@@ -186,7 +240,14 @@
                         <span class="period">/mese + IVA</span>
                     </div>
                 </div>
-                <a href="login.html" class="btn-pricing">Inizia ora</a>
+                <a href="login.html" class="btn-pricing" data-plan="hobby" data-price-id="price_1SZbHF7dAnRE04PkLfBWEbxw">
+                    <span class="btn-text">Inizia ora</span>
+                    <span class="loading-dots">
+                        <span></span>
+                        <span></span>
+                        <span></span>
+                    </span>
+                </a>
                 <ul class="features-list">
                     <li><img src="img/check.png"> Menu solo visualizzazione</li>
                     <li><img src="img/check.png"> Gestione menu semplice</li>
@@ -208,7 +269,14 @@
                         <span class="period">/mese + IVA</span>
                     </div>
                 </div>
-                <a href="login.html" class="btn-pricing">Inizia con la Prova Gratuita</a>
+                <a href="login.html" class="btn-pricing" data-plan="pro" data-price-id="price_1SZbIj7dAnRE04Pkrb19TFyx">
+                    <span class="btn-text">Inizia con la Prova Gratuita</span>
+                    <span class="loading-dots">
+                        <span></span>
+                        <span></span>
+                        <span></span>
+                    </span>
+                </a>
                 <ul class="features-list">
                     <li><img src="img/check.png"> Tutte le funzioni di Premium</li>
                     <li><img src="img/check.png"> Domicilio con 0% di commissioni</li>
@@ -229,7 +297,14 @@
                         <span class="period">/mese + IVA</span>
                     </div>
                 </div>
-                <a href="login.html" class="btn-pricing">Inizia con la Prova Gratuita</a>
+                <a href="login.html" class="btn-pricing" data-plan="premium" data-price-id="price_1SZbHk7dAnRE04PkSiNByGm0">
+                    <span class="btn-text">Inizia con la Prova Gratuita</span>
+                    <span class="loading-dots">
+                        <span></span>
+                        <span></span>
+                        <span></span>
+                    </span>
+                </a>
                 <ul class="features-list">
                     <li><img src="img/check.png"> Tutte le funzioni Hobby</li>
                     <li><img src="img/check.png"> Ordinazioni base dall'app</li>
@@ -348,7 +423,7 @@
                     </div>
                     <div class="faq-answer">
                         <div class="faq-answer-content">
-                            Scansiona il QR, inserisci il PIN o controlla nella sezione "Recenti", scegli i prodotti e invia l’ordine.
+                            Scansiona il QR, inserisci il PIN o controlla nella sezione "Recenti", scegli i prodotti e invia l'ordine.
                         </div>
                     </div>
                 </div>
@@ -372,7 +447,7 @@
                     </div>
                     <div class="faq-answer">
                         <div class="faq-answer-content">
-                            No, devi chiamare il personale perché l’ordine arriva subito al sistema.
+                            No, devi chiamare il personale perché l'ordine arriva subito al sistema.
                         </div>
                     </div>
                 </div>
@@ -408,5 +483,108 @@
     <script src="reviews-script.js"></script>
     <script src="theme.js"></script>
     <script src="logo-pop.js"></script>
+    <script>
+        // Controlla lo stato di login e aggiorna UI dinamicamente
+        document.addEventListener('DOMContentLoaded', async () => {
+            try {
+                const response = await fetch('/api/auth/me', { credentials: 'include' });
+                const data = await response.json();
+                
+                if (data.success && data.user) {
+                    const user = data.user;
+                    const navLoginBtn = document.getElementById('navLoginBtn');
+                    
+                    // Aggiorna bottone nav con ID utente
+                    if (navLoginBtn) {
+                        navLoginBtn.textContent = user.userCode;
+                        navLoginBtn.href = `profile.html?id=${user.userCode}`;
+                    }
+                    
+                    // Riordina le pricing cards: hobby, premium, pro
+                    const pricingGrid = document.querySelector('.pricing-grid');
+                    if (pricingGrid) {
+                        const cards = Array.from(pricingGrid.children);
+                        const hobbyCard = cards.find(card => card.querySelector('[data-plan="hobby"]'));
+                        const premiumCard = cards.find(card => card.querySelector('[data-plan="premium"]'));
+                        const proCard = cards.find(card => card.querySelector('[data-plan="pro"]'));
+                        
+                        // Riordina: hobby, premium, pro
+                        pricingGrid.innerHTML = '';
+                        if (hobbyCard) pricingGrid.appendChild(hobbyCard);
+                        if (premiumCard) pricingGrid.appendChild(premiumCard);
+                        if (proCard) pricingGrid.appendChild(proCard);
+                    }
+                    
+                    // Nascondi il piano corrente e quelli inferiori
+                    const currentPlan = user.planType;
+                    if (currentPlan) {
+                        const hobbyCard = document.querySelector('[data-plan="hobby"]')?.closest('.pricing-card');
+                        const premiumCard = document.querySelector('[data-plan="premium"]')?.closest('.pricing-card');
+                        const proCard = document.querySelector('[data-plan="pro"]')?.closest('.pricing-card');
+                        
+                        // Gerarchia: hobby < premium < pro
+                        if (currentPlan === 'hobby') {
+                            // Nascondi solo hobby
+                            if (hobbyCard) hobbyCard.style.display = 'none';
+                        } else if (currentPlan === 'premium') {
+                            // Nascondi hobby e premium
+                            if (hobbyCard) hobbyCard.style.display = 'none';
+                            if (premiumCard) premiumCard.style.display = 'none';
+                        } else if (currentPlan === 'pro') {
+                            if (document.querySelector('.pricing')) document.querySelector('.pricing').style.display = 'none';
+                        }
+                    }
+                    
+                    // Aggiorna i bottoni delle pricing cards
+                    const planLabels = {
+                        hobby: 'Passa a Hobby',
+                        premium: 'Passa a Premium',
+                        pro: 'Diventa Pro'
+                    };
+                    
+                    document.querySelectorAll('.btn-pricing').forEach(btn => {
+                        const planType = btn.dataset.plan;
+                        const priceId = btn.dataset.priceId;
+                        
+                        if (planType && planLabels[planType]) {
+                            btn.querySelector('.btn-text').textContent = planLabels[planType];
+                            btn.href = '#';
+                            
+                            // Aggiungi handler per checkout Stripe
+                            btn.addEventListener('click', async (e) => {
+                                e.preventDefault();
+                                btn.classList.add('loading');
+                                
+                                try {
+                                    const checkoutResponse = await fetch('/api/create-checkout', {
+                                        method: 'POST',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        credentials: 'include',
+                                        body: JSON.stringify({ priceId })
+                                    });
+                                    
+                                    const checkoutData = await checkoutResponse.json();
+                                    
+                                    if (checkoutData.url) {
+                                        window.location.href = checkoutData.url;
+                                    } else {
+                                        alert('Errore: ' + (checkoutData.error || 'Impossibile creare la sessione'));
+                                        btn.classList.remove('loading');
+                                    }
+                                } catch (error) {
+                                    console.error('Errore:', error);
+                                    alert('Errore di connessione. Riprova.');
+                                    btn.classList.remove('loading');
+                                }
+                            });
+                        }
+                    });
+                }
+            } catch (error) {
+                // Utente non loggato, mantieni link normali a login.html
+                console.log('Utente non loggato');
+            }
+        });
+    </script>
 </body>
 </html>
