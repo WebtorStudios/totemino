@@ -16,7 +16,7 @@
 	  
 	  .totemino-banner {
 		position: fixed;
-		bottom: 8rem;
+		bottom: 2rem; /* o 8rem quando esiste .order */
 		left: auto;
 		margin-left: 1rem;
 		right: 1rem;
@@ -127,6 +127,13 @@
 		<h3 class="totemino-banner-title"></h3>
 		<p class="totemino-banner-subtitle"></p>
 	  `;
+	  
+	  // Check if .order element exists and adjust bottom position
+	  const orderElement = document.querySelector('.order');
+	  if (getComputedStyle(orderElement).display !== 'none') {
+		banner.style.bottom = '8rem';
+      }
+
 	  document.body.appendChild(banner);
 	  
 	  const closeBtn = banner.querySelector('.totemino-banner-close');
@@ -211,6 +218,4 @@
 	  loadBanners();
 	}
 
-  })();
-
-
+})();

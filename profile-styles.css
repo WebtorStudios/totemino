@@ -1,6 +1,5 @@
 @import url("menu-styles.css");
 
-
 /* ===== NAVBAR ===== */
 .navbar {
   position: fixed;
@@ -427,5 +426,4 @@
   .menu-item:hover {
     background: var(--input-bg);
   }
-
 }

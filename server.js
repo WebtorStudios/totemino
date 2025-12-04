@@ -331,7 +331,6 @@ const requireAuth = (req, res, next) => {
 const FileManager = {
   PATHS: {
     users: path.join(__dirname, 'userdata', 'users.json'),
-    preferences: path.join(__dirname, 'userdata', 'users-preferences.json'),
   },
 
   ensureDir(dirPath) {
@@ -366,33 +365,6 @@ const FileManager = {
       return true;
     } catch (error) {
       console.error('❌ Errore salvataggio utenti:', error);
-      return false;
-    }
-  },
-
-  async loadPreferences() {
-    try {
-      this.ensureDir(path.dirname(this.PATHS.preferences));
-      if (!fsSync.existsSync(this.PATHS.preferences)) {
-        await fs.writeFile(this.PATHS.preferences, '{}');
-        return {};
-      }
-      
-      const data = await fs.readFile(this.PATHS.preferences, 'utf8');
-      return JSON.parse(data);
-    } catch (error) {
-      console.error('❌ Errore caricamento preferenze:', error);
-      return {};
-    }
-  },
-
-  async savePreferences(preferences) {
-    try {
-      this.ensureDir(path.dirname(this.PATHS.preferences));
-      await fs.writeFile(this.PATHS.preferences, JSON.stringify(preferences, null, 2));
-      return true;
-    } catch (error) {
-      console.error('❌ Errore salvataggio preferenze:', error);
       return false;
     }
   },
@@ -739,46 +711,6 @@ const StatisticsManager = {
       
     } catch (error) {
       console.error('❌ Errore aggiornamento statistiche:', error);
-    }
-  }
-};
-
-// ==================== PREFERENCES MANAGER ====================
-const PreferencesManager = {
-  async updatePreferences(userId, items) {
-    try {
-      const preferences = await FileManager.loadPreferences();
-      
-      if (!preferences[userId]) {
-        preferences[userId] = {};
-      }
-      
-      items.forEach(item => {
-        const quantity = item.quantity || 1;
-        const ingredients = item.ingredients || [];
-        
-        ingredients.forEach(ingredient => {
-          const cleanIngredient = ingredient.trim().toLowerCase();
-          if (cleanIngredient) {
-            preferences[userId][cleanIngredient] = 
-              (preferences[userId][cleanIngredient] || 0) + quantity;
-          }
-        });
-        
-        if (item.customizationDetails && item.customizationDetails.length > 0) {
-          item.customizationDetails.forEach(custom => {
-            const cleanCustom = `custom_${custom.name.trim().toLowerCase()}`;
-            preferences[userId][cleanCustom] = 
-              (preferences[userId][cleanCustom] || 0) + custom.quantity;
-          });
-        }
-      });
-      
-      await FileManager.savePreferences(preferences);
-      return true;
-    } catch (error) {
-      console.error('❌ Errore aggiornamento preferenze:', error);
-      return false;
     }
   }
 };
@@ -1407,37 +1339,6 @@ app.get('/api/stripe/verify-connection/:restaurantId', requireAuth, async (req, 
   }
 });
 
-// ==================== PREFERENCES ROUTES ====================
-app.post('/api/update-preferences', async (req, res) => {
-  const { userId, items } = req.body;
-  
-  if (!userId || !items || !Array.isArray(items)) {
-    return res.status(400).json({ 
-      success: false, 
-      message: 'userId e items richiesti' 
-    });
-  }
-  
-  try {
-    const success = await PreferencesManager.updatePreferences(userId, items);
-    
-    if (success) {
-      res.json({ success: true });
-    } else {
-      res.status(500).json({ 
-        success: false, 
-        message: 'Errore nel salvataggio delle preferenze' 
-      });
-    }
-  } catch (error) {
-    console.error('❌ Errore endpoint preferenze:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: error.message 
-    });
-  }
-});
-
 app.get('/api/here-config', (req, res) => {
   res.json({
     APP_ID: process.env.VITE_HERE_APP_ID,
@@ -1876,10 +1777,6 @@ app.post('/IDs/:restaurantId/orders/:section', async (req, res) => {
     await fs.writeFile(filePath, JSON.stringify(completeOrderData, null, 2));
     
     await StatisticsManager.updateStats(restaurantId, completeOrderData);
-    
-    if (orderData.userId) {
-      await PreferencesManager.updatePreferences(orderData.userId, processedItems);
-    }
     await PushNotificationManager.sendNotification(restaurantId, completeOrderData);
     
     res.json({ 

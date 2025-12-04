@@ -113,12 +113,9 @@ body.sheet-open *:not(.bottom-sheet):not(.bottom-sheet *):not(.bottom-sheet-over
 .btn-secondary {
   border: none;
   border-radius: 2rem;
-
   padding: .8rem 1.5rem;
-
   font-size: 1rem;
   font-weight: 700;
-
   cursor: pointer;
   transition: all .2s ease;
 }
@@ -131,6 +128,7 @@ body.sheet-open *:not(.bottom-sheet):not(.bottom-sheet *):not(.bottom-sheet-over
 .btn-secondary {
   background: var(--btn-secondary);
   color: var(--text-primary);
+  font-weight: 600;
 }
 
 .btn-primary:hover,

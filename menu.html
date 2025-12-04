@@ -27,14 +27,14 @@
 					}
 				}
 				} catch (e) {
-				history = [];
+				    history = [];
 				}
 				
 				history = history.filter(id => id !== restaurantId);
 				history.unshift(restaurantId);
 				
 				if (history.length > 5) {
-				history = history.slice(0, 5);
+				    history = history.slice(0, 5);
 				}
 				
 				localStorage.setItem('totemino_history', JSON.stringify(history));

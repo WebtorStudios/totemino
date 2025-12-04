@@ -36,8 +36,6 @@
   --light1: rgba(255, 210, 140, 0.65);  
   --light2: rgba(255, 140, 150, 0.50);   
   --light3: rgba(255, 100, 245, 0.30);
-
-
   
   /* Misc */
   --icon-opacity: 45%;
@@ -48,6 +46,7 @@
   /* billing comparison */
   --text-sec: #3a0f24;
 }
+
 [data-theme="dark"] {
   /* Colori principali */
   --bg-primary: #1a1f2e;
@@ -710,8 +709,9 @@ input[type="number"]::-webkit-outer-spin-button {
 .popup-content {
   background: var(--card-bg);
   padding: 1.5rem 2rem;
-  width: 80%;
-  max-height: 80vh;
+  width: 90%;
+  max-width: 530px;
+  max-height: 90%;
   border-radius: 2rem;
   text-align: center;
   display: flex;
@@ -750,8 +750,7 @@ input[type="number"]::-webkit-outer-spin-button {
 }
 
 .popup-img {
-  max-width: 100%;
-  max-height: 12rem;
+  height: 9rem;
   border-radius: 1rem;
   object-fit: cover;
   margin-bottom: 1rem;
@@ -766,7 +765,7 @@ input[type="number"]::-webkit-outer-spin-button {
 
 .popup-ingredients {
   font-size: 1rem;
-  margin: 0 auto 2rem;
+  margin: 0 auto;
   text-align: left;
   color: var(--text-primary);
   white-space: pre-line;
@@ -777,7 +776,7 @@ input[type="number"]::-webkit-outer-spin-button {
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-bottom: 2rem;
+  margin-top: 1.5rem;
 }
 
 .popup-controls button {
@@ -887,18 +886,17 @@ input[type="number"]::-webkit-outer-spin-button {
   
   .order {
     width: 80vw;
-  }
+  } 
   
-  .popup-content {
-    width: 70%;
-    max-width: 500px;
-    padding: 2rem;
-  }
-  
-  .popup-img { max-height: 15rem; }
-  .popup-title { font-size: 2.2rem; }
+  .popup-img { height: 10rem; }
+  .popup-title { font-size: 1.85rem; }
   .popup-ingredients { font-size: 1.1rem; }
 }
+
+@media (max-height: 475px) {
+  .popup-ingredients { display: none; }
+}
+  
 
 @media (min-width: 1200px) {
   .items {
@@ -930,26 +928,7 @@ input[type="number"]::-webkit-outer-spin-button {
   .cart {
     cursor: pointer;
   }
-  .popup-content {
-    width: 50%;
-    max-width: 600px;
-    padding: 2.5rem;
-  }
   
-  .popup-img { max-height: 18rem; }
-  .popup-title { font-size: 2.5rem; }
-  .popup-ingredients { font-size: 1.2rem; }
-  
-  .popup-controls button {
-    width: 3.5rem;
-    height: 3.5rem;
-    font-size: 2.2rem;
-  }
-  
-  .popup-controls .popup-qty {
-    font-size: 2.2rem;
-    min-width: 3rem;
-  }
 }
 
 /* FOOTER */
