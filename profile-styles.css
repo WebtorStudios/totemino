@@ -337,6 +337,10 @@
   gap: 0.75rem;
 }
 
+[data-theme="dark"] .qr-popup-actions {
+  background: #1a1f2e;
+}
+
 .qr-popup-actions button {
   flex: 1;
   padding: 1rem;
@@ -348,7 +352,10 @@
   transition: all 0.2s;
   background: var(--card-bg);
   color: var(--text-primary);
-  border: 2px solid var(--input-bg);
+}
+
+.qr-popup-actions button:hover {
+  background: var(--input-bg);
 }
 
 .btn-danger {

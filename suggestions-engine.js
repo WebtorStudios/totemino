@@ -41,71 +41,106 @@ class SuggestionsEngine {
       ? currentOrderPrices.reduce((sum, price) => sum + price, 0) / currentOrderPrices.length 
       : 0;
     
-    // Determina la fascia di prezzo da suggerire
-    const suggestExpensive = avgPrice < 7;
-    const priceMin = suggestExpensive ? 7.01 : 0.01;
-    const priceMax = suggestExpensive ? Infinity : 6.99;
-
-    // Raccogli tutti gli items validi (senza filtro categoria)
-    const allItems = [];
-    for (const [category, items] of Object.entries(this.menuData)) {
+    // Priorità categorie mancanti
+    const allCategories = Object.keys(this.menuData);
+    const missingCategories = allCategories.filter(cat => !currentOrderCategories.has(cat));
+    
+    // Step 1: Raccogli items dalle categorie MANCANTI
+    const itemsFromMissingCategories = [];
+    for (const category of missingCategories) {
+      const items = this.menuData[category];
       items.forEach(item => {
         if (
           item.visible !== false &&
           !currentOrderNames.has(item.name) &&
-          !item.customizable &&
-          item.price >= priceMin &&
-          item.price <= priceMax &&
+          item.imagePath && 
+          !item.customizable && 
+          item.imagePath.trim() !== '' &&
           (!typeFilter || item.menuType?.includes(typeFilter))
         ) {
-          allItems.push({ ...item, img: item.imagePath, category });
+          itemsFromMissingCategories.push({ 
+            ...item, 
+            img: item.imagePath, 
+            category,
+            priority: 'missing'
+          });
         }
       });
     }
+    
+    // Step 2: Raccogli items dalle categorie GIÀ PRESENTI (con filtro prezzo)
+    const suggestExpensive = avgPrice < 7;
+    const priceMin = suggestExpensive ? 7.01 : 0.01;
+    const priceMax = suggestExpensive ? Infinity : 6.99;
+    
+    const itemsFromExistingCategories = [];
+    for (const [category, items] of Object.entries(this.menuData)) {
+      if (currentOrderCategories.has(category)) {
+        items.forEach(item => {
+          if (
+            item.visible !== false &&
+            !currentOrderNames.has(item.name) &&
+            item.imagePath && // ✅ Escludi senza immagine
+            item.imagePath.trim() !== '' && // ✅ Escludi immagine vuota
+            item.price >= priceMin &&            
+            item.price <= priceMax &&
+            !item.customizable &&
+            (!typeFilter || item.menuType?.includes(typeFilter))
+          ) {
+            itemsFromExistingCategories.push({ 
+              ...item, 
+              img: item.imagePath, 
+              category,
+              priority: 'existing'
+            });
+          }
+        });
+      }
+    }
 
-    if (allItems.length === 0) return [];
-
-    // Ordina per prezzo
-    allItems.sort((a, b) => suggestExpensive ? b.price - a.price : a.price - b.price);
+    // Step 3: Ordina ogni pool per prezzo
+    itemsFromMissingCategories.sort((a, b) => 
+      suggestExpensive ? b.price - a.price : a.price - b.price
+    );
+    itemsFromExistingCategories.sort((a, b) => 
+      suggestExpensive ? b.price - a.price : a.price - b.price
+    );
 
     const suggestions = [];
+    const usedCategories = new Set();
     const TARGET_COUNT = 4;
-    let maxItemsPerCategory = 1; // Inizia con 1 item per categoria
 
-    // Loop infinito finché non raggiungiamo 4 suggerimenti o esauriamo tutti gli items
-    while (suggestions.length < TARGET_COUNT && suggestions.length < allItems.length) {
-      const categoryCounts = new Map();
+    // Step 4: Prima riempi con categorie MANCANTI (1 item per categoria)
+    for (const item of itemsFromMissingCategories) {
+      if (suggestions.length >= TARGET_COUNT) break;
+      
+      if (!usedCategories.has(item.category)) {
+        suggestions.push(item);
+        usedCategories.add(item.category);
+      }
+    }
+
+    // Step 5: Se non hai ancora 4 suggerimenti, aggiungi dalle categorie ESISTENTI
+    for (const item of itemsFromExistingCategories) {
+      if (suggestions.length >= TARGET_COUNT) break;
+      
+      if (!usedCategories.has(item.category)) {
+        suggestions.push(item);
+        usedCategories.add(item.category);
+      }
+    }
+
+    // Step 6: Se ancora non hai 4, accetta duplicati di categoria (come fallback)
+    if (suggestions.length < TARGET_COUNT) {
+      const allItems = [...itemsFromMissingCategories, ...itemsFromExistingCategories];
       
       for (const item of allItems) {
-        // Salta se già aggiunto
+        if (suggestions.length >= TARGET_COUNT) break;
+        
         if (suggestions.find(s => s.name === item.name)) continue;
         
-        // Conta quanti items di questa categoria abbiamo già
-        const currentCount = categoryCounts.get(item.category) || 0;
-        
-        // Se non abbiamo raggiunto il limite per questa categoria, aggiungi
-        if (currentCount < maxItemsPerCategory) {
-          // Salta categorie già presenti nel carrello solo al primo giro
-          if (maxItemsPerCategory === 1 && currentOrderCategories.has(item.category)) {
-            continue;
-          }
-          
-          suggestions.push(item);
-          categoryCounts.set(item.category, currentCount + 1);
-          
-          if (suggestions.length >= TARGET_COUNT) break;
-        }
+        suggestions.push(item);
       }
-      
-      // Se non abbiamo raggiunto 4 items, incrementa il limite per categoria
-      if (suggestions.length < TARGET_COUNT) {
-        maxItemsPerCategory++;
-      } else {
-        break;
-      }
-      
-      // Safety: se maxItemsPerCategory supera il numero totale di items, esci
-      if (maxItemsPerCategory > allItems.length) break;
     }
 
     // Riordina: 2°, 3°, 4°, 1° (se abbiamo 4 elementi)
@@ -162,20 +197,80 @@ class SuggestionsEngine {
       }
     }
 
-    // Aggiungi nuovo (prima del coperto se esiste)
-    let copertoIndex = selected.findIndex((item, i) => i % 3 === 0 && item === "Coperto");
-    if (copertoIndex !== -1) {
-      selected.splice(copertoIndex, 0, itemName, "{}", "1");
-      notes.splice(copertoIndex / 3, 0, "");
-    } else {
-      selected.push(itemName, "{}", "1");
-      notes.push("");
+    // Trova categoria dell'item
+    let itemCategory = null;
+    for (const [category, items] of Object.entries(this.menuData)) {
+      if (items.find(item => item.name === itemName)) {
+        itemCategory = category;
+        break;
+      }
+    }
+
+    // Ricostruisci selected ordinato per categoria
+    const itemsByCategory = new Map();
+    
+    let noteIndex = 0;
+    for (let i = 0; i < selected.length; i += 3) {
+      const name = selected[i];
+      const customizations = selected[i + 1];
+      const qty = selected[i + 2];
+      const note = notes[noteIndex] || ""; 
+      
+      let foundCategory = null;
+      for (const [category, items] of Object.entries(this.menuData)) {
+        if (items.find(item => item.name === name)) {
+          foundCategory = category;
+          break;
+        }
+      }
+      
+      if (!foundCategory) foundCategory = 'Unknown';
+      
+      if (!itemsByCategory.has(foundCategory)) {
+        itemsByCategory.set(foundCategory, []);
+      }
+      itemsByCategory.get(foundCategory).push({ name, customizations, qty, note });
+      noteIndex++;
+    }
+
+    // Aggiungi nuovo item nella sua categoria
+    if (!itemsByCategory.has(itemCategory)) {
+      itemsByCategory.set(itemCategory, []);
+    }
+    itemsByCategory.get(itemCategory).push({ 
+      name: itemName, 
+      customizations: "{}", 
+      qty: "1",
+      note: "" 
+    });
+
+    const newSelected = [];
+    const newNotes = [];
+    const categoryOrder = Object.keys(this.menuData);
+    
+    categoryOrder.forEach(category => {
+      if (itemsByCategory.has(category)) {
+        itemsByCategory.get(category).forEach(item => {
+          newSelected.push(item.name, item.customizations, item.qty);
+          newNotes.push(item.note);
+        });
+      }
+    });
+    
+    // Aggiungi eventuali categorie non trovate
+    for (const [category, items] of itemsByCategory) {
+      if (!categoryOrder.includes(category)) {
+        items.forEach(item => {
+          newSelected.push(item.name, item.customizations, item.qty);
+          newNotes.push(item.note);
+        });
+      }
     }
 
     if (!suggested.includes(itemName)) suggested.push(itemName);
 
-    localStorage.setItem("totemino_selected", JSON.stringify(selected));
-    localStorage.setItem("totemino_notes", JSON.stringify(notes));
+    localStorage.setItem("totemino_selected", JSON.stringify(newSelected));
+    localStorage.setItem("totemino_notes", JSON.stringify(newNotes));
     localStorage.setItem("totemino_suggested_items", JSON.stringify(suggested));
 
     this.updateUI(restaurantId);

@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script>
+        (function() {
+          const saved = localStorage.getItem('totemino_theme');
+          const theme = saved || 
+            (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+          document.documentElement.setAttribute('data-theme', theme);
+        })();
+    </script>
+    <title>Servizi - Totemino</title>
+    <link rel="icon" type="image/png" href="img/favicon.png">
+    <link rel="stylesheet" href="menu-styles.css">
+    <link rel="stylesheet" href="servizi-styles.css">
+</head>
+<body>
+    <div class="bg-light light1"></div>
+    <div class="bg-light light2"></div>
+    <div class="bg-light light3"></div>
+    
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="nav-brand">
+                <img class="theme-img" data-light="img/logo/1_light.png" data-dark="img/logo/1_dark.png" alt="Totemino Logo" id="logoSwap">
+                <a href="index.html"><h1>Totemino</h1></a>
+            </div>
+            <div class="nav-actions">
+                <button id="theme" class="nav-btn theme-btn" type="button">
+                    <img class="theme-img" data-light="img/theme_light.png" data-dark="img/theme_dark.png" alt="Tema">
+                </button>
+                <a href="login.html" class="nav-btn back-btn">Accedi</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="hero-content">
+            <h2 class="hero-title">Ciò che <span class="hero-title" style="color: var(--accent-pink);">manca</span> al tuo ristorante</h2>
+        </div>
+        <img class="hero-image hero-image-desktop theme-img" 
+             data-light="img/services/hero-card_light.png" 
+             data-dark="img/services/hero-card_dark.png" 
+             alt="Servizi Totemino">
+        <img class="hero-image hero-image-mobile theme-img" 
+             data-light="img/services/hero-card-mobile_light.png" 
+             data-dark="img/services/hero-card-mobile_dark.png" 
+             alt="Servizi Totemino">
+        <h4 class="hero-subtitle">Oggi è il 2° momento migliore per cambiare</h4>
+        <p class="hero-caption">
+            Ti serve una piattaforma completa che va oltre il semplice menu digitale. Con Totemino ottieni un ecosistema integrato che gestisce ordini, pagamenti, statistiche e marketing — tutto senza commissioni nascoste. A differenza dei marketplace tradizionali che trattengono fino al 30% sui tuoi ordini, mantieni il 100% dei ricavi mentre offri ai tuoi clienti un'esperienza più moderna.
+        </p>
+    </section>
+
+    <!-- Services Section -->
+    <section class="services-section">
+        <!-- Menu Digitale -->
+        <div class="service-wrapper">
+            <div class="service-card">
+                <img src="img/services/menu-digitale.png" alt="Menu Digitale" class="service-image">
+                <div class="service-content">
+                    <h3 class="service-title">Menu Digitale</h3>
+                    <ul class="service-features">
+                        <li><img src="img/check.png">Design responsive ottimizzato per ogni dispositivo</li>
+                        <li><img src="img/check.png">Aggiornamenti istantanei di prezzi e disponibilità</li>
+                        <li><img src="img/check.png">Categorizzazione intelligente dei prodotti</li>
+                        <li><img src="img/check.png">Informazioni complete su allergeni e ingredienti</li>
+                        <li><img src="img/check.png">Traduzione multilingua per clienti internazionali</li>
+                    </ul>
+                   <button type="button" onclick="window.location.href='login.html'">Ottieni la prova gratuita</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Ordini Istantanei -->
+        <div class="service-wrapper">
+            <div class="service-card">
+                <img src="img/services/ordini-istantanei.png" alt="Ordini Istantanei" class="service-image">
+                <div class="service-content">
+                    <h3 class="service-title">Ordini Istantanei</h3>
+                    <ul class="service-features">
+                        <li><img src="img/check.png">Ordini dal tavolo con QR code personalizzati</li>
+                        <li><img src="img/check.png">Sistema di delivery integrato senza commissioni</li>
+                        <li><img src="img/check.png">Gestione ordini asporto e prenotazioni</li>
+                        <li><img src="img/check.png">Notifiche in tempo reale per la cucina</li>
+                        <li><img src="img/check.png">Personalizzazione piatti e note speciali</li>
+                    </ul>
+                   <button type="button" onclick="window.location.href='login.html'">Ottieni la prova gratuita</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Statistiche Avanzate -->
+        <div class="service-wrapper">
+            <div class="service-card">
+                <img src="img/services/statistiche-avanzate.png" alt="Statistiche Avanzate" class="service-image">
+                <div class="service-content">
+                    <h3 class="service-title">Statistiche Avanzate</h3>
+                    <ul class="service-features">
+                        <li><img src="img/check.png">Dashboard completa con KPI in tempo reale</li>
+                        <li><img src="img/check.png">Report mensili personalizzati</li>
+                        <li><img src="img/check.png">Analisi dei prodotti più venduti</li>
+                        <li><img src="img/check.png">Statistiche su orari e giorni di affluenza</li>
+                        <li><img src="img/check.png">Monitoraggio dell'efficacia delle promozioni</li>
+                    </ul>
+                   <button type="button" onclick="window.location.href='login.html'">Ottieni la prova gratuita</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Pagamenti Integrati -->
+        <div class="service-wrapper">
+            <div class="service-card">
+                <img src="img/services/pagamenti-integrati.png" alt="Pagamenti Integrati" class="service-image">
+                <div class="service-content">
+                    <h3 class="service-title">Pagamenti Integrati</h3>
+                    <ul class="service-features">
+                        <li><img src="img/check.png">Pagamenti sicuri con tecnologia SSL</li>
+                        <li><img src="img/check.png">Supporto per tutte le principali carte</li>
+                        <li><img src="img/check.png">Apple Pay e Google Pay integrati</li>
+                        <li><img src="img/check.png">Scontrino digitale automatico</li>
+                        <li><img src="img/check.png">Pagamento diretto al tavolo senza attese</li>
+                    </ul>
+                   <button type="button" onclick="window.location.href='login.html'">Ottieni la prova gratuita</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Marketing in-App -->
+        <div class="service-wrapper">
+            <div class="service-card">
+                <img src="img/services/marketing-in-app.png" alt="Marketing in-App" class="service-image">
+                <div class="service-content">
+                    <h3 class="service-title">Marketing in-App</h3>
+                    <ul class="service-features">
+                        <li><img src="img/check.png">Banner promozionali configurabili</li>
+                        <li><img src="img/check.png">Codici sconto e promozioni temporanee</li>
+                        <li><img src="img/check.png">Suggerimenti AI basati sulle preferenze</li>
+                        <li><img src="img/check.png">Upselling intelligente al checkout</li>
+                        <li><img src="img/check.png">Programmi fedeltà per clienti abituali</li>
+                    </ul>
+                   <button type="button" onclick="window.location.href='login.html'">Ottieni la prova gratuita</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Supporto Dedicato -->
+        <div class="service-wrapper">
+            <div class="service-card">
+                <img src="img/services/supporto-dedicato.png" alt="Supporto Dedicato" class="service-image">
+                <div class="service-content">
+                    <h3 class="service-title">Supporto Dedicato</h3>
+                    <ul class="service-features">
+                        <li><img src="img/check.png">Assistenza telefonica e WhatsApp</li>
+                        <li><img src="img/check.png">Formazione completa per tutto lo staff</li>
+                        <li><img src="img/check.png">Configurazione iniziale del menu</li>
+                        <li><img src="img/check.png">Aggiornamenti gratuiti della piattaforma</li>
+                        <li><img src="img/check.png">Risposte rapide entro 24 ore</li>
+                    </ul>
+                   <button type="button" onclick="window.location.href='login.html'">Ottieni la prova gratuita</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Responsività -->
+        <div class="service-wrapper">
+            <div class="service-card">
+                <img src="img/services/responsivita.png" alt="Responsività" class="service-image">
+                <div class="service-content">
+                    <h3 class="service-title">Responsività</h3>
+                    <ul class="service-features">
+                        <li><img src="img/check.png">Dashboard accessibile da qualsiasi dispositivo</li>
+                        <li><img src="img/check.png">App ottimizzata per mobile e tablet</li>
+                        <li><img src="img/check.png">Sincronizzazione automatica tra dispositivi</li>
+                        <li><img src="img/check.png">Gestione remota del locale in tempo reale</li>
+                        <li><img src="img/check.png">Design intuitivo per ogni dimensione schermo</li>
+                    </ul>
+                   <button type="button" onclick="window.location.href='login.html'">Ottieni la prova gratuita</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Convenienza -->
+        <div class="service-wrapper">
+            <div class="service-card">
+                <img src="img/services/convenienza.png" alt="Convenienza" class="service-image">
+                <div class="service-content">
+                    <h3 class="service-title">Convenienza</h3>
+                    <ul class="service-features">
+                        <li><img src="img/check.png">Nessuna commissione sugli ordini</li>
+                        <li><img src="img/check.png">Canone mensile fisso e trasparente</li>
+                        <li><img src="img/check.png">Tutti gli aggiornamenti inclusi</li>
+                        <li><img src="img/check.png">Nessun costo nascosto o extra</li>
+                        <li><img src="img/check.png">14 giorni di prova gratuita senza vincoli</li>
+                    </ul>
+                   <button type="button" onclick="window.location.href='login.html'">Ottieni la prova gratuita</button>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- CTA Section -->
+    <section class="cta-section">
+        <div class="cta-content">
+            <h2>Pronto a fare la scelta giusta?</h2>
+            <p>Unisciti a centinaia di ristoratori che hanno già scelto Totemino. Nessuna carta richiesta.</p>
+            <a href="login.html" class="btn-cta">Inizia gratuitamente</a>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer>
+        <p>Fatto con amore da &copy; Webtor Studios<br>Cell. 351 054 8462</p>
+        <div class="footer-img">
+          <a href="https://wa.me/+393510548462"><img src="img/whatsapp-logo.png" title="WhatsApp" draggable="false"></a>
+          <a href="https://instagram.com/webtorstudios"><img src="img/instagram-logo.png" title="Instagram" draggable="false"></a>
+          <a href="mailto:webtorstudios@gmail.com"><img src="img/mail-logo.png" title="Invia una email" draggable="false"></a>
+        </div>
+        <a href="termini-e-condizioni.html">Termini e condizioni</a> <a id="nohover"> | </a> <a href="cookie-policy.html">Informativa Privacy</a>
+    </footer>
+    
+    <script src="servizi-script.js"></script>
+</body>
+</html>

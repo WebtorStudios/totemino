@@ -132,7 +132,7 @@ function initQRCode() {
             // Add menu-select option
             const selectItem = document.createElement('div');
             selectItem.className = 'qr-menu-item';
-            selectItem.textContent = 'Pagina Scegli Menu';
+            selectItem.textContent = '> Pagina Scegli Menu';
             selectItem.addEventListener('click', () => {
                 currentMenuName = 'Pagina Scegli Menu';
                 generateQRCode('menu-select');

@@ -18,7 +18,7 @@
   align-items: center;
   justify-content: center;
   text-align: center;
-  height: 78vh;
+  height: 76vh;
 }
 
 .success-landing img {
@@ -48,7 +48,7 @@
 .success-landing .start-btn {
   background: var(--index-btn);
   color: #fdf8db;
-  border: 3px solid var(--index-btn);
+  border: 2px solid var(--index-btn);
   width: calc(100% - 5rem);
   max-width: 367px;
   position: fixed;
@@ -58,6 +58,7 @@
   font-weight: 600;
   border-radius: 2rem;
   cursor: pointer;
+  transition: transform 0.2s ease;
 }
 
 #get-app {
@@ -65,8 +66,13 @@
   background: var(--shadow-lg);
   backdrop-filter: blur(7px);
   -webkit-backdrop-filter: blur(7px);
-  color: var(--index-btn);
+  color: var(--text-accent);
+  border-color: var(--text-accent);
   font-weight: 700;
+}
+
+.success-landing .start-btn:active {
+  transform: scale(0.98);
 }
 
 @media (max-height: 500px) {
@@ -91,5 +97,4 @@
     max-width: 240px;
     height: auto;
   }
-
 }

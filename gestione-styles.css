@@ -135,6 +135,18 @@ main {
 }
 
 /* Card speciali navigazione */
+.nav-indicator {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #10b981;
+  margin-right: 0.6rem;
+  margin-bottom: 0.3rem;
+  animation: pulse 1.5s ease infinite alternate;
+  vertical-align: middle;
+}
+
 .order-card.special[onclick*="showActive"] {
   border-color: #10b981;
   background: var(--card-bg);
@@ -351,6 +363,7 @@ main {
   width: 100%;
   display: flex;
   justify-content: space-between;
+  gap: 1rem;
   padding: 0 clamp(1.5rem, 4vw, 3rem);
 }
 
@@ -521,7 +534,7 @@ main {
 
 .delete-popup-actions {
   padding: 1.5rem;
-  background: #f9fafb;
+  background: var(--input-bg);
   border-radius: 0 0 2rem 2rem;
   box-shadow: 0px -6px 12px #e5e7eb80;
   display: flex;

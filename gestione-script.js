@@ -35,6 +35,8 @@ const SECTIONS = {
 const state = {
   currentSection: 'table',
   orders: [],
+  allOrders: {}, 
+  viewedOrders: new Set(),
   viewingCompleted: false,
   expandedGroups: new Set(),
   currentDetailOrder: null,
@@ -67,13 +69,18 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Inizializza Service Worker e Push
   await initServiceWorker();
   
-  // Caricamento iniziale
+  // Caricamento iniziale di TUTTE le sezioni
+  await loadAllSectionsOrders();
+  
+  // Caricamento iniziale sezione corrente
   loadOrders();
   
   // Fallback: auto-refresh se push non supportato
   if (!CONFIG.swEnabled) {
-    
-    state.autoRefreshInterval = setInterval(loadOrders, CONFIG.refreshInterval);
+    state.autoRefreshInterval = setInterval(() => {
+      loadAllSectionsOrders(); // Aggiorna tutte le sezioni
+      loadOrders(); // Aggiorna sezione corrente
+    }, CONFIG.refreshInterval);
   }
 });
 
@@ -155,18 +162,16 @@ async function subscribeToPush(registration) {
 }
 
 function handleSWMessage(event) {
-  
-  
   const { type } = event.data;
   
   if (type === 'NEW_ORDER') {
-    
+    loadAllSectionsOrders(); 
     loadOrders();
     showNotificationBadge();
   }
   
   if (type === 'RELOAD_ORDERS') {
-    
+    loadAllSectionsOrders();
     loadOrders();
   }
 }
@@ -208,7 +213,7 @@ function initSections() {
       `<button class="${key === 'table' ? 'active' : ''}" id="${key}-tab">${config.label}</button>`
     ).join('');
   
-  dom.nav.innerHTML = '<div class="pill"></div>' + navHTML;
+  dom.nav.innerHTML = '<div class="pill" style="margin-left: 11px; width: 163.9px;"></div>' + navHTML;
   
   Object.keys(SECTIONS).forEach(key => {
     dom.sections[key] = {
@@ -285,6 +290,10 @@ function animatePill() {
   
   pill.style.left = `${tabRect.left - navRect.left + scrollOffset}px`;
   pill.style.width = `${tabRect.width}px`;
+  
+  if (pill.style.marginLeft) {
+    pill.style.marginLeft = '';
+  }
 }
 
 async function loadOrders() {
@@ -299,6 +308,10 @@ async function loadOrders() {
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     
     state.orders = await res.json();
+    
+    // Salva gli ordini per questa sezione
+    state.allOrders[state.currentSection] = state.orders;
+    
     renderOrders();
   } catch (error) {
     console.error('Errore caricamento:', error);
@@ -307,6 +320,24 @@ async function loadOrders() {
         <h3>Errore caricamento</h3>
         <button onclick="loadOrders()">Riprova</button>
       </div>`;
+  }
+}
+
+// Nuova funzione per caricare ordini di tutte le sezioni (da chiamare all'inizializzazione)
+async function loadAllSectionsOrders() {
+  try {
+    await Promise.all(
+      Object.keys(SECTIONS).map(async (key) => {
+        const apiPath = SECTIONS[key].apiPath;
+        const res = await fetch(`${CONFIG.apiBase}/${CONFIG.restaurantId}/orders/${apiPath}`);
+        if (res.ok) {
+          state.allOrders[key] = await res.json();
+        }
+      })
+    );
+    updateNavIndicator();
+  } catch (error) {
+    console.error('Errore caricamento sezioni:', error);
   }
 }
 
@@ -326,6 +357,9 @@ function renderOrders() {
   
   const grouped = groupOrders(orders);
   const completedCount = state.orders.filter(o => o.orderStatus === 'completed').length;
+  
+  // Aggiorna l'indicatore nella navbar
+  updateNavIndicator();
   
   if (orders.length === 0) {
     section.innerHTML = `
@@ -361,11 +395,36 @@ function renderOrders() {
   section.innerHTML = html;
 }
 
+function updateNavIndicator() {
+  Object.entries(SECTIONS).forEach(([key, config]) => {
+    const tab = document.getElementById(`${key}-tab`);
+    if (!tab) return;
+    
+    const existingIndicator = tab.querySelector('.nav-indicator');
+    if (existingIndicator) existingIndicator.remove();
+    
+    const sectionOrders = state.allOrders[key] || [];
+    
+    const hasNewOrders = sectionOrders.some(o => 
+      o.orderStatus !== 'completed' && isNewOrder(o.timestamp, o.id)
+    );
+    
+    if (hasNewOrders) {
+      const indicator = document.createElement('span');
+      indicator.className = 'nav-indicator';
+      tab.prepend(indicator);
+    }
+  });
+  
+  // Aggiorna la pill dopo aver modificato gli indicatori
+  setTimeout(() => animatePill(), 0);
+}
+
 function createGroupCard(id, orders, color, hasMultiple) {
   const order = orders[0];
   const total = orders.reduce((sum, o) => sum + o.total, 0);
   const count = hasMultiple ? `<sup>(${orders.length})</sup>` : '';
-  const isNew = !state.viewingCompleted && orders.some(o => isNewOrder(o.timestamp));
+  const isNew = !state.viewingCompleted && orders.some(o => isNewOrder(o.timestamp, o.id));
   const newBadge = isNew ? '<div class="new-indicator"></div>' : '';
   const completed = state.viewingCompleted ? 'completed' : '';
   
@@ -388,7 +447,7 @@ function createGroupCard(id, orders, color, hasMultiple) {
 function createOrderCard(order, color, orderNum = null) {
   const id = getOrderIdentifier(order);
   const count = orderNum ? `<sup>(${orderNum})</sup>` : '';
-  const isNew = !state.viewingCompleted && isNewOrder(order.timestamp);
+  const isNew = !state.viewingCompleted && isNewOrder(order.timestamp, order.id);
   const newBadge = isNew ? '<div class="new-indicator"></div>' : '';
   const completed = state.viewingCompleted ? 'completed' : '';
   
@@ -440,10 +499,11 @@ function showOrderDetails(orderId) {
   const order = state.orders.find(o => o.id === orderId);
   if (!order) return;
   
+  state.viewedOrders.add(orderId);
+  
   state.currentDetailOrder = order;
   const id = getOrderIdentifier(order);
   
-  // Titolo personalizzato per categoria
   const titles = {
     table: `Tavolo #${id}`,
     takeaway: `Ritiro ${id}`,
@@ -452,7 +512,6 @@ function showOrderDetails(orderId) {
   
   document.querySelector('.gpopup-title').textContent = titles[state.currentSection] || `Ordine #${id}`;
   
-  // Info header personalizzate per tipo ordine
   let headerInfo = '';
   const d = new Date(order.timestamp);
   const time = `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`;
@@ -472,7 +531,6 @@ function showOrderDetails(orderId) {
   }
   
   document.querySelector('.gpopup-date').innerHTML = headerInfo;
-  
   document.querySelector('.gpopup-total').textContent = `€${order.total.toFixed(2)}`;
   
   document.querySelector('.gpopup-items').innerHTML = order.items.map((item, i) => {
@@ -485,17 +543,24 @@ function showOrderDetails(orderId) {
           <h4>${item.quantity > 1 ? `(x${item.quantity}) ` : ''}${formatItemName(item)}</h4>
           <div class="item-price">€${(price * item.quantity).toFixed(2)}</div>
         </div>
-        ${note ? `<div class="item-note">🗒️ ${note}</div>` : ''}
+        ${note ? `<div class="item-note">${note}</div>` : ''}
       </div>`;
   }).join('');
   
   updateStatusButton(order.orderStatus);
+  
   showPopup();
+  
+  // Aggiorna gli indicatori e poi la pill
+  updateNavIndicator();
+  renderOrders();
 }
 
 function showGroupDetails(id) {
   const orders = getOrdersByIdentifier(id);
   if (orders.length === 0) return;
+  
+  orders.forEach(order => state.viewedOrders.add(order.id));
   
   if (!state.expandedGroups.has(id)) {
     state.currentDetailOrder = { id: `group_${id}`, isGroup: true, orders };
@@ -505,7 +570,6 @@ function showGroupDetails(id) {
       new Date(o.timestamp) < new Date(e.timestamp) ? o : e
     );
     
-    // Titolo personalizzato per categoria
     const titles = {
       table: `Tavolo #${id} (${orders.length} ordini)`,
       takeaway: `Ritiro ${id} (${orders.length} ordini)`,
@@ -514,7 +578,6 @@ function showGroupDetails(id) {
     
     document.querySelector('.gpopup-title').textContent = titles[state.currentSection] || `Ordine #${id} (${orders.length} ordini)`;
     
-    // Info header personalizzate per tipo ordine
     let headerInfo = '';
     const d = new Date(earliest.timestamp);
     const time = `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`;
@@ -534,7 +597,6 @@ function showGroupDetails(id) {
     }
     
     document.querySelector('.gpopup-date').innerHTML = headerInfo;
-    
     document.querySelector('.gpopup-total').textContent = `€${total.toFixed(2)}`;
     
     const combined = {};
@@ -557,7 +619,7 @@ function showGroupDetails(id) {
     });
     
     document.querySelector('.gpopup-items').innerHTML = Object.values(combined).map(item => {
-      const notesHtml = item.notes.map(n => `<div class="item-note">🗒️ ${n}</div>`).join('');
+      const notesHtml = item.notes.map(n => `<div class="item-note">${n}</div>`).join('');
       return `
         <div class="gpopup-item">
           <div class="item-info">
@@ -570,6 +632,10 @@ function showGroupDetails(id) {
     
     updateStatusButton(orders[0].orderStatus);
     showPopup();
+    
+    // Aggiorna gli indicatori e poi la pill
+    updateNavIndicator();
+    renderOrders();
   }
 }
 
@@ -691,7 +757,7 @@ function updateStatusButton(status) {
   } else {
     btn.className = 'status-btn toggle-status';
     icon.textContent = '✓';
-    text.textContent = 'Segna come completato';
+    text.textContent = 'Completato';
   }
   
   btn.disabled = false;
@@ -779,10 +845,17 @@ function getOrdersByIdentifier(id) {
 function formatItemName(item) {
   let name = item.name;
   if (item.customizations && Object.keys(item.customizations).length > 0) {
-    const customs = Object.entries(item.customizations)
-      .map(([n, q]) => `${n}${q > 1 ? ' x' + q : ''}`)
-      .join(', ');
-    name += ` <span class="item-customizations">(${customs})</span>`;
+    if (item.customizationDetails && item.customizationDetails.length > 0) {
+      const customs = item.customizationDetails
+        .map(custom => `${custom.name}${custom.quantity > 1 ? ' x' + custom.quantity : ''}`)
+        .join(', ');
+      name += ` <span class="item-customizations">(${customs})</span>`;
+    } else {
+      const customs = Object.entries(item.customizations)
+        .map(([id, q]) => `${id}${q > 1 ? ' x' + q : ''}`)
+        .join(', ');
+      name += ` <span class="item-customizations">(${customs})</span>`;
+    }
   }
   return name;
 }
@@ -797,9 +870,11 @@ function getColor(index) {
   return colors[index % colors.length];
 }
 
-function isNewOrder(timestamp) {
+function isNewOrder(timestamp, orderId) {
+  if (state.viewedOrders.has(orderId)) return false;  
   return Date.now() - new Date(timestamp).getTime() < 15 * 60 * 1000;
 }
+
 
 function formatDateTime(timestamp) {
   const d = new Date(timestamp);

@@ -65,6 +65,7 @@ const STATE = {
   items: [],
   orderNotes: [],
   menuData: {},
+  categoryOrder: [],
   selectedCategories: new Set(),
   suggestionsShown: false,
   planType: 'free',
@@ -264,10 +265,11 @@ const DataManager = {
     }
   
     STATE.currentMenuType = menuTypeFilter;
-  
+
     const selectedMap = this.loadSelectedItems();
     const suggestedItems = Utils.loadFromStorage(CONFIG.storageKeys.suggestedItems, []);
-  
+    STATE.categoryOrder = menuJson.categories.map(cat => cat.name);
+
     menuJson.categories.forEach(category => {
       STATE.menuData[category.name] = category.items
         .filter(item => item.visible)
@@ -279,38 +281,46 @@ const DataManager = {
           customizable: item.customizable || false,
           customizationGroup: item.customizationGroup || null
         }));
-  
-      category.items.forEach(item => {
-        if (!item.visible) return;
-  
-        for (const [key, data] of selectedMap) {
-          const keyName = key.includes('|') ? key.split('|')[0] : key;
-          
-          if (keyName === item.name) {
-            const effectivePrice = Utils.calculateItemPrice(item.name, data.customizations);
-            
-            STATE.items.push({
-              ...STATE.menuData[category.name].find(i => i.name === item.name),
-              price: effectivePrice,
-              originalPrice: item.price,
-              restaurantId: CONFIG.restaurantId,
-              quantity: data.qty,
-              category: category.name,
-              isSuggested: suggestedItems.includes(item.name),
-              customizations: data.customizations,
-              uniqueKey: key
-            });
-            STATE.selectedCategories.add(category.name);
-          }
-        }
-      });
     });
-  
+
+    for (const [key, data] of selectedMap) {
+      const keyName = key.includes('|') ? key.split('|')[0] : key;
+      
+      // Trova l'item nel menuData
+      let foundItem = null;
+      let foundCategory = null;
+      
+      for (const [categoryName, categoryItems] of Object.entries(STATE.menuData)) {
+        foundItem = categoryItems.find(i => i.name === keyName);
+        if (foundItem) {
+          foundCategory = categoryName;
+          break;
+        }
+      }
+      
+      if (foundItem) {
+        const effectivePrice = Utils.calculateItemPrice(keyName, data.customizations);
+        
+        STATE.items.push({
+          ...foundItem,
+          price: effectivePrice,
+          originalPrice: foundItem.price,
+          restaurantId: CONFIG.restaurantId,
+          quantity: data.qty,
+          category: foundCategory,
+          isSuggested: suggestedItems.includes(keyName),
+          customizations: data.customizations,
+          uniqueKey: key
+        });
+        STATE.selectedCategories.add(foundCategory);
+      }
+    }
+
     await this.loadCopertoPrice();
     this.addCopertoIfNeeded();
     UI.renderItems();
     UI.updateTotal();
-  
+
     if (this.canShowSuggestions() && typeof initializeSuggestions !== 'undefined') {
       initializeSuggestions(menuJson, CONFIG.restaurantId).catch(console.error);
     }
@@ -363,12 +373,23 @@ const DataManager = {
   },
 
   saveSelected() {
-    const arr = STATE.items
+    const arr = [];
+    const notesArr = [];
+    
+    STATE.items
       .filter(item => !item.isCoperto)
-      .flatMap(item => [item.name, JSON.stringify(item.customizations || {}), item.quantity.toString()]);
+      .forEach((item, index) => {
+        arr.push(
+          item.name, 
+          JSON.stringify(item.customizations || {}), 
+          item.quantity.toString()
+        );
+        // ✅ Salva la nota corrispondente all'item
+        notesArr.push(STATE.orderNotes[index] || "");
+      });
     
     Utils.saveToStorage(CONFIG.storageKeys.selected, arr);
-    Utils.saveToStorage(CONFIG.storageKeys.notes, STATE.orderNotes);
+    Utils.saveToStorage(CONFIG.storageKeys.notes, notesArr);
     Utils.saveToStorage(CONFIG.storageKeys.suggestedItems, 
       STATE.items.filter(item => item.isSuggested).map(item => item.name)
     );
@@ -479,6 +500,7 @@ const Popup = {
       if (qty > 1) {
         updateQty(qty - 1);
       } else {
+        // Rimuovi item E la sua nota corrispondente
         STATE.items.splice(index, 1);
         STATE.orderNotes.splice(index, 1);
         DataManager.saveSelected();
@@ -494,7 +516,7 @@ const Popup = {
     controls.querySelector(".popup-plus").onclick = () => {
       if (item.customizable) {
         this.hide(popup);
-        CustomizationScreen.open(item);
+        CustomizationScreen.open(item, index);
       } else {
         updateQty(qty + 1);
       }
@@ -593,38 +615,92 @@ const Popup = {
       STATE.suggestionsShown = true;
       
       if (selectedSuggestions.size > 0) {
-        selectedSuggestions.forEach(itemName => {
-          for (const category in STATE.menuData) {
-            const menuItem = STATE.menuData[category].find(i => i.name === itemName);
-            if (menuItem) {
-              const existingItem = STATE.items.find(i => 
-                i.name === itemName && 
-                !i.isCoperto && 
-                (!i.customizations || Object.keys(i.customizations).length === 0)
-              );
-              
-              if (existingItem) {
-                existingItem.quantity += 1;
-                existingItem.isSuggested = true;
-              } else {
-                const newItem = {
-                  ...menuItem,
-                  ingredients: menuItem.ingredients || (menuItem.description ? menuItem.description.split(",").map(s => s.trim()).filter(Boolean) : []),
-                  restaurantId: CONFIG.restaurantId,
-                  quantity: 1,
-                  category,
-                  isSuggested: true,
-                  customizations: {},
-                  uniqueKey: itemName
-                };
+        const itemsByCategory = new Map();
+        
+        // 1. Raggruppa items esistenti per categoria CON le loro note
+        STATE.items.forEach((item, index) => {
+          if (item.isCoperto) return;
+          
+          const category = item.category;
+          if (!itemsByCategory.has(category)) {
+            itemsByCategory.set(category, []);
+          }
+          itemsByCategory.get(category).push({
+            item: item,
+            note: STATE.orderNotes[index] || ""
+          });
+        });
+        
+        // 2. Aggiungi i nuovi suggerimenti nella categoria corretta
+        STATE.categoryOrder.forEach(category => {
+          const categoryItems = STATE.menuData[category];
+          if (!categoryItems) return;
+          
+          categoryItems.forEach(menuItem => {
+            if (selectedSuggestions.has(menuItem.name)) {
+              // ✅ FIX: Cerca l'item ESATTO (stesso nome E nessuna customizzazione)
+              let found = false;
+              if (itemsByCategory.has(category)) {
+                const existing = itemsByCategory.get(category).find(
+                  obj => obj.item.name === menuItem.name && 
+                        obj.item.uniqueKey === menuItem.name // ✅ Verifica che sia item base (no customizzazioni)
+                );
                 
-                STATE.items.push(newItem);
-                STATE.orderNotes.push("");
+                if (existing) {
+                  existing.item.quantity += 1;
+                  existing.item.isSuggested = true;
+                  found = true;
+                }
               }
-              break;
+              
+              // Se non esiste, crea nuovo
+              if (!found) {
+                if (!itemsByCategory.has(category)) {
+                  itemsByCategory.set(category, []);
+                }
+                
+                itemsByCategory.get(category).push({
+                  item: {
+                    ...menuItem,
+                    ingredients: menuItem.ingredients || [],
+                    restaurantId: CONFIG.restaurantId,
+                    quantity: 1,
+                    category,
+                    isSuggested: true,
+                    customizations: {},
+                    uniqueKey: menuItem.name
+                  },
+                  note: ""
+                });
+              }
             }
+          });
+        });
+        
+        // 3. Ricostruisci STATE.items e STATE.orderNotes nell'ordine corretto
+        const newItems = [];
+        const newNotes = [];
+        
+        STATE.categoryOrder.forEach(category => {
+          if (itemsByCategory.has(category)) {
+            itemsByCategory.get(category).forEach(obj => {
+              newItems.push(obj.item);
+              newNotes.push(obj.note);
+            });
           }
         });
+        
+        // 4. Ri-aggiungi il coperto alla fine
+        const copertoItem = STATE.items.find(i => i.isCoperto);
+        const copertoIndex = STATE.items.findIndex(i => i.isCoperto);
+        if (copertoItem) {
+          newItems.push(copertoItem);
+          newNotes.push(STATE.orderNotes[copertoIndex] || "");
+        }
+        
+        // 5. Aggiorna STATE
+        STATE.items = newItems;
+        STATE.orderNotes = newNotes;
 
         DataManager.saveSelected();
         UI.renderItems();
@@ -643,7 +719,7 @@ const Popup = {
 
 // ==================== CUSTOMIZATION SCREEN ====================
 const CustomizationScreen = {
-  open(item) {
+  open(item, itemIndex = null) {
     const screen = document.createElement("div");
     screen.className = "customization-screen";
     screen.innerHTML = `
@@ -759,7 +835,21 @@ const CustomizationScreen = {
       if (existingIndex !== -1) {
         STATE.items[existingIndex].quantity += 1;
       } else {
-        const copertoIndex = STATE.items.findIndex(i => i.isCoperto);
+        const itemsByCategory = new Map();
+        
+        STATE.items.forEach((existingItem, index) => {
+          if (existingItem.isCoperto) return;
+          
+          const category = existingItem.category;
+          if (!itemsByCategory.has(category)) {
+            itemsByCategory.set(category, []);
+          }
+          itemsByCategory.get(category).push({
+            item: existingItem,
+            note: STATE.orderNotes[index] || ""
+          });
+        });
+        
         const newItem = {
           name: item.name,
           price: itemPrice,
@@ -775,13 +865,35 @@ const CustomizationScreen = {
           uniqueKey
         };
         
-        if (copertoIndex !== -1) {
-          STATE.items.splice(copertoIndex, 0, newItem);
-          STATE.orderNotes.splice(copertoIndex, 0, "");
-        } else {
-          STATE.items.unshift(newItem);
-          STATE.orderNotes.unshift("");
+        if (!itemsByCategory.has(item.category)) {
+          itemsByCategory.set(item.category, []);
         }
+        itemsByCategory.get(item.category).push({
+          item: newItem,
+          note: ""
+        });
+        
+        const newItems = [];
+        const newNotes = [];
+        
+        STATE.categoryOrder.forEach(category => {
+          if (itemsByCategory.has(category)) {
+            itemsByCategory.get(category).forEach(obj => {
+              newItems.push(obj.item);
+              newNotes.push(obj.note);
+            });
+          }
+        });
+        
+        const copertoItem = STATE.items.find(i => i.isCoperto);
+        const copertoIndex = STATE.items.findIndex(i => i.isCoperto);
+        if (copertoItem) {
+          newItems.push(copertoItem);
+          newNotes.push(STATE.orderNotes[copertoIndex] || "");
+        }
+        
+        STATE.items = newItems;
+        STATE.orderNotes = newNotes;
       }
       
       DataManager.saveSelected();

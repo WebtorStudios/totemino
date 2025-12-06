@@ -32,6 +32,18 @@
 		backdrop-filter: blur(7px);
   		-webkit-backdrop-filter: blur(7px);
 	  }
+		
+	  @media (min-width: 1200px) {
+	    .totemino-banner {
+		  right: 2rem;
+		}
+	  }
+
+	  @media (min-width: 1416px) {
+	  	.totemino-banner {
+          right: calc((100dvw - 1337px)/2);
+		}	
+	  }
 
 	  .totemino-banner.show {
 		display: block;

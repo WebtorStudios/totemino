@@ -76,7 +76,7 @@
   --badge-red: #468af7;
   --selected-glow: #60a5facc;
   --shadow-sm: rgba(0,0,0,0.3);
-  --shadow-lg: rgba(0,0,0,0.3);
+  --shadow-lg: rgba(0,0,0,0.1);
   
   /* Luci animate */
   --light1: rgba(96, 165, 250, 0.6);
@@ -340,7 +340,7 @@ input[type="number"]::-webkit-outer-spin-button {
   background: var(--input-bg);
   border-radius: 2rem;
   width: calc(100% - 2rem); /* lascia 1rem a sinistra e a destra */
-  margin: 1rem auto;
+  margin: 0.5rem auto 1rem;
   scroll-behavior: smooth;
   scrollbar-width: none;
 }
@@ -369,7 +369,7 @@ input[type="number"]::-webkit-outer-spin-button {
   height: calc(100% - 1rem);
   top: 0.5rem;
   left: 0;
-  width: 0;
+  width: max-content;
   border-radius: 2rem;
   background: var(--pill-bg);
   transition: all 0.3s ease;
@@ -508,6 +508,15 @@ input[type="number"]::-webkit-outer-spin-button {
 .items.fade-out-right { animation: fadeOutToRight 0.25s ease forwards; }
 .items.fade-in-left { animation: fadeInFromLeft 0.25s ease forwards; }
 .items.fade-in-right { animation: fadeInFromRight 0.25s ease forwards; }
+.items.fade-out-simple {
+  opacity: 0;
+  transition: opacity 0.25s ease;
+}
+
+.items.fade-in-simple {
+  opacity: 1;
+  transition: opacity 0.25s ease;
+}
 
 /* ===== ORDINE ===== */
 .order {
@@ -516,13 +525,14 @@ input[type="number"]::-webkit-outer-spin-button {
   left: 50%;
   transform: translateX(-50%);
   width: 90vw;
+  max-width: 600px;
   background: var(--bg-secondary);
   box-shadow: 0 4px 12px var(--shadow-sm);
   border-radius: 3rem;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 1rem 1rem 1rem 1.5rem;
+  padding: 1rem 1.2rem 1rem 1.5rem;
   z-index: 1000;
   backdrop-filter: blur(7px);
   -webkit-backdrop-filter: blur(7px);
@@ -708,7 +718,7 @@ input[type="number"]::-webkit-outer-spin-button {
 
 .popup-content {
   background: var(--card-bg);
-  padding: 1.5rem 2rem;
+  padding: 1.5rem 2rem 2.2rem;
   width: 90%;
   max-width: 530px;
   max-height: 90%;
@@ -807,12 +817,11 @@ input[type="number"]::-webkit-outer-spin-button {
 
 #titolo-allergeni {
   font-size: 1rem;
-  margin-bottom: 1rem;
+  margin: 1.5rem 0 1rem;
   color: var(--text-primary);
 }
 
 .popup-allergens {
-  margin-bottom: 1rem;
   display: flex;
   justify-content: center;
   flex-wrap: wrap;
@@ -835,7 +844,7 @@ input[type="number"]::-webkit-outer-spin-button {
   white-space: nowrap;
   background: var(--tooltip-bg);
   color: #fff;
-  padding: 0.5em 1em;
+  padding: 0.5rem 1rem;
   border-radius: 8px;
   font-size: 0.9em;
   z-index: 9999;
@@ -854,9 +863,8 @@ input[type="number"]::-webkit-outer-spin-button {
 @media (min-width: 768px) {
   .items {
     gap: 1.2rem;
-    padding: 0 1.5rem;
+    padding: 0 1rem;
   }
-
   .cart-popup {
     left: 50%;
     width: 90vw;
@@ -883,10 +891,6 @@ input[type="number"]::-webkit-outer-spin-button {
     padding: 0.6rem 1.4rem;
     font-size: 1.2rem;
   }
-  
-  .order {
-    width: 80vw;
-  } 
   
   .popup-img { height: 10rem; }
   .popup-title { font-size: 1.85rem; }
@@ -919,11 +923,8 @@ input[type="number"]::-webkit-outer-spin-button {
   h1 { font-size: 2.5rem; }
   
   .categories {
+    width: calc(100% - 4rem);
     max-width: 1337px;
-  }
-  .order {
-    width: 60vw;
-    max-width: 600px;
   }
   .cart {
     cursor: pointer;

@@ -12,10 +12,10 @@ let editingCategoryItems = [];
 let menuIconIndex = 1;
 
 const allergens = {
-  "1": "Molluschi", "2": "Lupino", "3": "Soia", "4": "Latte", "5": "Uova",
+  "1": "No Glutine", "2": "No Lattosio", "3": "Soia", "4": "Latte", "5": "Uova",
   "6": "Pesce", "7": "Glutine", "8": "Arachidi", "9": "Frutta a guscio",
   "10": "Semi di sesamo", "11": "Sedano", "12": "Senape",
-  "13": "Anidride solforosa", "14": "Crostacei"
+  "13": "Anidride solforosa", "14": "Crostacei", "15": "Lupino", "16": "Molluschi"
 };
 
 // ===== INIT =====
@@ -357,7 +357,7 @@ function renderCategories() {
       <div class="empty-state">
         <h2>Menu vuoto</h2>
         <p>Aggiungi una categoria</p>
-        <button class="btn-primary" onclick="addCategory()">Aggiungi Categoria</button>
+        <button class="btn-primary" onclick="addCategory()">+ Aggiungi nuova Categoria</button>
       </div>`;
     return;
   }
@@ -403,7 +403,7 @@ function renderCategories() {
   } else {
     const btn = document.createElement('button');
     btn.className = 'btn-primary';
-    btn.textContent = 'Aggiungi Categoria';
+    btn.textContent = '+ Aggiungi nuova Categoria';
     btn.onclick = addCategory;
     btn.style.cssText = 'margin: 2rem auto; display: block;';
     container.appendChild(btn);
@@ -436,7 +436,7 @@ function createCard(item, cat, idx) {
       <p class="item-description">${item.description || ''}</p>
 
       <div class="item-allergens">
-        ${(item.allergens || []).map(a => `<img class="allergen-ico" src="img/allergens/${a}.png" alt="${allergens[a] || ''}" title="${allergens[a] || ''}">`).join('')}
+        ${(item.allergens || []).map(a => `<img class="allergen-icon" src="img/allergeni/${a}.png" alt="${allergens[a] || ''}" title="${allergens[a] || ''}">`).join('')}
       </div>
     </div>
   `;

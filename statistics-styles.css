@@ -4,8 +4,17 @@
 
 /* ===== VARIABILI E ANIMAZIONI ===== */
 @keyframes slideIn {
-  from { opacity: 0; transform: translateY(20px); }
+  from { opacity: 0; transform: translateY(30px); }
   to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes drawChart {
+  from { 
+    clip-path: inset(0 100% 0 0);
+  }
+  to { 
+    clip-path: inset(0 0 0 0);
+  }
 }
 
 @keyframes fadeIn {
@@ -51,7 +60,11 @@
   max-width: 600px;
 }
 
-/* ===== SISTEMA CARD UNIFICATO ===== */
+/* ===== SISTEMA CARD ===== */
+#salesTrendChart {
+  animation: drawChart 1s ease-in-out;
+}
+
 .card {
   background: var(--card-bg);
   border-radius: 1.5rem;
@@ -345,6 +358,12 @@
   flex: 1;
   color: var(--text-primary);
   font-size: 1rem;
+
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .podium-item .revenue {

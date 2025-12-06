@@ -8,10 +8,10 @@ const nextBtn = document.querySelector(".next");
 const cartIcon = document.querySelector(".cart");
 const cartPopup = document.querySelector(".cart-popup");
 const allergenNames = {
-  "1": "Molluschi", "2": "Lupino", "3": "Soia", "4": "Latte", "5": "Uova",
+  "1": "Senza Glutine", "2": "Senza Lattosio", "3": "Soia", "4": "Latte", "5": "Uova",
   "6": "Pesce", "7": "Glutine", "8": "Arachidi", "9": "Frutta a guscio",
   "10": "Semi di sesamo", "11": "Sedano", "12": "Senape",
-  "13": "Anidride solforosa", "14": "Crostacei"
+  "13": "Anidride solforosa", "14": "Crostacei", "15": "Lupino", "16": "Molluschi"
 };
 
 let total = 0;
@@ -27,6 +27,7 @@ let quantityPopupTimeout = null;
 let currentPopupItem = null;
 let customizationData = {};
 let isViewOnlyMode = false;
+let isAnimating = false;
 
 async function initializeViewMode() {
   const params = new URLSearchParams(window.location.search);
@@ -238,18 +239,42 @@ function updateStandardItemPrice(priceEl, item) {
 }
 
 // Carica immagini allergeni
-for (let i = 1; i <= 14; i++) {
+for (let i = 1; i <= 16; i++) {
   const img = new Image();
   img.src = `img/allergeni/${i}.png`;
 }
 
+function sortItemsByCategory(selectedItems) {
+  const sortedArray = [];
+  
+  // Itera le categorie nell'ordine del menu
+  categories.forEach(categoryName => {
+    const categoryItems = window.menuData[categoryName] || [];
+    
+    // Per ogni item della categoria nel menu
+    categoryItems.forEach(menuItem => {
+      // Trova tutte le varianti di questo item in selectedItems
+      for (const [key, data] of selectedItems) {
+        const parsed = parseItemKey(key);
+        if (parsed.name === menuItem.name) {
+          sortedArray.push([key, data]);
+        }
+      }
+    });
+  });
+  
+  return sortedArray;
+}
+
 // === PERSISTENZA ===
 function saveSelectionToStorage() {
+  const sortedItems = sortItemsByCategory(selectedItems);
   const arr = [];
-  for (const [key, data] of selectedItems) {
+  const notesArr = [];
+  
+  for (const [key, data] of sortedItems) {
     const parsed = parseItemKey(key);
     
-    // Filtra solo customizzazioni con valore > 0
     const filteredCustomizations = {};
     for (const [optKey, optValue] of Object.entries(data.customizations || {})) {
       if (optValue > 0) {
@@ -262,17 +287,25 @@ function saveSelectionToStorage() {
       JSON.stringify(filteredCustomizations),
       data.qty.toString()
     );
+    
+    notesArr.push(data.note || "");
   }
+  
   localStorage.setItem("totemino_selected", JSON.stringify(arr));
+  localStorage.setItem("totemino_notes", JSON.stringify(notesArr));
   localStorage.setItem("totemino_total", total.toFixed(2));
   localStorage.setItem("totemino_count", count.toString());
 }
 
 function loadSelectionFromStorage() {
   const saved = localStorage.getItem("totemino_selected");
+  const savedNotes = JSON.parse(localStorage.getItem("totemino_notes") || "[]");
+  
   selectedItems = new Map();
   if (saved) {
     const arr = JSON.parse(saved);
+    let noteIndex = 0;
+    
     for (let i = 0; i < arr.length; i += 3) {
       const name = arr[i];
       const customizations = JSON.parse(arr[i + 1] || '{}');
@@ -280,7 +313,12 @@ function loadSelectionFromStorage() {
       
       if (name && qty && qty > 0) {
         const key = generateItemKey(name, customizations);
-        selectedItems.set(key, { qty, customizations });
+        selectedItems.set(key, { 
+          qty, 
+          customizations,
+          note: savedNotes[noteIndex] || "" // ✅ CARICA LA NOTA
+        });
+        noteIndex++;
       }
     }
   }
@@ -305,7 +343,7 @@ function toggleCartPopup() {
     cartCounter.style.opacity = "0";
     setTimeout(() => {
       isCartPopupAnimating = false;
-    }, 300);
+    }, 250);
   } else {
     isCartPopupAnimating = true;
     cartPopup.classList.remove("slide-down");
@@ -315,7 +353,7 @@ function toggleCartPopup() {
     setTimeout(() => {
       cartPopup.classList.add("hidden");
       isCartPopupAnimating = false;
-    }, 300);
+    }, 250);
   }
 }
 
@@ -731,6 +769,7 @@ async function loadMenu() {
 
   nav.innerHTML = "";
   const pill = document.createElement("div");
+  pill.style.transform = "translateX(0.7rem)";
   pill.className = "pill";
   nav.appendChild(pill);
 
@@ -785,13 +824,12 @@ async function loadMenu() {
   const checkAndActivate = () => {
     const firstButton = nav.querySelector("button");
     if (firstButton && firstButton.offsetWidth > 0) {
-      // Il pulsante è renderizzato e ha dimensioni
-      setActiveCategory(0);
+      setActiveCategory(0, true);
     } else {
-      // Riprova dopo 50ms
-      setTimeout(checkAndActivate, 50);
+      setTimeout(checkAndActivate, 1000);
     }
   };
+
   
   setTimeout(checkAndActivate, 0);
 }
@@ -803,10 +841,24 @@ function movePillTo(button) {
   pill.style.transform = `translateX(${button.offsetLeft}px)`;
 }
 
-function setActiveCategory(index) {
+function setActiveCategory(index, skipAnimationBlock = false) {
   if (index < 0 || index >= categories.length) return;
-  lastSwipeDirection = index > currentCategoryIndex ? "left" : "right";
+  
+  // ✅ Blocca SEMPRE se è in animazione
+  if (isAnimating && !skipAnimationBlock) return;
+
+  if (index !== currentCategoryIndex) {
+    lastSwipeDirection = index > currentCategoryIndex ? "left" : "right";
+  } else {
+    lastSwipeDirection = null;
+  }
+
   currentCategoryIndex = index;
+  
+  // ✅ Imposta animazione in corso
+  if (!skipAnimationBlock) {
+    isAnimating = true;
+  }
 
   document.querySelectorAll(".categories button").forEach((b, i) => {
     b.classList.toggle("active", i === index);
@@ -815,9 +867,18 @@ function setActiveCategory(index) {
   const activeBtn = document.querySelector(".categories button.active");
   if (activeBtn) movePillTo(activeBtn);
   renderItems(categories[index]);
+
   updateCart();
 
   activeBtn.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
+
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+
+  if (!skipAnimationBlock) {
+    setTimeout(() => {
+      isAnimating = false;
+    }, 201);
+  }
 
   if (!nextBtn) return;
 
@@ -843,8 +904,14 @@ function setActiveCategory(index) {
 function renderItems(category) {
   if (!itemsContainer) return;
 
-  itemsContainer.classList.remove("fade-in-left", "fade-in-right", "fade-out-left", "fade-out-right");
-  itemsContainer.classList.add(lastSwipeDirection === "left" ? "fade-out-left" : "fade-out-right");
+  itemsContainer.classList.remove("fade-in-left", "fade-in-right", "fade-out-left", "fade-out-right", "fade-in-simple", "fade-out-simple");
+  void itemsContainer.offsetWidth;
+  
+  if (lastSwipeDirection === null) {
+    itemsContainer.classList.add("fade-out-simple");
+  } else {
+    itemsContainer.classList.add(lastSwipeDirection === "left" ? "fade-out-left" : "fade-out-right");
+  }
 
   setTimeout(() => {
     itemsContainer.innerHTML = "";
@@ -962,10 +1029,14 @@ function renderItems(category) {
       updateItemButtonUI(item.name);
     });
 
-    itemsContainer.classList.remove("fade-out-left", "fade-out-right");
-    itemsContainer.classList.add(lastSwipeDirection === "left" ? "fade-in-right" : "fade-in-left");
+    itemsContainer.classList.remove("fade-out-left", "fade-out-right", "fade-out-simple");
+    if (lastSwipeDirection === null) {
+      itemsContainer.classList.add("fade-in-simple");
+    } else {
+      itemsContainer.classList.add(lastSwipeDirection === "left" ? "fade-in-right" : "fade-in-left");
+    }
     
-  }, 250);
+  }, 200);
 }
 
 function updateCart() {

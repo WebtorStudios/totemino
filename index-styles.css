@@ -344,6 +344,7 @@ section {
   opacity: 0;
   transform: translateY(30px);
   box-shadow: 0 3px 12px var(--shadow-sm);
+  cursor: pointer;
 }
 
 .feature-card.visible { 

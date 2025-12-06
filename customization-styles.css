@@ -134,6 +134,12 @@
   font-weight: 700;
   color: var(--text-accent);
   margin: 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .group-card-actions {
@@ -184,7 +190,7 @@
   font-size: 0.95rem;
   color: var(--text-primary);
   opacity: 0.8;
-  margin: 0.5rem 0 1rem 0;
+  margin: 0.5rem 0;
   line-height: 1.4;
 }
 
@@ -507,8 +513,14 @@
 
 /* ===== RESPONSIVE ===== */
 @media (max-width: 768px) {
+  .customization-field {
+    gap: 1rem;
+    flex-direction: column;
+  }
+
   .customization-controls {
     flex-direction: column;
+    margin-bottom: 1rem;
   }
   
   .section-settings {

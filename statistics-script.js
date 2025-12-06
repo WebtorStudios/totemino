@@ -1,5 +1,8 @@
-// Stato globale dell'applicazione
-let state = {
+// ============================================================================
+// STATE MANAGEMENT
+// ============================================================================
+
+const state = {
     currentMonthIndex: 0,
     currentCategory: 'all',
     restaurantId: new URLSearchParams(location.search).get('id'),
@@ -12,32 +15,43 @@ let state = {
     usersData: null
 };
 
-const monthNames = [
+const MONTH_NAMES = [
     'Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno',
     'Luglio', 'Agosto', 'Settembre', 'Ottobre', 'Novembre', 'Dicembre'
 ];
 
-// Utility functions
-function $(id) { return document.getElementById(id); }
-function show(id) { $(id).style.display = 'block'; }
-function hide(id) { $(id).style.display = 'none'; }
+const DAY_NAMES = ['Domenica', 'Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato'];
 
-document.getElementById('back-btn').addEventListener('click', function () {
-    window.location.href = `gestione.html?id=${state.restaurantId}`;
-  });
+const TIME_SLOT_NAMES = {
+    mattina: 'Mattina (6-12)',
+    pranzo: 'Pranzo (12-17)', 
+    sera: 'Sera (17-23)',
+    notte: 'Notte (23-6)'
+};
 
-function showError(msg) {
+// ============================================================================
+// DOM UTILITIES
+// ============================================================================
+
+const $ = id => document.getElementById(id);
+const show = id => $(id).style.display = 'block';
+const hide = id => $(id).style.display = 'none';
+
+const showError = msg => {
     hide('loading');
     $('errorContainer').innerHTML = `<div class="error">${msg}</div>`;
-}
+};
 
-function showDashboard() {
+const showDashboard = () => {
     hide('loading');
     show('dashboard');
-}
+};
 
-// Data loading functions
-async function loadMenu() {
+// ============================================================================
+// DATA LOADING
+// ============================================================================
+
+const loadMenu = async () => {
     const response = await fetch(`IDs/${state.restaurantId}/menu.json`);
     if (!response.ok) throw new Error(`Menu non trovato (${response.status})`);
     
@@ -53,16 +67,16 @@ async function loadMenu() {
             };
         });
     });
-}
+};
 
-async function loadAvailableMonths() {
+const loadAvailableMonths = async () => {
     const response = await fetch(`/api/months/${state.restaurantId}`);
     if (!response.ok) throw new Error('Impossibile caricare mesi');
     state.availableMonths = await response.json();
     populateMonthDropdown();
-}
+};
 
-async function loadStatistics() {
+const loadStatistics = async () => {
     const currentMonth = state.availableMonths[state.currentMonthIndex];
     const response = await fetch(`IDs/${state.restaurantId}/statistics/${currentMonth}.json`);
     if (!response.ok) throw new Error(`Statistiche non trovate per ${currentMonth}`);
@@ -79,9 +93,9 @@ async function loadStatistics() {
             state.previousStatistics = null;
         }
     }
-}
+};
 
-async function loadDailySalesData() {
+const loadDailySalesData = async () => {
     try {
         const currentMonth = state.availableMonths[state.currentMonthIndex];
         const response = await fetch(`IDs/${state.restaurantId}/daily-sales/${currentMonth}.json`);
@@ -89,33 +103,39 @@ async function loadDailySalesData() {
     } catch {
         state.dailySalesData = [];
     }
-}
+};
 
-async function loadUsersData() {
+const loadUsersData = async () => {
     try {
         const response = await fetch(`IDs/${state.restaurantId}/statistics/users/general.json`);
         state.usersData = response.ok ? await response.json() : null;
     } catch {
         state.usersData = null;
     }
-}
+};
 
-// UI Population functions
-function populateMonthDropdown() {
+// ============================================================================
+// UI POPULATION
+// ============================================================================
+
+const populateMonthDropdown = () => {
     $('monthDropdown').innerHTML = state.availableMonths
         .map(month => `<option value="${month}">${formatMonth(month)}</option>`)
         .join('');
-}
+};
 
-function populateCategoryFilter() {
+const populateCategoryFilter = () => {
     $('categoryFilter').innerHTML = '<option value="all">Tutte</option>' +
         Object.keys(state.menu)
             .map(cat => `<option value="${cat}">${cat}</option>`)
             .join('');
-}
+};
 
-// Event handling
-function setupEventListeners() {
+// ============================================================================
+// EVENT HANDLING
+// ============================================================================
+
+const setupEventListeners = () => {
     $('monthDropdown').addEventListener('change', e => {
         changeMonth(state.availableMonths.indexOf(e.target.value));
     });
@@ -131,43 +151,50 @@ function setupEventListeners() {
     $('categoryFilter').addEventListener('change', e => {
         changeCategory(e.target.value);
     });
-}
 
-function changeMonth(newIndex) {
+    $('back-btn').addEventListener('click', () => {
+        window.location.href = `gestione.html?id=${state.restaurantId}`;
+    });
+};
+
+const changeMonth = newIndex => {
     if (newIndex < 0 || newIndex >= state.availableMonths.length) return;
     state.currentMonthIndex = newIndex;
     updateMonthDisplay();
     loadStatisticsAndUpdate();
-}
+};
 
-function changeCategory(category) {
+const changeCategory = category => {
     state.currentCategory = category;
     updateSellersCharts();
-}
+};
 
-// Month management
-function setCurrentMonth() {
+// ============================================================================
+// MONTH MANAGEMENT
+// ============================================================================
+
+const setCurrentMonth = () => {
     if (state.availableMonths.length > 0) {
         state.currentMonthIndex = state.availableMonths.length - 1;
         updateMonthDisplay();
     }
-}
+};
 
-function formatMonth(monthYear) {
+const formatMonth = monthYear => {
     const [month, year] = monthYear.split('-');
-    return `${monthNames[parseInt(month) - 1]} ${year}`;
-}
+    return `${MONTH_NAMES[parseInt(month) - 1]} ${year}`;
+};
 
-function updateMonthDisplay() {
+const updateMonthDisplay = () => {
     const currentMonth = state.availableMonths[state.currentMonthIndex];
     $('currentMonthDisplay').textContent = formatMonth(currentMonth);
     $('monthDropdown').value = currentMonth;
     
     $('prevMonth').disabled = state.currentMonthIndex === 0;
     $('nextMonth').disabled = state.currentMonthIndex === state.availableMonths.length - 1;
-}
+};
 
-async function loadStatisticsAndUpdate() {
+const loadStatisticsAndUpdate = async () => {
     try {
         show('loading');
         hide('dashboard');
@@ -177,18 +204,21 @@ async function loadStatisticsAndUpdate() {
     } catch (error) {
         showError(`Errore: ${error.message}`);
     }
-}
+};
 
-// Dashboard updates
-function updateDashboard() {
+// ============================================================================
+// DASHBOARD UPDATES
+// ============================================================================
+
+const updateDashboard = () => {
     updateOverview();
     updateSellersCharts();
     updatePerformanceInsights();
     updateSalesChart();
     updateUsersAnalytics();
-}
+};
 
-function updateOverview() {
+const updateOverview = () => {
     const { statistics: stats, previousStatistics: prevStats } = state;
     
     const updates = [
@@ -201,9 +231,9 @@ function updateOverview() {
         $(valueId).textContent = value;
         updateChange(changeId, current, previous);
     });
-}
+};
 
-function updateChange(elementId, current, previous) {
+const updateChange = (elementId, current, previous) => {
     const element = $(elementId);
     if (!previous) {
         element.textContent = '-';
@@ -215,16 +245,29 @@ function updateChange(elementId, current, previous) {
     const isPositive = change >= 0;
     element.textContent = `${isPositive ? '▲' : '▼'}${Math.abs(change)}%`;
     element.className = `change ${isPositive ? 'positive' : 'negative'}`;
-}
+};
 
-// Sales chart
-function updateSalesChart() {
+// ============================================================================
+// SALES CHART
+// ============================================================================
+
+const updateSalesChart = () => {
     typeof Chart !== 'undefined' ? renderChartJs() : renderCanvasFallback();
-}
+};
 
-function renderChartJs() {
+const renderChartJs = () => {
     const ctx = $('salesTrendChart');
-    if (state.salesChart) state.salesChart.destroy();
+    if (!ctx) return;
+    
+    if (state.salesChart) {
+        state.salesChart.destroy();
+        state.salesChart = null;
+    }
+    
+    const rootStyles = getComputedStyle(document.documentElement);
+    const mainColor = rootStyles.getPropertyValue('--main-color').trim() || '#3b82f6';
+    const mainColorBg = rootStyles.getPropertyValue('--main-color-bg').trim() || 'rgba(59, 130, 246, 0.1)';
+    const textColor = rootStyles.getPropertyValue('--text-primary').trim() || '#000';
     
     state.salesChart = new Chart(ctx, {
         type: 'line',
@@ -232,28 +275,55 @@ function renderChartJs() {
             labels: state.dailySalesData.map(d => `${d.day}`),
             datasets: [{
                 data: state.dailySalesData.map(d => d.sales),
-                borderColor: '#3b82f6',
-                backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                borderColor: mainColor,
+                backgroundColor: mainColorBg,
                 tension: 0.4,
-                fill: true
+                fill: true,
+                pointRadius: 3,
+                pointHoverRadius: 5
             }]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            plugins: { legend: { display: false } },
+            animation: false,
+            plugins: { 
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        label: ctx => `€${ctx.parsed.y.toFixed(2)}`
+                    }
+                }
+            },
             scales: {
-                y: { beginAtZero: true, grid: { color: 'rgba(0, 0, 0, 0.1)' } },
-                x: { grid: { display: false } }
+                y: { 
+                    beginAtZero: true,
+                    grid: { color: 'rgba(149, 154, 163, 0.2)' },
+                    ticks: { 
+                        callback: value => '€' + value,
+                        color: '#959AA3',
+                        stepSize: 100
+                    }
+                },
+                x: { 
+                    grid: { display: false },
+                    ticks: {
+                        color: '#959AA3'
+                    }
+                }
             }
         }
     });
-}
+};
 
-function renderCanvasFallback() {
+const renderCanvasFallback = () => {
     const canvas = $('salesTrendChart');
+    if (!canvas) return;
+    
     const ctx = canvas.getContext('2d');
-    const { width = 400, height = 200 } = canvas.getBoundingClientRect();
+    const rect = canvas.getBoundingClientRect();
+    const width = rect.width || 400;
+    const height = rect.height || 200;
     
     canvas.width = width;
     canvas.height = height;
@@ -270,21 +340,22 @@ function renderCanvasFallback() {
     }
     
     drawChart(ctx, width, height);
-}
+};
 
-function drawChart(ctx, width, height) {
+const drawChart = (ctx, width, height) => {
     const padding = 40;
     const data = state.dailySalesData;
     const maxSales = Math.max(...data.map(d => d.sales));
     const minSales = Math.min(...data.map(d => d.sales));
     const range = maxSales - minSales || 1;
     
-    // Background
+    const rootStyles = getComputedStyle(document.documentElement);
+    const mainColor = rootStyles.getPropertyValue('--main-color').trim() || '#3b82f6';
+    
     ctx.fillStyle = '#f9fafb';
     ctx.fillRect(0, 0, width, height);
     
-    // Draw line
-    ctx.strokeStyle = '#3b82f6';
+    ctx.strokeStyle = mainColor;
     ctx.lineWidth = 3;
     ctx.beginPath();
     
@@ -295,10 +366,13 @@ function drawChart(ctx, width, height) {
     });
     
     ctx.stroke();
-}
+};
 
-// Sellers charts
-function updateSellersCharts() {
+// ============================================================================
+// SELLERS CHARTS
+// ============================================================================
+
+const updateSellersCharts = () => {
     const items = getFilteredItems();
     const rankings = {
         bestSellers: [...items].sort((a, b) => b.quantita - a.quantita).slice(0, 3),
@@ -307,9 +381,9 @@ function updateSellersCharts() {
     };
     
     Object.entries(rankings).forEach(([id, data]) => renderPodium(id, data));
-}
+};
 
-function getFilteredItems() {
+const getFilteredItems = () => {
     const venduti = state.statistics.numero_piatti_venduti;
     const items = [];
     const categories = state.currentCategory === 'all' ? 
@@ -322,20 +396,14 @@ function getFilteredItems() {
             const quantita = vendutiData ? (vendutiData.count || vendutiData) : 0;
             const ricavo = vendutiData ? (vendutiData.revenue || quantita * item.prezzo) : 0;
             
-            items.push({
-                nome,
-                quantita,
-                prezzo: item.prezzo,
-                immagine: item.immagine,
-                ricavo
-            });
+            items.push({ nome, quantita, prezzo: item.prezzo, immagine: item.immagine, ricavo });
         });
     });
     
     return items;
-}
+};
 
-function renderPodium(containerId, items) {
+const renderPodium = (containerId, items) => {
     const container = $(containerId);
     if (items.length === 0) {
         container.innerHTML = '<p style="text-align: center; color: #6b7280; padding: 20px;">Nessun dato</p>';
@@ -350,16 +418,18 @@ function renderPodium(containerId, items) {
             <div class="revenue">€${item.ricavo.toFixed(2)} (${item.quantita} pz)</div>
         </div>
     `).join('');
-}
+};
 
-// Performance insights
-function updatePerformanceInsights() {
+// ============================================================================
+// PERFORMANCE INSIGHTS
+// ============================================================================
+
+const updatePerformanceInsights = () => {
     const { statistics: stats } = state;
     const suggestions = stats.suggerimenti;
-    const totalItems = Object.values(stats.numero_piatti_venduti).reduce((sum, item) => {
-        return sum + (item.count || item || 0);
-    }, 0);
-    // Metrics calculation
+    const totalItems = Object.values(stats.numero_piatti_venduti).reduce((sum, item) => 
+        sum + (item.count || item || 0), 0);
+    
     const metrics = {
         suggestionConversionRate: totalItems > 0 ? (suggestions.totale_items_suggeriti / totalItems * 100).toFixed(1) : 0,
         avgSuggestionValue: suggestions.totale_items_suggeriti > 0 ? 
@@ -374,9 +444,9 @@ function updatePerformanceInsights() {
     
     updateCategoryPerformance();
     updateTrendAnalysis();
-}
+};
 
-function updateCategoryPerformance() {
+const updateCategoryPerformance = () => {
     const categoryRevenue = Object.keys(state.menu).reduce((acc, categoria) => {
         acc[categoria] = Object.entries(state.menu[categoria]).reduce((sum, [nome, item]) => {
             const vendutiData = state.statistics.numero_piatti_venduti[nome];
@@ -397,30 +467,94 @@ function updateCategoryPerformance() {
                 <span class="metric-value">€${revenue.toFixed(2)}</span>
             </div>
         `).join('');
-}
+};
 
-function updateTrendAnalysis() {
-    const { statistics: current, previousStatistics: previous, dailySalesData } = state;
+const calculateMoMGrowth = async () => {
+    const { statistics: current, dailySalesData } = state;
     
-    const trends = {
-        monthlyGrowth: previous ? 
-            `${((current.totale_incasso - previous.totale_incasso) / previous.totale_incasso * 100).toFixed(1)}%` : 
-            'Primo mese',
-        bestDay: dailySalesData.length > 0 ? 
-            `${dailySalesData.reduce((max, day) => day.sales > max.sales ? day : max).day}` : 
-            'In attesa dati',
-        forecast: current.scontrino_medio ? 
-            `€${(current.scontrino_medio * 30).toFixed(2)}` : 
-            'Non disponibile'
-    };
+    if (!current || dailySalesData.length === 0) return 'Primo mese';
     
-    Object.entries(trends).forEach(([key, value]) => {
-        $(key).textContent = value;
+    const workingDaysInCurrentMonth = dailySalesData.filter(day => day.sales > 1);
+    const workingDaysCount = workingDaysInCurrentMonth.length;
+    
+    if (workingDaysCount === 0) return 'Nessun giorno lavorativo';
+    if (state.currentMonthIndex === 0) return 'Primo mese';
+    
+    try {
+        const prevMonth = state.availableMonths[state.currentMonthIndex - 1];
+        const response = await fetch(`IDs/${state.restaurantId}/daily-sales/${prevMonth}.json`);
+        
+        if (!response.ok) return 'Dati non disponibili';
+        
+        const prevDailySalesData = await response.json();
+        const prevWorkingDays = prevDailySalesData.filter(day => day.sales > 1);
+        
+        if (prevWorkingDays.length === 0) return 'Dati insufficienti';
+        
+        const currentWorkingDaysAvg = workingDaysInCurrentMonth.reduce((sum, day) => sum + day.sales, 0) / workingDaysCount;
+        const previousWorkingDaysAvg = prevWorkingDays.reduce((sum, day) => sum + day.sales, 0) / prevWorkingDays.length;
+        
+        if (previousWorkingDaysAvg === 0) {
+            return currentWorkingDaysAvg > 0 ? '▲ Nuova attività' : '0%';
+        }
+        
+        const growth = ((currentWorkingDaysAvg - previousWorkingDaysAvg) / previousWorkingDaysAvg * 100);
+        const cappedGrowth = Math.max(-99, Math.min(999, growth));
+        
+        return `${cappedGrowth >= 0 ? '▲' : '▼'}${Math.abs(cappedGrowth).toFixed(1)}%`;
+        
+    } catch (error) {
+        console.warn('Errore calcolo MoM:', error);
+        return 'Errore calcolo';
+    }
+};
+
+const updateTrendAnalysis = () => {
+    const { statistics: current, dailySalesData } = state;
+    
+    calculateMoMGrowth().then(monthlyGrowth => {
+        $('monthlyGrowth').textContent = monthlyGrowth;
     });
-}
+    
+    let bestDayText = 'In attesa dati';
+    if (dailySalesData.length > 0) {
+        const bestDayData = dailySalesData.reduce((max, day) => day.sales > max.sales ? day : max);
+        
+        const currentMonth = state.availableMonths[state.currentMonthIndex];
+        const [month, year] = currentMonth.split('-');
+        const dateObj = new Date(parseInt(year), parseInt(month) - 1, bestDayData.day);
+        
+        bestDayText = `${DAY_NAMES[dateObj.getDay()]} ${bestDayData.day}`;
+    }
+    
+    let forecastText = 'Non disponibile';
+    if (dailySalesData.length > 0 && current.totale_incasso > 0) {
+        const currentMonth = state.availableMonths[state.currentMonthIndex];
+        const [month, year] = currentMonth.split('-');
+        
+        const today = new Date();
+        const monthDate = new Date(parseInt(year), parseInt(month) - 1);
+        const isMonthFinished = today.getFullYear() > parseInt(year) || 
+                            (today.getFullYear() === parseInt(year) && today.getMonth() >= parseInt(month));
+        
+        if (isMonthFinished) {
+            forecastText = 'Finito';
+        } else {
+            const currentDay = today.getDate();
+            const lastDayOfMonth = new Date(parseInt(year), parseInt(month), 0).getDate();
+            forecastText = `€${((current.totale_incasso / currentDay) * lastDayOfMonth).toFixed(2)}`;
+        }
+    }
+    
+    $('bestDay').textContent = bestDayText;
+    $('forecast').textContent = forecastText;
+};
 
-// Users analytics
-function updateUsersAnalytics() {
+// ============================================================================
+// USERS ANALYTICS
+// ============================================================================
+
+const updateUsersAnalytics = () => {
     if (!state.usersData) {
         $('repeatCustomers').textContent = '0';
         $('newCustomers').textContent = '0';
@@ -445,7 +579,6 @@ function updateUsersAnalytics() {
         return;
     }
 
-    // Calcoli esistenti
     const repeatCustomers = userIds.filter(userId => users[userId].ordersCount > 1).length;
     const newCustomers = totalUsers - repeatCustomers;
     
@@ -455,16 +588,14 @@ function updateUsersAnalytics() {
     const totalOrders = userIds.reduce((sum, userId) => sum + users[userId].ordersCount, 0);
     const avgOrdersPerCustomer = totalUsers > 0 ? totalOrders / totalUsers : 0;
 
-    // Calcola fascia oraria preferita dall'ultimo ordine
     const timeSlots = { mattina: 0, pranzo: 0, sera: 0, notte: 0 };
 
     userIds.forEach(userId => {
         const lastOrderDate = users[userId].lastOrderDate;
         if (lastOrderDate && lastOrderDate.includes('_')) {
-            // Estrae l'ora dal formato "dd-MM-yyyy_hh-mm"
-            const timePart = lastOrderDate.split('_')[1]; // "hh-mm"
+            const timePart = lastOrderDate.split('_')[1];
             if (timePart) {
-                const hour = parseInt(timePart.split('-')[0]); // estrae "hh"
+                const hour = parseInt(timePart.split('-')[0]);
                 
                 if (hour >= 6 && hour < 12) timeSlots.mattina++;
                 else if (hour >= 12 && hour < 17) timeSlots.pranzo++;
@@ -476,46 +607,35 @@ function updateUsersAnalytics() {
     
     const preferredTimeSlot = Object.entries(timeSlots)
         .sort((a, b) => b[1] - a[1])[0][0];
-    
-    const timeSlotNames = {
-        mattina: 'Mattina (6-12)',
-        pranzo: 'Pranzo (12-17)', 
-        sera: 'Sera (17-23)',
-        notte: 'Notte (23-6)'
-    };
 
-    // Calcola giorno preferito (alternativa al canale)
-    const dayCounts = [0, 0, 0, 0, 0, 0, 0]; // Dom, Lun, Mar, Mer, Gio, Ven, Sab
+    const dayCounts = [0, 0, 0, 0, 0, 0, 0];
 
     userIds.forEach(userId => {
         const lastOrderDate = users[userId].lastOrderDate;
         if (lastOrderDate && lastOrderDate.includes('_')) {
-            // Estrae la data dal formato "dd-MM-yyyy_hh-mm"
-            const datePart = lastOrderDate.split('_')[0]; // "dd-MM-yyyy"
+            const datePart = lastOrderDate.split('_')[0];
             const [day, month, year] = datePart.split('-').map(Number);
-            
-            // Crea la data nel formato corretto per JavaScript (MM/dd/yyyy)
-            const dateObj = new Date(year, month - 1, day); // month - 1 perché JS usa 0-11 per i mesi
+            const dateObj = new Date(year, month - 1, day);
             const dayOfWeek = dateObj.getDay();
-            
             dayCounts[dayOfWeek]++;
         }
     });
 
     const preferredDay = dayCounts.indexOf(Math.max(...dayCounts));
-    const dayNames = ['Domenica', 'Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato'];
 
-    // Aggiorna interfaccia
     $('repeatCustomers').textContent = repeatCustomers.toString();
     $('newCustomers').textContent = newCustomers.toString();
     $('avgCustomerValue').textContent = `€${avgCustomerValue.toFixed(2)}`;
     $('avgOrdersPerCustomer').textContent = avgOrdersPerCustomer.toFixed(1);
-    $('preferredTimeSlot').textContent = timeSlotNames[preferredTimeSlot] || '-';
-    $('purchaseChannel').textContent = dayNames[preferredDay] || '-';
-}
+    $('preferredTimeSlot').textContent = TIME_SLOT_NAMES[preferredTimeSlot] || '-';
+    $('purchaseChannel').textContent = DAY_NAMES[preferredDay] || '-';
+};
 
-// Auto-update
-function startAutoUpdate() {
+// ============================================================================
+// AUTO-UPDATE
+// ============================================================================
+
+const startAutoUpdate = () => {
     setInterval(async () => {
         try {
             await loadDailySalesData();
@@ -524,10 +644,13 @@ function startAutoUpdate() {
             console.warn('Auto-update failed:', error);
         }
     }, 3600000); // 1 hour
-}
+};
 
-// Initialization
-async function init() {
+// ============================================================================
+// INITIALIZATION
+// ============================================================================
+
+const init = async () => {
     if (!state.restaurantId) {
         return showError('ID ristorante non specificato. Aggiungi ?id=XXXX');
     }
@@ -543,12 +666,6 @@ async function init() {
     } catch (error) {
         showError(`Errore: ${error.message}`);
     }
-}
-
-const rootStyles = getComputedStyle(document.documentElement);
-const mainColor = rootStyles.getPropertyValue('--main-color').trim();
-const mainColorBg = rootStyles.getPropertyValue('--main-color-bg').trim();
-
-// Initialize
+};
 
 document.addEventListener('DOMContentLoaded', () => init());

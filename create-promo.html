@@ -173,7 +173,6 @@
         .radio-option {
             display: flex;
             align-items: center;
-            gap: 0.5rem;
             cursor: pointer;
         }
         
@@ -187,6 +186,7 @@
         .radio-option label {
             margin: 0;
             cursor: pointer;
+            padding-left: 0.5rem;
             font-weight: 500;
         }
         
@@ -356,7 +356,7 @@
             }
 
             document.getElementById('back-btn').addEventListener('click', () => {
-                window.location.href = `gestione.html?id=${restaurantId}`;
+                window.location.href = `profile.html?id=${restaurantId}`;
             });
 
             // Forza maiuscolo e rimuove spazi dal codice

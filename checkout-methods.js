@@ -457,6 +457,7 @@ function formatTimeInput(e) {
 
 async function createOrder(tipo) {
   const selectedItems = JSON.parse(localStorage.getItem('totemino_selected') || '[]');
+  const orderNotes = JSON.parse(localStorage.getItem('totemino_notes') || '[]');
   const userId = localStorage.getItem('totemino_userId') || `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   
   if (!localStorage.getItem('totemino_userId')) {
@@ -464,21 +465,30 @@ async function createOrder(tipo) {
   }
   
   const items = [];
-  for (let i = 0; i < selectedItems.length; i += 3) {
+  const notes = [];
+  
+  for (let i = 0, noteIndex = 0; i < selectedItems.length; i += 3, noteIndex++) {
     const itemName = selectedItems[i];
     const customizations = JSON.parse(selectedItems[i + 1] || '{}');
     const quantity = parseInt(selectedItems[i + 2]) || 1;
     
     const stateItem = STATE?.items?.find(si => si.name === itemName);
     const isSuggested = stateItem?.isSuggested || false;
+    const isCoperto = stateItem?.isCoperto || false;
     
-    items.push({
-      name: itemName,
-      price: stateItem?.price || 0,
-      quantity: quantity,
-      isSuggested: isSuggested,
-      customizations: customizations
-    });
+    // ✅ Salta il coperto dagli items
+    if (!isCoperto) {
+      items.push({
+        name: itemName,
+        price: stateItem?.price || 0,
+        quantity: quantity,
+        isSuggested: isSuggested,
+        customizations: customizations
+      });
+      
+      // ✅ Aggiungi la nota corrispondente
+      notes.push(orderNotes[noteIndex] || "");
+    }
   }
   
   const total = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
@@ -486,7 +496,7 @@ async function createOrder(tipo) {
   const orderData = {
     userId: userId,
     items: items,
-    orderNotes: [],
+    orderNotes: notes,
     total: total,
     timestamp: new Date().toISOString(),
     restaurantId: new URLSearchParams(window.location.search).get('id') || 'default',
@@ -688,10 +698,20 @@ async function validateAndConfirm(tipo) {
       
       localStorage.removeItem(`totemino_draft_${tipo}`);
       localStorage.removeItem('totemino_selected');
+      localStorage.removeItem('totemino_notes');
+      localStorage.removeItem('totemino_total');
+      localStorage.removeItem('totemino_count');
+      localStorage.removeItem('totemino_suggested_items');
+      localStorage.removeItem('totemino_suggestion_stats');
+      localStorage.removeItem('totemino_show_riepilogo');
+      
+      ['tavolo', 'delivery', 'takeaway'].forEach(metodo => {
+        localStorage.removeItem(`totemino_draft_${metodo}`);
+      });
       
       closeBottomSheet();
       
-      window.location.href = 'success.html';
+      window.location.href = 'success.html?id=' + restaurantId;
       
     } catch (error) {
       console.error('⚠️ Errore creazione ordine:', error);
