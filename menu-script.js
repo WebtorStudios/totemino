@@ -73,13 +73,13 @@ function prependToMap(map, key, value) {
   return newMap;
 }
 
-// Carica customization.json
+// Carica customizations.json
 async function loadCustomizations() {
   try {
-    const res = await fetch(`IDs/${restaurantId}/customization.json`);
+    const res = await fetch(`IDs/${restaurantId}/customizations.json`);
     customizationData = await res.json();
   } catch (e) {
-    console.warn("customization.json non trovato o errore:", e);
+    console.warn("customizations.json non trovato o errore:", e);
   }
 }
 

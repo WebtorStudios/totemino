@@ -240,7 +240,7 @@ const DataManager = {
   
     const [menuJson, customizationData, settings] = await Promise.all([
       fetch(`IDs/${CONFIG.restaurantId}/menu.json`).then(r => r.json()),
-      fetch(`IDs/${CONFIG.restaurantId}/customization.json`).then(r => r.json()).catch(() => ({})),
+      fetch(`IDs/${CONFIG.restaurantId}/customizations.json`).then(r => r.json()).catch(() => ({})),
       fetch(`IDs/${CONFIG.restaurantId}/menuTypes.json`).then(r => r.json()).catch(() => ({ menuTypes: [] }))
     ]);
   

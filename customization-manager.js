@@ -5,7 +5,7 @@ let editingGroupId = null;
 // ===== INIT =====
 async function loadCustomizations() {
   try {
-    const res = await fetch(`/IDs/${restaurantId}/customization.json`);
+    const res = await fetch(`/IDs/${restaurantId}/customizations.json`);
     customData = res.ok ? await res.json() : createDefaults();
     if (!res.ok) await saveCustomizations();
   } catch (err) {

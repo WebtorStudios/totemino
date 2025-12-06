@@ -133,7 +133,7 @@
                 try {
                     const [menu, custom] = await Promise.all([
                         fetch(`IDs/${id}/menu.json`).then(r => r.json()),
-                        fetch(`IDs/${id}/customization.json`).then(r => r.json()).catch(() => ({}))
+                        fetch(`IDs/${id}/customizations.json`).then(r => r.json()).catch(() => ({}))
                     ]);
 
                     const order = JSON.parse(localStorage.getItem('totemino_selected') || '[]');

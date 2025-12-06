@@ -497,7 +497,7 @@ const CustomizationParser = {
   async calculateItemPrice(restaurantId, itemName, customizations = {}) {
     try {
       const menuPath = path.join(__dirname, 'IDs', restaurantId, 'menu.json');
-      const customPath = path.join(__dirname, 'IDs', restaurantId, 'customization.json');
+      const customPath = path.join(__dirname, 'IDs', restaurantId, 'customizations.json');
       
       const menuData = await FileManager.loadJSON(menuPath, { categories: [] });
       const customizationData = await FileManager.loadJSON(customPath, {});
@@ -1679,7 +1679,7 @@ app.post('/save-customizations/:restaurantId', requireAuth, async (req, res) => 
     return res.status(400).json({ success: false, message: 'Customizzazioni mancanti' });
   }
 
-  const customizationsPath = path.join(__dirname, 'IDs', restaurantId, 'customization.json');
+  const customizationsPath = path.join(__dirname, 'IDs', restaurantId, 'customizations.json');
 
   try {
     await FileManager.saveJSON(customizationsPath, customizations);
@@ -1695,9 +1695,9 @@ app.post('/save-customizations/:restaurantId', requireAuth, async (req, res) => 
 });
 
 // ==================== PUBLIC ROUTES (NO AUTH) ====================
-app.get('/IDs/:restaurantId/customization.json', async (req, res) => {
+app.get('/IDs/:restaurantId/customizations.json', async (req, res) => {
   const { restaurantId } = req.params;
-  const customizationsPath = path.join(__dirname, 'IDs', restaurantId, 'customization.json');
+  const customizationsPath = path.join(__dirname, 'IDs', restaurantId, 'customizations.json');
 
   try {
     const customizations = await FileManager.loadJSON(customizationsPath, {});
