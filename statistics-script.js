@@ -98,7 +98,7 @@ const loadStatistics = async () => {
 const loadDailySalesData = async () => {
     try {
         const currentMonth = state.availableMonths[state.currentMonthIndex];
-        const response = await fetch(`IDs/${state.restaurantId}/daily-sales/${currentMonth}.json`);
+        const response = await fetch(`IDs/${state.restaurantId}/statistics/daily-sales/${currentMonth}.json`);
         state.dailySalesData = response.ok ? await response.json() : [];
     } catch {
         state.dailySalesData = [];
@@ -482,7 +482,7 @@ const calculateMoMGrowth = async () => {
     
     try {
         const prevMonth = state.availableMonths[state.currentMonthIndex - 1];
-        const response = await fetch(`IDs/${state.restaurantId}/daily-sales/${prevMonth}.json`);
+        const response = await fetch(`IDs/${state.restaurantId}/statistics/daily-sales/${prevMonth}.json`);
         
         if (!response.ok) return 'Dati non disponibili';
         
