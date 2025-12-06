@@ -78,7 +78,7 @@ const loadAvailableMonths = async () => {
 
 const loadStatistics = async () => {
     const currentMonth = state.availableMonths[state.currentMonthIndex];
-    const response = await fetch(`IDs/${state.restaurantId}/statistics/${currentMonth}.json`);
+    const response = await fetch(`IDs/${state.restaurantId}/statistics/months/${currentMonth}.json`);
     if (!response.ok) throw new Error(`Statistiche non trovate per ${currentMonth}`);
     
     state.statistics = await response.json();
@@ -87,7 +87,7 @@ const loadStatistics = async () => {
     if (state.currentMonthIndex > 0) {
         try {
             const prevMonth = state.availableMonths[state.currentMonthIndex - 1];
-            const prevResponse = await fetch(`IDs/${state.restaurantId}/statistics/${prevMonth}.json`);
+            const prevResponse = await fetch(`IDs/${state.restaurantId}/statistics/months/${prevMonth}.json`);
             state.previousStatistics = prevResponse.ok ? await prevResponse.json() : null;
         } catch {
             state.previousStatistics = null;

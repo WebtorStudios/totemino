@@ -594,8 +594,8 @@ const StatisticsManager = {
   async updateStats(restaurantId, orderData) {
     const now = new Date();
     const monthYear = `${now.getMonth() + 1}-${now.getFullYear()}`;
-    const statsPath = path.join(__dirname, 'IDs', restaurantId, 'statistics', `${monthYear}.json`);
-    const salesPath = path.join(__dirname, 'IDs', restaurantId, 'statistics','daily-sales', `${monthYear}.json`);
+    const statsPath = path.join(__dirname, 'IDs', restaurantId, 'statistics', 'months', `${monthYear}.json`);
+    const salesPath = path.join(__dirname, 'IDs', restaurantId, 'statistics', 'daily-sales', `${monthYear}.json`);
     const usersPath = path.join(__dirname, 'IDs', restaurantId, 'statistics', 'users', 'general.json');
     
     try {
