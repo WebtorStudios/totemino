@@ -62,10 +62,8 @@ app.post('/webhook/stripe',
       const userCode = session.metadata?.userCode;
       const planType = session.metadata?.planType;
       
-      
-      
       if (!userCode || !planType) {
-        console.error('❌ Metadata mancanti');
+        console.error('⛔ Metadata mancanti');
         return res.status(400).json({ error: 'Metadata mancanti' });
       }
       
@@ -73,15 +71,15 @@ app.post('/webhook/stripe',
         const users = await FileManager.loadUsers();
         
         if (!users[userCode]) {
-          console.error(`❌ Utente ${userCode} non trovato`);
+          console.error(`⛔ Utente ${userCode} non trovato`);
           return res.status(404).json({ error: 'Utente non trovato' });
         }
         
-        // ✅ NUOVO: Cancella abbonamento precedente se esiste
+        // ✅ Cancella abbonamento precedente se esiste
         if (users[userCode].stripeSubscriptionId) {
           try {
             await stripe.subscriptions.cancel(users[userCode].stripeSubscriptionId);
-            
+            console.log(`✅ Abbonamento precedente cancellato per ${userCode}`);
           } catch (cancelError) {
             console.warn('⚠️ Errore cancellazione abbonamento precedente:', cancelError.message);
           }
@@ -93,6 +91,16 @@ app.post('/webhook/stripe',
         if (subscriptionId) {
           const subscription = await stripe.subscriptions.retrieve(subscriptionId);
           
+          // 🔧 NUOVO: Recupera informazioni sulle tasse
+          let taxAmount = 0;
+          let totalAmount = session.amount_total / 100; // Converti da centesimi
+          let subtotal = session.amount_subtotal / 100;
+          
+          if (session.total_details?.amount_tax) {
+            taxAmount = session.total_details.amount_tax / 100;
+          }
+          
+          // Aggiorna utente
           users[userCode].planType = planType;
           users[userCode].paymentDate = new Date().toISOString();
           users[userCode].stripeSessionId = session.id;
@@ -102,12 +110,25 @@ app.post('/webhook/stripe',
             subscription.current_period_end * 1000
           ).toISOString();
           
+          // 🔧 NUOVO: Salva dettagli pagamento con tasse
+          users[userCode].lastPayment = {
+            date: new Date().toISOString(),
+            subtotal: subtotal,
+            tax: taxAmount,
+            total: totalAmount,
+            currency: session.currency || 'eur',
+            planType: planType
+          };
+          
           delete users[userCode].trialEndsAt;
           
           await FileManager.saveUsers(users);
           
-          
-          
+          console.log(`✅ Pagamento completato per ${userCode}`);
+          console.log(`   Piano: ${planType}`);
+          console.log(`   Subtotale: €${subtotal.toFixed(2)}`);
+          console.log(`   Tasse: €${taxAmount.toFixed(2)}`);
+          console.log(`   Totale: €${totalAmount.toFixed(2)}`);
           
           return res.json({ received: true, userCode, planType });
         } else {
@@ -115,7 +136,7 @@ app.post('/webhook/stripe',
         }
         
       } catch (error) {
-        console.error('❌ Errore elaborazione pagamento:', error);
+        console.error('⛔ Errore elaborazione pagamento:', error);
         return res.status(500).json({ error: error.message });
       }
     }
@@ -2104,5 +2125,6 @@ app.listen(PORT, () => {
   
   
 });
+
 
 
