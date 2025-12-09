@@ -2022,7 +2022,7 @@ app.get('/api/months/:restaurantId', requireAuth, async (req, res) => {
   }
 
   try {
-    const folder = path.join(__dirname, 'IDs', restaurantId, 'statistics');
+    const folder = path.join(__dirname, 'IDs', restaurantId, 'statistics', 'months');
     if (!fsSync.existsSync(folder)) {
       return res.status(404).json({ error: 'Cartella statistiche non trovata' });
     }
@@ -2104,6 +2104,7 @@ app.listen(PORT, () => {
   
   
 });
+
 
 
 
