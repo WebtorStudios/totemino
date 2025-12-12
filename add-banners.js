@@ -125,6 +125,7 @@
 	let currentIndex = 0;
 	let bannerElement = null;
 	let isVisible = false;
+	let phoneNumber = null;
   
 	// Get restaurant ID from URL
 	const urlParams = new URLSearchParams(window.location.search);
@@ -161,9 +162,14 @@
   
 	// Open WhatsApp
 	function openWhatsApp() {
+	  if (!phoneNumber) {
+		console.error('Numero di telefono non disponibile');
+		return;
+	  }
+	  
 	  const currentBanner = banners[currentIndex];
 	  const message = `Salve, volevo prenotare per la serata di ${currentBanner.title}`;
-	  const whatsappUrl = `https://wa.me/393389102371?text=${encodeURIComponent(message)}`;
+	  const whatsappUrl = `https://wa.me/+39${phoneNumber}?text=${encodeURIComponent(message)}`;
 	  window.open(whatsappUrl, '_blank');
 	}
   
@@ -204,6 +210,23 @@
 	  }, 300);
 	}
   
+	// Load phone number from settings
+	async function loadPhoneNumber() {
+	  try {
+		const response = await fetch(`/IDs/${restaurantId}/settings.json`);
+		if (response.ok) {
+		  const settings = await response.json();
+		  phoneNumber = settings.restaurant?.phone || null;
+		  
+		  if (!phoneNumber) {
+			console.warn('Numero di telefono non trovato nelle impostazioni');
+		  }
+		}
+	  } catch (error) {
+		console.error('Errore caricamento numero di telefono:', error);
+	  }
+	}
+  
 	// Load banners
 	async function loadBanners() {
 	  try {
@@ -224,10 +247,15 @@
 	}
   
 	// Initialize when DOM is ready
+	async function init() {
+	  await loadPhoneNumber();
+	  await loadBanners();
+	}
+  
 	if (document.readyState === 'loading') {
-	  document.addEventListener('DOMContentLoaded', loadBanners);
+	  document.addEventListener('DOMContentLoaded', init);
 	} else {
-	  loadBanners();
+	  init();
 	}
 
 })();
