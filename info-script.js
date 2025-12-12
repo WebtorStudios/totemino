@@ -28,6 +28,12 @@ function setupEventListeners() {
   });
   document.getElementById('logo-input').addEventListener('change', handleLogoUpload);
   
+  // Validazione campo telefono
+  document.getElementById('phone').addEventListener('input', (e) => {
+    let digits = e.target.value.replace(/\D/g, '').substring(0, 11);
+    e.target.value = digits;
+  });
+  
   document.getElementById('delivery-cost-type').addEventListener('change', e => {
     toggle('cost-fixed-group', e.target.value === 'fixed');
     toggle('cost-per-km-group', e.target.value === 'distance');
@@ -907,3 +913,4 @@ function notify(msg, type = 'success') {
   notifyTimeout = setTimeout(() => el.classList.remove('show'), 3000);
 
 }
+
