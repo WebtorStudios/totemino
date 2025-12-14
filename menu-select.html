@@ -185,6 +185,7 @@
             const history = localStorage.getItem(CONFIG.storageKeys.history);
             const cookieConsent = localStorage.getItem('totemino_cookie_consent');
             const lastCoperto = localStorage.getItem('totemino_last_coperto');
+            const logoSwap = localStorage.getItem('logo_swap_num');
             
             localStorage.clear();
             
@@ -193,6 +194,7 @@
             if (history) localStorage.setItem(CONFIG.storageKeys.history, history);
             if (cookieConsent) localStorage.setItem('totemino_cookie_consent', cookieConsent);
             if (lastCoperto) localStorage.setItem('totemino_last_coperto', lastCoperto);
+            if (logoSwap) localStorage.setItem('logo_swap_num', logoSwap);
         }
 
         clearStorageKeepUser();
@@ -259,6 +261,7 @@
 </body>
 
 </html>
+
 
 
 
