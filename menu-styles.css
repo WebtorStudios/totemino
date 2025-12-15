@@ -363,7 +363,7 @@ input[type="number"]::-webkit-outer-spin-button {
   cursor: pointer;
 }
 
-.categories button:hover {
+.categories button:hover:not(.active) {
   background: var(--shadow-lg);
 }
 
@@ -983,4 +983,5 @@ footer {
 .footer-img a:hover {
   opacity: 0.8;
 }
+
 
