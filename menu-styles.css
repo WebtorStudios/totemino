@@ -363,6 +363,10 @@ input[type="number"]::-webkit-outer-spin-button {
   cursor: pointer;
 }
 
+.categories button:hover {
+  background: var(--shadow-lg);
+}
+
 .categories .pill {
   position: absolute;
   z-index: 0;
@@ -979,3 +983,4 @@ footer {
 .footer-img a:hover {
   opacity: 0.8;
 }
+
