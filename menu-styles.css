@@ -361,6 +361,7 @@ input[type="number"]::-webkit-outer-spin-button {
   color: var(--text-primary);
   font-weight: 500;
   cursor: pointer;
+  transition: background 0.15s;
 }
 
 .categories button:hover:not(.active) {
@@ -983,5 +984,6 @@ footer {
 .footer-img a:hover {
   opacity: 0.8;
 }
+
 
 
