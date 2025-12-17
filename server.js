@@ -1792,6 +1792,149 @@ app.post('/IDs/:restaurantId/orders/:section', async (req, res) => {
   }
 });
 
+// ==================== BOOKINGS ROUTES ====================
+// GET - Carica tutte le prenotazioni (PROTECTED)
+app.get('/IDs/:restaurantId/bookings', requireAuth, async (req, res) => {
+  const { restaurantId } = req.params;
+
+  if (req.session.user.restaurantId !== restaurantId) {
+    return res.status(403).json({ error: 'Accesso non autorizzato' });
+  }
+
+  const bookingsPath = path.join(__dirname, 'IDs', restaurantId, 'bookings.json');
+
+  try {
+    const bookings = await FileManager.loadJSON(bookingsPath, []);
+    res.json(bookings);
+  } catch (error) {
+    console.error('❌ Errore caricamento prenotazioni:', error);
+    res.status(500).json({ error: 'Errore nel caricamento delle prenotazioni' });
+  }
+});
+
+// POST - Crea nuova prenotazione (PUBLIC - da utente)
+app.post('/IDs/:restaurantId/bookings', async (req, res) => {
+  const { restaurantId } = req.params;
+  const bookingData = req.body;
+
+  const restaurantDir = path.join(__dirname, 'IDs', restaurantId);
+  if (!fsSync.existsSync(restaurantDir)) {
+    return res.status(404).json({ error: 'Ristorante non trovato' });
+  }
+
+  const bookingsPath = path.join(restaurantDir, 'bookings.json');
+
+  try {
+    // Carica prenotazioni esistenti
+    let bookings = await FileManager.loadJSON(bookingsPath, []);
+
+    // Genera ID univoco
+    const now = new Date();
+    const dateStr = now.toISOString().split('T')[0].replace(/-/g, '');
+    const timeStr = now.toTimeString().split(' ')[0].replace(/:/g, '');
+    const bookingId = `BK${dateStr}${timeStr}`;
+
+    // Crea prenotazione
+    const newBooking = {
+      id: bookingId,
+      customerName: bookingData.customerName,
+      phone: bookingData.phone,
+      date: bookingData.date,
+      time: bookingData.time,
+      people: bookingData.people,
+      tables: bookingData.tables || [],
+      notes: bookingData.notes || '',
+      status: 'pending',
+      createdAt: now.toISOString()
+    };
+
+    bookings.push(newBooking);
+
+    // Salva
+    await FileManager.saveJSON(bookingsPath, bookings);
+
+    res.json({
+      success: true,
+      bookingId: bookingId,
+      message: 'Prenotazione creata con successo',
+      booking: newBooking
+    });
+
+  } catch (error) {
+    console.error('❌ Errore creazione prenotazione:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Errore nella creazione della prenotazione'
+    });
+  }
+});
+
+// PATCH - Aggiorna stato prenotazione (PROTECTED)
+app.patch('/IDs/:restaurantId/bookings/:bookingId', requireAuth, async (req, res) => {
+  const { restaurantId, bookingId } = req.params;
+  const { status } = req.body;
+
+  if (req.session.user.restaurantId !== restaurantId) {
+    return res.status(403).json({ error: 'Accesso non autorizzato' });
+  }
+
+  const bookingsPath = path.join(__dirname, 'IDs', restaurantId, 'bookings.json');
+
+  try {
+    let bookings = await FileManager.loadJSON(bookingsPath, []);
+    
+    const booking = bookings.find(b => b.id === bookingId);
+    if (!booking) {
+      return res.status(404).json({ error: 'Prenotazione non trovata' });
+    }
+
+    booking.status = status;
+    booking.lastModified = new Date().toISOString();
+
+    await FileManager.saveJSON(bookingsPath, bookings);
+
+    res.json({ success: true, bookingId, status });
+
+  } catch (error) {
+    console.error('❌ Errore aggiornamento prenotazione:', error);
+    res.status(500).json({ error: 'Errore nell\'aggiornamento' });
+  }
+});
+
+// DELETE - Elimina prenotazione (PROTECTED)
+app.delete('/IDs/:restaurantId/bookings/:bookingId', requireAuth, async (req, res) => {
+  const { restaurantId, bookingId } = req.params;
+
+  if (req.session.user.restaurantId !== restaurantId) {
+    return res.status(403).json({ error: 'Accesso non autorizzato' });
+  }
+
+  const bookingsPath = path.join(__dirname, 'IDs', restaurantId, 'bookings.json');
+
+  try {
+    let bookings = await FileManager.loadJSON(bookingsPath, []);
+    
+    const initialLength = bookings.length;
+    bookings = bookings.filter(b => b.id !== bookingId);
+
+    if (bookings.length === initialLength) {
+      return res.status(404).json({ error: 'Prenotazione non trovata' });
+    }
+
+    await FileManager.saveJSON(bookingsPath, bookings);
+
+    res.json({
+      success: true,
+      message: 'Prenotazione eliminata',
+      bookingId
+    });
+
+  } catch (error) {
+    console.error('❌ Errore eliminazione prenotazione:', error);
+    res.status(500).json({ error: 'Errore nell\'eliminazione' });
+  }
+});
+
 // ==================== ADMIN ORDER MANAGEMENT (PROTECTED) ====================
 app.get('/IDs/:restaurantId/orders/:section', requireAuth, async (req, res) => {
   const { restaurantId, section } = req.params;

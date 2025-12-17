@@ -17,6 +17,12 @@
   border: 3px solid var(--card-border);
 }
 
+@media (max-width: 768px) {
+  .settings-section {
+    padding: 1rem;
+  }
+}
+
 .section-title {
   font-family: 'Klein-Bold';
   font-size: 1.5rem;
@@ -58,7 +64,6 @@
   font-family: inherit;
 }
 
-.form-group input:focus,
 .form-group select:focus,
 .form-group textarea:focus {
   outline: none;
@@ -217,7 +222,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 
 .reset-slot-btn.restore {
   color: var(--text-accent);
-  background: var(--accent-gold);
+  background: var(--accent-gold)!important;
 }
 
 .reset-slot-btn i {
@@ -248,6 +253,13 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   grid-template-columns: 2fr 1.2fr 1.2fr auto;
   gap: 0.8rem;
   align-items: center;
+}
+
+@media (max-width: 768px) {
+  .closure-item {
+    grid-template-columns: auto;
+    grid-template-rows: auto auto auto auto;
+  }
 }
 
 .closure-item input {
@@ -302,6 +314,65 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   }
 }
 
+/* ===== TABLES MANAGEMENT ===== */
+.table-item {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: 0.8rem;
+  align-items: center;
+}
+
+.table-item input {
+  padding: 0.8rem;
+  border: 2px solid var(--btn-secondary);
+  border-radius: 1rem;
+  background: var(--pill-bg);
+  color: var(--text-primary);
+  font-size: 1rem;
+  transition: all 0.2s ease;
+}
+
+.remove-table-btn {
+  background: #e53e3e;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 2.5rem;
+  height: 2.5rem;
+  cursor: pointer;
+  font-size: 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.2s;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.remove-table-btn:hover {
+  transform: scale(1.1);
+}
+
+/* Small text helper */
+small {
+  display: block;
+  font-size: 0.85rem;
+  opacity: 0.7;
+  margin-top: 0.3rem;
+  line-height: 1.4;
+}
+
+/* Responsive per mobile */
+@media (max-width: 768px) {
+  .table-item {
+    grid-template-columns: 1fr;
+  }
+  
+  .remove-table-btn {
+    justify-self: flex-end;
+  }
+}
+
 /* ===== PAYMENT & NOTIFICATION OPTIONS (STILE CHECKOUT-METHODS-SIMPLE) ===== */
 .payment-options,
 .notification-options {
@@ -350,10 +421,11 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   cursor: pointer;
   width: max-content;
   gap: 0.5rem;
-  margin-bottom: 2rem;
+  margin-bottom: 1rem;
 }
 .checkbox-label label {
   cursor: pointer;
+  margin-bottom: 0;
 }
 
 .like-square {
@@ -580,8 +652,5 @@ input[type="date"]::-webkit-calendar-picker-indicator {
     display: grid;
     grid-template-columns: 1fr 3fr;
     gap: 0.5rem;
-  }
-  .time-pill {
-    width: 50%!important;
   }
 }

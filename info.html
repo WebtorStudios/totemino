@@ -150,6 +150,77 @@
       </div>
     </div>
 
+    <!-- 3.5 PRENOTAZIONI -->
+    <div class="settings-section">
+      <h2 class="section-title">Prenotazioni</h2>
+      
+      <div class="checkbox-label">
+        <input type="checkbox" id="reservations-enabled" class="like-square">
+        <label for="reservations-enabled">
+          Abilita sistema di prenotazioni
+        </label>
+      </div>
+
+      <div id="reservations-settings" style="display: none;">
+        <div class="form-row-2">
+          <div class="form-group">
+            <label for="max-people-per-slot">Persone massime ogni Fascia Oraria</label>
+            <input type="number" id="max-people-per-slot" min="1" step="1" placeholder="Es. 40">
+          </div>
+
+          <div class="form-group">
+            <label for="slot-duration">Durata Fascia Oraria (minuti)</label>
+            <input type="number" id="slot-duration" min="15" step="15" placeholder="Es. 90">
+          </div>
+        </div>
+
+        <div class="form-row-2">
+          <div class="form-group">
+            <label for="advance-booking-days">Preavviso Massimo Prenotazione (giorni)</label>
+            <input type="number" id="advance-booking-days" min="1" step="1" placeholder="Es. 14">
+            <small style="opacity: 0.7; font-size: 0.85rem; display: block; margin-top: 0.3rem;">
+              Fino a quanti giorni prima è possibile prenotare
+            </small>
+          </div>
+
+          <div class="form-group">
+            <label for="min-advance-minutes">Preavviso Minimo Prenotazione (minuti)</label>
+            <input type="number" id="min-advance-minutes" min="0" step="1" placeholder="Es. 15">
+            <small style="opacity: 0.7; font-size: 0.85rem; display: block; margin-top: 0.3rem;">
+              Quanti minuti prima bisogna prenotare
+            </small>
+          </div>
+        </div>
+
+        <!-- GESTIONE TAVOLI -->
+        <div class="form-group">
+          <div class="checkbox-label" style="margin-bottom: 0.5rem;">
+            <input type="checkbox" id="tables-enabled" class="like-square" >
+            <label for="tables-enabled" style="font-weight: 400;">
+              Abilita gestione tavoli (opzionale)
+            </label>
+          </div>
+          <small style="opacity: 0.7; font-size: 0.85rem; display: block;">
+            Se abilitato, i clienti potranno scegliere un tavolo specifico durante la prenotazione
+          </small>
+        </div>
+
+        <div id="tables-management" style="display: none; margin-top: 1.5rem;">
+          <label style="display: block; margin-bottom: 1rem; font-weight: 600;">
+            Tavoli Disponibili
+          </label>
+          
+          <div id="tables-list" style="display: flex; flex-direction: column; gap: 0.8rem;">
+            <!-- I tavoli verranno aggiunti dinamicamente qui -->
+          </div>
+          
+          <button class="btn-secondary" onclick="addTable()" style="margin: 1rem auto;" id="add-table-btn">
+            + Aggiungi Tavolo
+          </button>
+        </div>
+      </div>
+    </div>
+
     <!-- 4. IMPOSTAZIONI DI CONSEGNA -->
     <div class="settings-section">
       <h2 class="section-title">Consegna a domicilio</h2>

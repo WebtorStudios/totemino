@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script>
+    (function() {
+      const saved = localStorage.getItem('totemino_theme');
+      const theme = saved || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+      document.documentElement.setAttribute('data-theme', theme);
+    })();
+  </script>
+  <title>Gestione Prenotazioni - Totemino</title>
+  <link rel="icon" type="image/png" href="img/favicon.png">
+  <link rel="stylesheet" href="index-styles.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <style>
+    body {
+      padding-bottom: 2rem;
+    }
+
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 0 1rem;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+      margin-top: 6.5rem;
+      margin-bottom: 2rem;
+    }
+
+    .stat-card {
+      background: var(--card-bg);
+      padding: 1.5rem;
+      border-radius: 1.5rem;
+      box-shadow: 0 4px 12px var(--shadow-sm);
+      text-align: center;
+      border: 3px solid var(--card-border);
+    }
+
+    .stat-card h3 {
+      font-size: 2.5rem;
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+      background: linear-gradient(135deg, var(--text-accent), var(--text-accent-gradient));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .stat-card p {
+      font-size: 0.95rem;
+      color: var(--text-primary);
+      opacity: 0.8;
+    }
+
+    .filters {
+      display: flex;
+      gap: 1rem;
+      margin-bottom: 2rem;
+      flex-wrap: wrap;
+    }
+
+    .filter-btn {
+      padding: 0.7rem 1.5rem;
+      border: 2px solid var(--btn-secondary);
+      background: transparent;
+      color: var(--text-primary);
+      border-radius: 2rem;
+      font-size: 1rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+
+    .filter-btn:hover {
+      background: var(--btn-secondary);
+    }
+
+    .filter-btn.active {
+      background: var(--accent-gold);
+      border-color: var(--accent-gold);
+      color: var(--text-primary);
+      font-weight: 700;
+    }
+
+    .date-filter input {
+      padding: 0.7rem 1rem;
+      border: 2px solid var(--btn-secondary);
+      background: var(--card-bg);
+      color: var(--text-primary);
+      border-radius: 1rem;
+      font-size: 1rem;
+      font-family: 'QS', sans-serif;
+    }
+
+    .bookings-list {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .booking-card {
+      background: var(--card-bg);
+      border: 3px solid var(--card-border);
+      border-radius: 1.5rem;
+      padding: 1.5rem;
+      box-shadow: 0 4px 12px var(--shadow-sm);
+      transition: all 0.3s;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .booking-card::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 5px;
+      background: var(--accent-gold);
+    }
+
+    .booking-card.status-pending::before { background: #ffa500; }
+    .booking-card.status-confirmed::before { background: #4caf50; }
+    .booking-card.status-completed::before { background: #2196f3; }
+    .booking-card.status-cancelled::before { background: #f44336; }
+
+    .booking-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: start;
+      margin-bottom: 1rem;
+    }
+
+    .booking-info h3 {
+      font-size: 1.4rem;
+      font-weight: 700;
+      color: var(--text-accent);
+      margin-bottom: 0.3rem;
+    }
+
+    .booking-id {
+      font-size: 0.85rem;
+      color: var(--text-primary);
+      opacity: 0.6;
+    }
+
+    .booking-status {
+      padding: 0.4rem 1rem;
+      border-radius: 1.5rem;
+      font-size: 0.85rem;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+
+    .status-pending { background: #fff3cd; color: #856404; }
+    [data-theme="dark"] .status-pending { background: #4a3a0f; color: #ffc107; }
+    .status-confirmed { background: #d4edda; color: #155724; }
+    [data-theme="dark"] .status-confirmed { background: #1a3a23; color: #4caf50; }
+    .status-completed { background: #d1ecf1; color: #0c5460; }
+    [data-theme="dark"] .status-completed { background: #1a3540; color: #2196f3; }
+    .status-cancelled { background: #f8d7da; color: #721c24; }
+    [data-theme="dark"] .status-cancelled { background: #3a1a1c; color: #f44336; }
+
+    .booking-details {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+      margin-bottom: 1rem;
+    }
+
+    .detail-item {
+      display: flex;
+      align-items: center;
+      gap: 0.7rem;
+    }
+
+    .detail-item i {
+      width: 1.5rem;
+      color: var(--text-accent);
+      opacity: 0.7;
+    }
+
+    .detail-item span {
+      font-size: 0.95rem;
+      color: var(--text-primary);
+    }
+
+    .booking-notes {
+      background: var(--input-bg);
+      padding: 0.8rem;
+      border-radius: 1rem;
+      margin-bottom: 1rem;
+      font-size: 0.9rem;
+      color: var(--text-primary);
+      font-style: italic;
+    }
+
+    .booking-actions {
+      display: flex;
+      gap: 0.7rem;
+      flex-wrap: wrap;
+    }
+
+    .action-btn {
+      padding: 0.6rem 1.2rem;
+      border: none;
+      border-radius: 1.5rem;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .btn-confirm {
+      background: #4caf50;
+      color: white;
+    }
+
+    .btn-confirm:hover {
+      background: #45a049;
+      transform: translateY(-2px);
+    }
+
+    .btn-complete {
+      background: #2196f3;
+      color: white;
+    }
+
+    .btn-complete:hover {
+      background: #1976d2;
+      transform: translateY(-2px);
+    }
+
+    .btn-cancel {
+      background: #f44336;
+      color: white;
+    }
+
+    .btn-cancel:hover {
+      background: #da190b;
+      transform: translateY(-2px);
+    }
+
+    .btn-contact {
+      background: var(--accent-gold);
+      color: var(--text-primary);
+    }
+
+    .btn-contact:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 8px var(--shadow-sm);
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 4rem 2rem;
+      color: var(--text-primary);
+      opacity: 0.6;
+    }
+
+    .empty-state i {
+      font-size: 4rem;
+      margin-bottom: 1rem;
+      opacity: 0.5;
+    }
+
+    .empty-state h3 {
+      font-size: 1.5rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .notification {
+      position: fixed;
+      top: 7.5rem;
+      right: 2rem;
+      padding: 1rem 1.5rem;
+      border-radius: 1rem;
+      font-weight: 600;
+      opacity: 0;
+      transform: translateX(400px);
+      transition: all 0.3s;
+      z-index: 9999;
+      box-shadow: 0 4px 12px var(--shadow-sm);
+    }
+
+    .notification.show {
+      opacity: 1;
+      transform: translateX(0);
+    }
+
+    .notification.success {
+      background: #4caf50;
+      color: white;
+    }
+
+    .notification.error {
+      background: #f44336;
+      color: white;
+    }
+
+    [data-theme="dark"] ::-webkit-calendar-picker-indicator {
+      filter: invert(1);
+    }
+
+
+    @media (max-width: 768px) {
+      .header {
+        flex-direction: column;
+        gap: 1rem;
+        align-items: flex-start;
+      }
+
+      .booking-details {
+        grid-template-columns: 1fr;
+      }
+
+      .booking-actions {
+        flex-direction: column;
+      }
+
+      .action-btn {
+        width: 100%;
+        justify-content: center;
+      }
+    }
+
+  </style>
+</head>
+<body>
+  <div class="bg-light light1"></div>
+  <div class="bg-light light2"></div>
+  <div class="bg-light light3"></div>
+
+  <div class="notification" id="notification"></div>
+
+  <div class="container">
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="nav-brand">
+                <img class="theme-img" data-light="img/logo/1_light.png" data-dark="img/logo/1_dark.png" alt="Totemino Logo" id="logoSwap">
+                <a href="index.html"><h1>Totemino</h1></a>
+            </div>
+            <div class="nav-actions">
+                <button id="theme" class="nav-btn theme-btn" type="button">
+                    <img class="theme-img" data-light="img/theme_light.png" data-dark="img/theme_dark.png" alt="Tema">
+                </button>
+                <a href="login.html" class="nav-btn login-btn">Profilo</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="stats-grid">
+      <div class="stat-card">
+        <h3 id="stat-today">0</h3>
+        <p>Oggi</p>
+      </div>
+      <div class="stat-card">
+        <h3 id="stat-pending">0</h3>
+        <p>In Attesa</p>
+      </div>
+      <div class="stat-card">
+        <h3 id="stat-confirmed">0</h3>
+        <p>Confermate</p>
+      </div>
+      <div class="stat-card">
+        <h3 id="stat-total-people">0</h3>
+        <p>Coperti Totali</p>
+      </div>
+    </div>
+
+    <div class="filters">
+      <button class="filter-btn active" data-filter="all">Tutte</button>
+      <button class="filter-btn" data-filter="pending">In Attesa</button>
+      <button class="filter-btn" data-filter="confirmed">Confermate</button>
+      <button class="filter-btn" data-filter="completed">Completate</button>
+      <button class="filter-btn" data-filter="cancelled">Cancellate</button>
+      
+      <div class="date-filter">
+        <input type="date" id="date-filter" placeholder="Filtra per data">
+      </div>
+    </div>
+
+    <div class="bookings-list" id="bookings-list">
+      <!-- Le prenotazioni verranno inserite qui -->
+    </div>
+  </div>
+
+  <script src="auth-protection.js"></script>
+  <script>
+    const restaurantId = new URLSearchParams(window.location.search).get('id') || 'default';
+    let bookingsData = [];
+    let currentFilter = 'all';
+    let dateFilter = null;
+
+    // Funzioni utility
+    function formatDate(dateString) {
+      const date = new Date(dateString);
+      const options = { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' };
+      return date.toLocaleDateString('it-IT', options);
+    }
+
+    function getStatusText(status) {
+      const statusMap = {
+        'pending': 'In Attesa',
+        'confirmed': 'Confermata',
+        'completed': 'Completata',
+        'cancelled': 'Cancellata'
+      };
+      return statusMap[status] || status;
+    }
+
+    function notify(msg, type = 'success') {
+      const el = document.getElementById('notification');
+      el.className = `notification ${type}`;
+      el.textContent = msg;
+      el.classList.add('show');
+      setTimeout(() => el.classList.remove('show'), 3000);
+    }
+
+    // Calcola statistiche
+    function updateStats(bookings) {
+      const today = new Date().toISOString().split('T')[0];
+      const todayBookings = bookings.filter(b => b.date === today && b.status !== 'cancelled');
+      const pending = bookings.filter(b => b.status === 'pending').length;
+      const confirmed = bookings.filter(b => b.status === 'confirmed').length;
+      const totalPeople = bookings
+        .filter(b => b.status === 'confirmed' || b.status === 'pending')
+        .reduce((sum, b) => sum + b.people, 0);
+
+      document.getElementById('stat-today').textContent = todayBookings.length;
+      document.getElementById('stat-pending').textContent = pending;
+      document.getElementById('stat-confirmed').textContent = confirmed;
+      document.getElementById('stat-total-people').textContent = totalPeople;
+    }
+
+    // Carica prenotazioni
+    async function loadBookings() {
+      try {
+        const res = await fetch(`/IDs/${restaurantId}/bookings`);
+        if (!res.ok) throw new Error('Errore caricamento');
+        
+        bookingsData = await res.json();
+        updateStats(bookingsData);
+        renderBookings();
+      } catch (error) {
+        notify('Ancora nessuna prenotazione', 'error');
+      }
+    }
+
+    // Renderizza prenotazioni
+    function renderBookings() {
+      const container = document.getElementById('bookings-list');
+      let filteredBookings = bookingsData;
+
+      if (currentFilter !== 'all') {
+        filteredBookings = filteredBookings.filter(b => b.status === currentFilter);
+      }
+
+      if (dateFilter) {
+        filteredBookings = filteredBookings.filter(b => b.date === dateFilter);
+      }
+
+      filteredBookings.sort((a, b) => {
+        const dateA = new Date(`${a.date}T${a.time}`);
+        const dateB = new Date(`${b.date}T${b.time}`);
+        return dateA - dateB;
+      });
+
+      if (filteredBookings.length === 0) {
+        container.innerHTML = `
+          <div class="empty-state">
+            <i class="fas fa-calendar-times"></i>
+            <h3>Nessuna prenotazione</h3>
+            <p>Non ci sono prenotazioni per i filtri selezionati</p>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = filteredBookings.map(booking => `
+        <div class="booking-card status-${booking.status}">
+          <div class="booking-header">
+            <div class="booking-info">
+              <h3>${booking.customerName}</h3>
+              <p class="booking-id">${booking.id}</p>
+            </div>
+            <span class="booking-status status-${booking.status}">
+              ${getStatusText(booking.status)}
+            </span>
+          </div>
+
+          <div class="booking-details">
+            <div class="detail-item">
+              <i class="fas fa-calendar"></i>
+              <span><strong>${formatDate(booking.date)}</strong></span>
+            </div>
+            <div class="detail-item">
+              <i class="fas fa-clock"></i>
+              <span><strong>${booking.time}</strong></span>
+            </div>
+            <div class="detail-item">
+              <i class="fas fa-users"></i>
+              <span><strong>${booking.people} ${booking.people === 1 ? 'persona' : 'persone'}</strong></span>
+            </div>
+            <div class="detail-item">
+              <i class="fas fa-phone"></i>
+              <span>${booking.phone}</span>
+            </div>
+            ${booking.email ? `
+            <div class="detail-item">
+              <i class="fas fa-envelope"></i>
+              <span>${booking.email}</span>
+            </div>
+            ` : ''}
+          </div>
+
+          ${booking.notes ? `
+          <div class="booking-notes">
+            <i class="fas fa-sticky-note"></i> ${booking.notes}
+          </div>
+          ` : ''}
+
+          <div class="booking-actions">
+            ${booking.status === 'pending' ? `
+              <button class="action-btn btn-confirm" onclick="updateStatus('${booking.id}', 'confirmed')">
+                <i class="fas fa-check"></i> Conferma
+              </button>
+            ` : ''}
+            ${booking.status === 'confirmed' ? `
+              <button class="action-btn btn-complete" onclick="updateStatus('${booking.id}', 'completed')">
+                <i class="fas fa-check-double"></i> Completa
+              </button>
+            ` : ''}
+            ${booking.status !== 'cancelled' && booking.status !== 'completed' ? `
+              <button class="action-btn btn-cancel" onclick="updateStatus('${booking.id}', 'cancelled')">
+                <i class="fas fa-times"></i> Cancella
+              </button>
+            ` : ''}
+            <button class="action-btn btn-contact" onclick="contactCustomer('${booking.phone}')">
+              <i class="fas fa-phone"></i> Contatta
+            </button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    // Aggiorna stato prenotazione
+    async function updateStatus(bookingId, newStatus) {
+      try {
+        const res = await fetch(`/IDs/${restaurantId}/bookings/${bookingId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: newStatus })
+        });
+
+        if (!res.ok) throw new Error('Errore aggiornamento');
+
+        const booking = bookingsData.find(b => b.id === bookingId);
+        if (booking) {
+          booking.status = newStatus;
+          updateStats(bookingsData);
+          renderBookings();
+          notify(`Prenotazione ${getStatusText(newStatus).toLowerCase()}`, 'success');
+        }
+      } catch (error) {
+        console.error('Errore aggiornamento:', error);
+        notify('Errore aggiornamento stato', 'error');
+      }
+    }
+
+    // Contatta cliente
+    function contactCustomer(phone) {
+      window.location.href = `tel:${phone}`;
+    }
+
+    // Event listeners filtri
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+      btn.addEventListener('click', function() {
+        document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+        this.classList.add('active');
+        currentFilter = this.dataset.filter;
+        renderBookings();
+      });
+    });
+
+    document.getElementById('date-filter').addEventListener('change', function(e) {
+      dateFilter = e.target.value || null;
+      renderBookings();
+    });
+
+    // Inizializza
+    loadBookings();
+  </script>
+  <script src="theme.js"></script>
+  <script src="logo-pop.js"></script>
+</body>
+</html>

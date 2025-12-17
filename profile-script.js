@@ -81,12 +81,15 @@ function updatePlanDisplay(plan, userData) {
 
 // Set menu links
 function setMenuLinks() {
-    document.getElementById('informazioniCard').href = `info.html?id=${restaurantId}`;
-    document.getElementById('promoCard').href = `create-promo.html?id=${restaurantId}`;
     document.getElementById('gestioneCard').href = `gestione.html?id=${restaurantId}`;
     document.getElementById('menuCard').href = `gestione-menu.html?id=${restaurantId}`;
     document.getElementById('statsCard').href = `statistics.html?id=${restaurantId}`;
+
+    document.getElementById('informazioniCard').href = `info.html?id=${restaurantId}`;
+    document.getElementById('prenotazioniCard').href = `prenotazioni.html?id=${restaurantId}`;
     document.getElementById('bannersCard').href = `create-banners.html?id=${restaurantId}`;
+    document.getElementById('promoCard').href = `create-promo.html?id=${restaurantId}`;
+
     document.getElementById('previewCard').href = `menu-select.html?id=${restaurantId}`;
 }
 

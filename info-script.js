@@ -34,6 +34,14 @@ function setupEventListeners() {
     e.target.value = digits;
   });
   
+  document.getElementById('reservations-enabled').addEventListener('change', e => {
+    toggle('reservations-settings', e.target.checked);
+  });
+  
+  document.getElementById('tables-enabled').addEventListener('change', e => {
+    toggle('tables-management', e.target.checked);
+  });
+
   document.getElementById('delivery-cost-type').addEventListener('change', e => {
     toggle('cost-fixed-group', e.target.value === 'fixed');
     toggle('cost-per-km-group', e.target.value === 'distance');
@@ -317,6 +325,49 @@ function urlBase64ToUint8Array(base64String) {
   return outputArray;
 }
 
+
+function addTable() {
+  const list = document.getElementById('tables-list');
+  const tableCount = list.children.length + 1;
+  
+  const div = document.createElement('div');
+  div.className = 'table-item';
+  div.style.cssText = 'display: grid; grid-template-columns: 1fr 1fr auto; gap: 0.8rem; align-items: center;';
+  div.innerHTML = `
+    <input type="text" placeholder="Nome tavolo (es. Tavolo 1)" data-field="name" 
+          value="Tavolo ${tableCount}" 
+          style="padding: 0.8rem; border: 2px solid var(--btn-secondary); border-radius: 1rem; background: var(--pill-bg); color: var(--text-primary);">
+    <input type="number" placeholder="Posti" data-field="seats" min="1" max="20" 
+          style="padding: 0.8rem; border: 2px solid var(--btn-secondary); border-radius: 1rem; background: var(--pill-bg); color: var(--text-primary);">
+    <button class="remove-table-btn" onclick="removeTable(this)" 
+            style="background: #e53e3e; color: white; border: none; border-radius: 50%; width: 2.5rem; height: 2.5rem; cursor: pointer; font-size: 1.5rem;">
+      ×
+    </button>
+  `;
+  
+  list.appendChild(div);
+  
+  // Aggiungi listeners per auto-save
+  div.querySelectorAll('input').forEach(input => {
+    input.addEventListener('input', saveToLocalStorage);
+    input.addEventListener('change', saveToLocalStorage);
+  });
+  
+  saveToLocalStorage();
+}
+
+function removeTable(btn) {
+  btn.parentElement.remove();
+  saveToLocalStorage();
+}
+
+function collectTables() {
+  return Array.from(document.querySelectorAll('.table-item')).map(item => ({
+    name: item.querySelector('[data-field="name"]').value,
+    seats: parseInt(item.querySelector('[data-field="seats"]').value) || 0
+  })).filter(t => t.name && t.seats > 0);
+}
+
 // ===== LOCAL STORAGE =====
 function saveToLocalStorage() {
   try {
@@ -334,6 +385,15 @@ function saveToLocalStorage() {
       schedule: {
         openingHours: collectHours('opening-hours'),
         exceptionalClosures: collectClosures()
+      },
+      reservations: {
+        enabled: document.getElementById('reservations-enabled')?.checked || false,
+        maxPeoplePerSlot: parseInt(getValue('#max-people-per-slot')) || 40,
+        slotDuration: parseInt(getValue('#slot-duration')) || 120,
+        tablesEnabled: document.getElementById('tables-enabled')?.checked || false,
+        tables: collectTables(),
+        advanceBookingDays: parseInt(getValue('#advance-booking-days')) || 30,
+        minAdvanceMinutes: parseInt(getValue('#min-advance-minutes')) || 2
       },
       delivery: {
         radius: getValue('#delivery-radius'),
@@ -404,7 +464,32 @@ function loadFromLocalStorage() {
         }
       });
     }
-    
+
+    if (data.reservations) {
+      const r = data.reservations;
+      
+      document.getElementById('reservations-enabled').checked = r.enabled || false;
+      toggle('reservations-settings', r.enabled);
+      
+      setValue('#max-people-per-slot', r.maxPeoplePerSlot);
+      setValue('#slot-duration', r.slotDuration);
+      setValue('#advance-booking-days', r.advanceBookingDays);
+      setValue('#min-advance-minutes', r.minAdvanceMinutes);
+      
+      document.getElementById('tables-enabled').checked = r.tablesEnabled || false;
+      toggle('tables-management', r.tablesEnabled);
+      
+      if (r.tables && r.tables.length > 0) {
+        document.getElementById('tables-list').innerHTML = '';
+        r.tables.forEach(table => {
+          addTable();
+          const item = document.querySelector('.table-item:last-child');
+          item.querySelector('[data-field="name"]').value = table.name;
+          item.querySelector('[data-field="seats"]').value = table.seats;
+        });
+      }
+    }
+
     // Delivery
     if (data.delivery) {
       const d = data.delivery;
@@ -489,6 +574,7 @@ function toggleSlot(btn) {
     pill.style.opacity = '1';
     pill.style.pointerEvents = 'auto';
     icon.className = 'fas fa-times';
+    btn.classList.remove('restore');
   } else {
     pill.dataset.savedOpen = inputs[0].value;
     pill.dataset.savedClose = inputs[1].value;
@@ -498,6 +584,7 @@ function toggleSlot(btn) {
     pill.style.opacity = '0.3';
     pill.style.pointerEvents = 'none';
     icon.className = 'fas fa-redo';
+    btn.classList.add('restore');
   }
   
   saveToLocalStorage();
@@ -560,6 +647,7 @@ function loadHours(containerId, hoursData) {
         pill.style.opacity = '0.3';
         pill.style.pointerEvents = 'none';
         btn.querySelector('i').className = 'fas fa-redo';
+        btn.classList.add('restore');
       }
     });
   });
@@ -696,6 +784,32 @@ async function loadSettings() {
       item.querySelector('[data-field="end"]').value = closure.end || '';
     });
     
+    // Prenotazioni
+    if (settings.reservations) {
+      const r = settings.reservations;
+      
+      document.getElementById('reservations-enabled').checked = r.enabled || false;
+      toggle('reservations-settings', r.enabled);
+      
+      setValue('#max-people-per-slot', r.maxPeoplePerSlot);
+      setValue('#slot-duration', r.slotDuration);
+      setValue('#advance-booking-days', r.advanceBookingDays);
+      setValue('#min-advance-minutes', r.minAdvanceMinutes);
+      
+      document.getElementById('tables-enabled').checked = r.tablesEnabled || false;
+      toggle('tables-management', r.tablesEnabled);
+      
+      if (r.tables && r.tables.length > 0) {
+        document.getElementById('tables-list').innerHTML = '';
+        r.tables.forEach(table => {
+          addTable();
+          const item = document.querySelector('.table-item:last-child');
+          item.querySelector('[data-field="name"]').value = table.name;
+          item.querySelector('[data-field="seats"]').value = table.seats;
+        });
+      }
+    }
+
     // Delivery
     const d = settings.delivery || {};
     setValue('#delivery-radius', d.radius);
@@ -761,6 +875,15 @@ async function saveSettings() {
       schedule: {
         openingHours: collectHours('opening-hours'),
         exceptionalClosures: collectClosures()
+      },
+      reservations: {
+        enabled: document.getElementById('reservations-enabled').checked,
+        maxPeoplePerSlot: parseInt(getValue('#max-people-per-slot')) || 40,
+        slotDuration: parseInt(getValue('#slot-duration')) || 120,
+        tablesEnabled: document.getElementById('tables-enabled').checked,
+        tables: collectTables(),
+        advanceBookingDays: parseInt(getValue('#advance-booking-days')) || 30,
+        minAdvanceMinutes: parseInt(getValue('#min-advance-minutes')) || 2
       },
       delivery: {
         radius: parseFloat(getValue('#delivery-radius')) || 0,

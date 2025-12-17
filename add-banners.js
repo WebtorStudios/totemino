@@ -116,6 +116,13 @@
 		filter: invert(1);
  		opacity: 0.8;
 	  }
+
+	  /* Stile per banner non cliccabile */
+	  .totemino-banner.non-clickable {
+		cursor: default;
+		pointer-events: none;
+		opacity: 0.9;
+	  }
 	`;
 	document.head.appendChild(style);
   
@@ -126,6 +133,7 @@
 	let bannerElement = null;
 	let isVisible = false;
 	let phoneNumber = null;
+	let restaurantSettings = null;
   
 	// Get restaurant ID from URL
 	const urlParams = new URLSearchParams(window.location.search);
@@ -143,7 +151,7 @@
 	  
 	  // Check if .order element exists and adjust bottom position
 	  const orderElement = document.querySelector('.order');
-	  if (getComputedStyle(orderElement).display !== 'none') {
+	  if (orderElement && getComputedStyle(orderElement).display !== 'none') {
 		banner.style.bottom = '8rem';
       }
 
@@ -155,22 +163,58 @@
 		closeBanner();
 	  });
 	  
-	  banner.addEventListener('click', openWhatsApp);
+	  // Verifica se il banner deve essere cliccabile
+	  const canReserve = checkReservationAvailable();
+	  const hasPhone = !!phoneNumber;
+	  
+	  if (canReserve || hasPhone) {
+		banner.addEventListener('click', openLink);
+	  } else {
+		// Banner non cliccabile
+		banner.classList.add('non-clickable');
+	  }
 	  
 	  return banner;
 	}
   
-	// Open WhatsApp
-	function openWhatsApp() {
-	  if (!phoneNumber) {
-		console.error('Numero di telefono non disponibile');
+	// Open appropriate link based on conditions
+	function openLink() {
+	  const currentBanner = banners[currentIndex];
+	  
+	  // Logica 1: Se può prenotare → vai a prenota.html
+	  if (checkReservationAvailable()) {
+		const prenotaUrl = `prenota.html?id=${restaurantId}`;
+		window.open(prenotaUrl, '_blank');
 		return;
 	  }
 	  
-	  const currentBanner = banners[currentIndex];
-	  const message = `Salve, volevo prenotare per la serata di ${currentBanner.title}`;
-	  const whatsappUrl = `https://wa.me/+39${phoneNumber}?text=${encodeURIComponent(message)}`;
-	  window.open(whatsappUrl, '_blank');
+	  // Logica 2: Se c'è numero di telefono → WhatsApp
+	  if (phoneNumber) {
+		const message = `Salve, volevo prenotare per la serata di ${currentBanner.title}`;
+		const whatsappUrl = `https://wa.me/+39${phoneNumber}?text=${encodeURIComponent(message)}`;
+		window.open(whatsappUrl, '_blank');
+		return;
+	  }
+	  
+	  // Logica 3: Se nessuna delle due → non fare nulla
+	  console.log('Banner non cliccabile');
+	}
+
+	// Check if reservation is available
+	function checkReservationAvailable() {
+	  if (!restaurantSettings?.reservations?.enabled) {
+		return false;
+	  }
+	  
+	  const reservations = restaurantSettings.reservations;
+	  
+	  // Se tablesEnabled è true, controlla che ci siano tavoli
+	  if (reservations.tablesEnabled) {
+		return reservations.tables && reservations.tables.length > 0;
+	  }
+	  
+	  // Se tablesEnabled è false, controlla maxPeoplePerSlot
+	  return reservations.maxPeoplePerSlot > 0;
 	}
   
 	// Show banner
@@ -217,13 +261,26 @@
 		if (response.ok) {
 		  const settings = await response.json();
 		  phoneNumber = settings.restaurant?.phone || null;
+		}
+	  } catch (error) {
+		console.error('Errore caricamento telefono', error);
+	  }
+	}
+
+	// Load restaurant settings
+	async function loadRestaurantSettings() {
+	  try {
+		const response = await fetch(`/IDs/${restaurantId}/settings.json`);
+		if (response.ok) {
+		  restaurantSettings = await response.json();
 		  
-		  if (!phoneNumber) {
-			console.warn('Numero di telefono non trovato nelle impostazioni');
+		  // Carica anche il numero se non già caricato
+		  if (!phoneNumber && restaurantSettings.restaurant?.phone) {
+			phoneNumber = restaurantSettings.restaurant.phone;
 		  }
 		}
 	  } catch (error) {
-		console.error('Errore caricamento numero di telefono:', error);
+		console.error('Errore caricamento impostazioni:', error);
 	  }
 	}
   
@@ -249,6 +306,7 @@
 	// Initialize when DOM is ready
 	async function init() {
 	  await loadPhoneNumber();
+	  await loadRestaurantSettings();
 	  await loadBanners();
 	}
   
