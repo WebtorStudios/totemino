@@ -19,6 +19,7 @@
   to {
     opacity: 0;
     pointer-events: none;
+    visibility: hidden;
   }
 }
 
@@ -610,4 +611,5 @@
 @media (min-width: 768px) {
   .navigation { max-width: 500px; border-radius: 3rem; border: none; margin: 0 auto 1rem;}
   .time-slots { grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); }
+
 }
