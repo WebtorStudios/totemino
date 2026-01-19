@@ -446,6 +446,7 @@
   border: 2px solid var(--btn-secondary);
   border-radius: 1.2rem;
   padding: 1.5rem;
+  margin-bottom: 1.5rem;
   box-shadow: 0 4px 12px var(--shadow-sm);
 }
 
@@ -614,6 +615,7 @@
   .time-slots { grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); }
 
 }
+
 
 
 
