@@ -356,6 +356,11 @@ function selectDate(date, element) {
 
   renderTimeSlots(date);
   updateNextButtonState();
+
+  window.scrollTo({
+    top: document.body.scrollHeight,
+    behavior: 'smooth'
+  });
 }
 
 function renderTimeSlots(date) {
@@ -564,3 +569,4 @@ async function submitBooking() {
 }
 
 init();
+
