@@ -339,6 +339,7 @@
   max-height: 25vh;
   overflow-y: auto;
   padding: 0.2rem;
+  margin-bottom: 1.5rem;
 }
 
 .time-slots-container::-webkit-scrollbar {
@@ -613,5 +614,6 @@
   .time-slots { grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); }
 
 }
+
 
 
