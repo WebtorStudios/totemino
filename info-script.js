@@ -1,7 +1,6 @@
 // ===== CONFIG =====
 const DAYS = ['Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato', 'Domenica'];
 const restaurantId = new URLSearchParams(window.location.search).get("id") || "default";
-const STORAGE_KEY = `totemino_settings_${restaurantId}`;
 let VAPID_PUBLIC_KEY = null;
 
 // ===== INIT =====
@@ -9,8 +8,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   renderHoursInputs('opening-hours');
   renderHoursInputs('delivery-hours');
   setupEventListeners();
-  loadFromLocalStorage();
-  await loadSettings();
+  await loadSettings(); // Unica fonte di verità
   await loadVapidKey();
   await checkNotificationStatus();
   await verifyStripeConnection();
@@ -18,14 +16,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 // ===== EVENT LISTENERS =====
 function setupEventListeners() {
-  // Auto-save su tutti gli input
-  document.querySelectorAll('input, select, textarea').forEach(field => {
-    field.addEventListener('input', saveToLocalStorage);
-    field.addEventListener('change', saveToLocalStorage);
+  // Auto-save è stato rimosso. Tutto ora viene salvato solo su file.
+  
+  document.getElementById('back-btn').addEventListener('click', () => {
+    window.location.href = `profile.html?id=${restaurantId}`;
   });
-   document.getElementById('back-btn').addEventListener('click', () => {
-      window.location.href = `profile.html?id=${restaurantId}`;
-  });
+  
   document.getElementById('logo-input').addEventListener('change', handleLogoUpload);
   
   // Validazione campo telefono
@@ -73,8 +69,6 @@ async function handleNotificationToggle(e) {
     // Vuole disattivare
     await disablePushNotifications();
   }
-  
-  saveToLocalStorage();
 }
 
 // ===== ENABLE PUSH NOTIFICATIONS =====
@@ -325,7 +319,7 @@ function urlBase64ToUint8Array(base64String) {
   return outputArray;
 }
 
-
+// ===== TABLES MANAGEMENT =====
 function addTable() {
   const list = document.getElementById('tables-list');
   const tableCount = list.children.length + 1;
@@ -346,19 +340,10 @@ function addTable() {
   `;
   
   list.appendChild(div);
-  
-  // Aggiungi listeners per auto-save
-  div.querySelectorAll('input').forEach(input => {
-    input.addEventListener('input', saveToLocalStorage);
-    input.addEventListener('change', saveToLocalStorage);
-  });
-  
-  saveToLocalStorage();
 }
 
 function removeTable(btn) {
   btn.parentElement.remove();
-  saveToLocalStorage();
 }
 
 function collectTables() {
@@ -366,177 +351,6 @@ function collectTables() {
     name: item.querySelector('[data-field="name"]').value,
     seats: parseInt(item.querySelector('[data-field="seats"]').value) || 0
   })).filter(t => t.name && t.seats > 0);
-}
-
-// ===== LOCAL STORAGE =====
-function saveToLocalStorage() {
-  try {
-    const data = {
-      restaurant: {
-        name: getValue('#restaurant-name'),
-        owner: getValue('#owner-name'),
-        street: getValue('#restaurant-street'),
-        number: getValue('#restaurant-number'),
-        cap: getValue('#restaurant-cap'),
-        phone: getValue('#phone'),
-        email: getValue('#email'),
-        logo: document.querySelector('#logo-preview img')?.src || null
-      },
-      schedule: {
-        openingHours: collectHours('opening-hours'),
-        exceptionalClosures: collectClosures()
-      },
-      reservations: {
-        enabled: document.getElementById('reservations-enabled')?.checked || false,
-        maxPeoplePerSlot: parseInt(getValue('#max-people-per-slot')) || 40,
-        slotDuration: parseInt(getValue('#slot-duration')) || 120,
-        tablesEnabled: document.getElementById('tables-enabled')?.checked || false,
-        tables: collectTables(),
-        advanceBookingDays: parseInt(getValue('#advance-booking-days')) || 30,
-        minAdvanceMinutes: parseInt(getValue('#min-advance-minutes')) || 2
-      },
-      delivery: {
-        radius: getValue('#delivery-radius'),
-        costType: getValue('#delivery-cost-type'),
-        costFixed: getValue('#delivery-cost-fixed'),
-        costPerKm: getValue('#delivery-cost-per-km'),
-        minOrder: getValue('#min-order'),
-        freeDeliveryThreshold: getValue('#free-delivery-threshold'),
-        prepTime: getValue('#prep-time'),
-        sameAsOpeningHours: document.getElementById('same-hours-delivery')?.checked || false,
-        deliveryHours: document.getElementById('same-hours-delivery')?.checked 
-          ? {} : collectHours('delivery-hours')
-      },
-      notifications: {
-        app: document.getElementById('notify-app')?.checked || false,
-        printer: document.getElementById('notify-printer')?.checked || false,
-        whatsapp: document.getElementById('notify-whatsapp')?.checked || false,
-        whatsappNumbers: collectWhatsAppNumbers()
-      },
-      payments: {
-        cash: document.getElementById('payment-cash')?.checked || false,
-        card: document.getElementById('payment-card')?.checked || false,
-        stripe: document.getElementById('payment-stripe')?.checked || false
-      }
-    };
-    
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-  } catch (err) {
-    console.error('❌ Errore salvataggio localStorage:', err);
-  }
-}
-
-function loadFromLocalStorage() {
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (!stored) return;
-    
-    const data = JSON.parse(stored);
-    
-    // Restaurant
-    if (data.restaurant) {
-      setValue('#restaurant-name', data.restaurant.name);
-      setValue('#owner-name', data.restaurant.owner);
-      setValue('#restaurant-street', data.restaurant.street);
-      setValue('#restaurant-number', data.restaurant.number);
-      setValue('#restaurant-cap', data.restaurant.cap);
-      setValue('#phone', data.restaurant.phone);
-      setValue('#email', data.restaurant.email);
-      
-      if (data.restaurant.logo) {
-        document.getElementById('logo-preview').innerHTML = 
-          `<img src="${data.restaurant.logo}" alt="Logo Ristorante">`;
-      }
-    }
-    
-    // Hours
-    if (data.schedule?.openingHours) loadHours('opening-hours', data.schedule.openingHours);
-    
-    // Closures
-    if (data.schedule?.exceptionalClosures) {
-      data.schedule.exceptionalClosures.forEach(closure => {
-        if (closure.title && closure.start && closure.end) {
-          addClosure();
-          const item = document.querySelector('.closure-item:last-child');
-          item.querySelector('[data-field="title"]').value = closure.title;
-          item.querySelector('[data-field="start"]').value = closure.start;
-          item.querySelector('[data-field="end"]').value = closure.end;
-        }
-      });
-    }
-
-    if (data.reservations) {
-      const r = data.reservations;
-      
-      document.getElementById('reservations-enabled').checked = r.enabled || false;
-      toggle('reservations-settings', r.enabled);
-      
-      setValue('#max-people-per-slot', r.maxPeoplePerSlot);
-      setValue('#slot-duration', r.slotDuration);
-      setValue('#advance-booking-days', r.advanceBookingDays);
-      setValue('#min-advance-minutes', r.minAdvanceMinutes);
-      
-      document.getElementById('tables-enabled').checked = r.tablesEnabled || false;
-      toggle('tables-management', r.tablesEnabled);
-      
-      if (r.tables && r.tables.length > 0) {
-        document.getElementById('tables-list').innerHTML = '';
-        r.tables.forEach(table => {
-          addTable();
-          const item = document.querySelector('.table-item:last-child');
-          item.querySelector('[data-field="name"]').value = table.name;
-          item.querySelector('[data-field="seats"]').value = table.seats;
-        });
-      }
-    }
-
-    // Delivery
-    if (data.delivery) {
-      const d = data.delivery;
-      setValue('#delivery-radius', d.radius);
-      setValue('#min-order', d.minOrder);
-      setValue('#prep-time', d.prepTime);
-      setValue('#delivery-cost-type', d.costType);
-      setValue('#delivery-cost-fixed', d.costFixed);
-      setValue('#delivery-cost-per-km', d.costPerKm);
-      setValue('#free-delivery-threshold', d.freeDeliveryThreshold);
-      
-      document.getElementById('same-hours-delivery').checked = d.sameAsOpeningHours || false;
-      toggle('cost-fixed-group', d.costType === 'fixed');
-      toggle('cost-per-km-group', d.costType !== 'fixed');
-      toggle('delivery-hours-container', !d.sameAsOpeningHours);
-      
-      if (!d.sameAsOpeningHours && d.deliveryHours) {
-        loadHours('delivery-hours', d.deliveryHours);
-      }
-    }
-    
-    // Notifications
-    if (data.notifications) {
-      document.getElementById('notify-app').checked = data.notifications.app !== false;
-      document.getElementById('notify-printer').checked = data.notifications.printer || false;
-      document.getElementById('notify-whatsapp').checked = data.notifications.whatsapp || false;
-      toggle('whatsapp-numbers-section', data.notifications.whatsapp);
-      
-      if (data.notifications.whatsappNumbers) {
-        document.getElementById('whatsapp-numbers-list').innerHTML = '';
-        data.notifications.whatsappNumbers.forEach(num => {
-          addWhatsAppNumber();
-          const input = document.querySelector('.whatsapp-number-item:last-child input');
-          if (input) input.value = num;
-        });
-      }
-    }
-    
-    // Payments
-    if (data.payments) {
-      document.getElementById('payment-cash').checked = data.payments.cash !== false;
-      document.getElementById('payment-card').checked = data.payments.card || false;
-    }
-    
-  } catch (err) {
-    console.error('❌ Errore caricamento localStorage:', err);
-  }
 }
 
 // ===== RENDER HOURS =====
@@ -586,8 +400,6 @@ function toggleSlot(btn) {
     icon.className = 'fas fa-redo';
     btn.classList.add('restore');
   }
-  
-  saveToLocalStorage();
 }
 
 function collectHours(containerId) {
@@ -662,16 +474,9 @@ function addClosure() {
     <input type="text" placeholder="Motivo (es. Ferie)" data-field="title">
     <input type="date" data-field="start">
     <input type="date" data-field="end">
-    <button class="remove-closure-btn" onclick="this.parentElement.remove(); saveToLocalStorage()">×</button>
+    <button class="remove-closure-btn" onclick="this.parentElement.remove()">×</button>
   `;
   container.appendChild(div);
-  
-  div.querySelectorAll('input').forEach(input => {
-    input.addEventListener('input', saveToLocalStorage);
-    input.addEventListener('change', saveToLocalStorage);
-  });
-  
-  saveToLocalStorage();
 }
 
 function collectClosures() {
@@ -682,19 +487,80 @@ function collectClosures() {
   })).filter(c => c.title && c.start && c.end);
 }
 
-// ===== LOGO =====
-function handleLogoUpload(e) {
+// ===== LOGO (Senza localStorage) =====
+async function handleLogoUpload(e) {
   const file = e.target.files[0];
   if (!file) return;
-  
-  const reader = new FileReader();
-  reader.onload = (event) => {
-    document.getElementById('logo-preview').innerHTML = 
-      `<img src="${event.target.result}" alt="Logo Ristorante">`;
-    saveToLocalStorage();
-    notify('Logo caricato', 'success');
-  };
-  reader.readAsDataURL(file);
+
+  const preview = document.getElementById('logo-preview');
+  const existingImg = preview.querySelector('img');
+  const existingImgSrc = existingImg?.src;
+
+  // Validazione tipo file
+  if (!file.type.startsWith('image/')) {
+    notify('Seleziona un\'immagine valida', 'error');
+    return;
+  }
+
+  // Validazione dimensione (max 5MB)
+  if (file.size > 5 * 1024 * 1024) {
+    notify('Immagine troppo grande (max 5MB)', 'error');
+    return;
+  }
+
+  try {
+    notify('Caricamento logo...', 'success');
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      const base64Data = event.target.result;
+
+      try {
+        const uploadRes = await fetch('/upload-image', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            fileName: file.name,
+            fileData: base64Data,
+            restaurantId: restaurantId,
+            oldImageUrl: existingImgSrc || null
+          })
+        });
+
+        if (!uploadRes.ok) throw new Error('Errore upload immagine');
+
+        const result = await uploadRes.json();
+        if (!result.success) throw new Error(result.message || 'Upload fallito');
+
+        // Preview definitiva solo se l'upload ha successo
+        preview.innerHTML = `<img src="${result.imageUrl}" alt="Logo Ristorante">`;
+        notify('Logo caricato con successo!', 'success');
+
+      } catch (uploadErr) {
+        console.error('❌ Errore upload:', uploadErr);
+        
+        // Ripristino: se c'era un'immagine prima, la mantengo
+        if (existingImgSrc) {
+          preview.innerHTML = `<img src="${existingImgSrc}" alt="Logo Ristorante">`;
+        } else {
+          // Se non c'era nessun logo, mostra il placeholder
+          preview.innerHTML = `<div class="logo-preview-placeholder">Nessun logo</div>`;
+        }
+        
+        notify(uploadErr.message || 'Errore caricamento logo', 'error');
+      }
+    };
+
+    reader.onerror = () => {
+      notify('Errore lettura file', 'error');
+    };
+
+    reader.readAsDataURL(file);
+
+  } catch (err) {
+    console.error('❌ Errore:', err);
+    notify('Errore nel caricamento', 'error');
+  }
 }
 
 // ===== WHATSAPP =====
@@ -725,20 +591,16 @@ function addWhatsAppNumber() {
     if (digits.length > 3) formatted += ' ' + digits.substring(3, 6);
     if (digits.length > 6) formatted += ' ' + digits.substring(6, 10);
     e.target.value = formatted;
-    saveToLocalStorage();
   });
   
   if (list.children.length >= 5) {
     document.getElementById('add-whatsapp-btn').style.display = 'none';
   }
-  
-  saveToLocalStorage();
 }
 
 function removeWhatsAppNumber(btn) {
   btn.parentElement.remove();
   document.getElementById('add-whatsapp-btn').style.display = 'block';
-  saveToLocalStorage();
 }
 
 function collectWhatsAppNumbers() {
@@ -747,11 +609,14 @@ function collectWhatsAppNumbers() {
     .filter(num => num);
 }
 
-// ===== LOAD SETTINGS =====
+// ===== LOAD SETTINGS (Unica fonte di verità) =====
 async function loadSettings() {
   try {
     const res = await fetch(`/IDs/${restaurantId}/settings.json`);
-    if (!res.ok) return;
+    if (!res.ok) {
+      console.log('ℹ️ Nessun file settings trovato, utilizzo valori di default');
+      return;
+    }
     
     const settings = await res.json();
     
@@ -847,15 +712,16 @@ async function loadSettings() {
     // Payments
     document.getElementById('payment-cash').checked = settings.payments?.cash !== false;
     document.getElementById('payment-card').checked = settings.payments?.card || false;
-
-    saveToLocalStorage();
+    document.getElementById('payment-stripe').checked = settings.payments?.stripe || false;
+    
+    console.log('✅ Impostazioni caricate dal file');
     
   } catch (err) {
-    
+    console.error('❌ Errore caricamento impostazioni:', err);
   }
 }
 
-// ===== SAVE SETTINGS =====
+// ===== SAVE SETTINGS (Unica fonte di verità) =====
 async function saveSettings() {
   try {
     document.querySelectorAll('.error-field').forEach(el => 
@@ -942,8 +808,12 @@ async function saveSettings() {
     const result = await res.json();
     if (!result.success) throw new Error(result.message);
     
-    localStorage.removeItem(STORAGE_KEY);
-    notify('Impostazioni salvate!', 'success');
+    // ✅ NUOVO: Mostra messaggio se bookings.json è stato creato
+    if (result.bookingsFileCreated && data.reservations.enabled) {
+      notify('Impostazioni salvate! Sistema prenotazioni attivato ✓', 'success');
+    } else {
+      notify('Impostazioni salvate!', 'success');
+    }
     
   } catch (err) {
     notify(err.message || 'Errore salvataggio', 'error');
@@ -994,7 +864,6 @@ async function verifyStripeConnection() {
       checkbox.disabled = false;
       if (section) section.style.display = 'none';
       notify('Stripe connesso!', 'success');
-      saveToLocalStorage();
     } else {
       checkbox.checked = false;
       checkbox.disabled = true;
@@ -1034,6 +903,4 @@ function notify(msg, type = 'success') {
   el.classList.add('show');
   
   notifyTimeout = setTimeout(() => el.classList.remove('show'), 3000);
-
 }
-

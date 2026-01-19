@@ -437,6 +437,30 @@ const FileManager = {
   
 FileManager.initDirectories();
 
+async function ensureBookingsFile(restaurantId) {
+  try {
+    const bookingsPath = path.join(__dirname, 'IDs', restaurantId, 'bookings.json');
+    
+    // Verifica se il file esiste già
+    if (!fsSync.existsSync(bookingsPath)) {
+      console.log(`📝 Creazione bookings.json per ${restaurantId}`);
+      
+      // Crea il file con array vuoto
+      await FileManager.saveJSON(bookingsPath, []);
+      
+      console.log(`✅ bookings.json creato per ${restaurantId}`);
+      return true;
+    }
+    
+    return false; // File già esistente
+    
+  } catch (error) {
+    console.error('❌ Errore creazione bookings.json:', error);
+    return false;
+  }
+}
+
+
 // ==================== SESSIONS ====================
 const session = require('express-session');
 const sqlite = require('better-sqlite3');
@@ -1628,8 +1652,19 @@ app.post('/save-settings/:restaurantId', requireAuth, async (req, res) => {
   const settingsPath = path.join(__dirname, 'IDs', restaurantId, 'settings.json');
 
   try {
+    // ✅ NUOVO: Se le prenotazioni sono abilitate, crea bookings.json
+    if (settings.reservations && settings.reservations.enabled) {
+      const bookingsCreated = await ensureBookingsFile(restaurantId);
+      if (bookingsCreated) {
+        console.log(`✅ File bookings.json creato automaticamente per ${restaurantId}`);
+      }
+    }
+    
     await FileManager.saveJSON(settingsPath, settings);
-    res.json({ success: true });
+    res.json({ 
+      success: true,
+      bookingsFileCreated: settings.reservations?.enabled || false
+    });
   } catch (error) {
     console.error('❌ Errore salvataggio impostazioni:', error);
     res.status(500).json({ 
@@ -1639,6 +1674,7 @@ app.post('/save-settings/:restaurantId', requireAuth, async (req, res) => {
     });
   }
 });
+
 
 app.post('/save-menu-types/:restaurantId', requireAuth, async (req, res) => {
   const { restaurantId } = req.params;
