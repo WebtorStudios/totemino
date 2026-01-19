@@ -326,12 +326,12 @@
   bottom: 2px;
   width: 4px;
   height: 4px;
-  background: var(--accent-gold);
+  background: var(--text-primary);
   border-radius: 50%;
 }
 
 .calendar-day.selected.today::after {
-  background: var(--text-primary);
+  background: var(--accent-gold);
 }
 
 /* TIME SLOTS */
@@ -613,4 +613,5 @@
   .time-slots { grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); }
 
 }
+
 
