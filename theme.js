@@ -1,72 +1,137 @@
-// ===== GESTIONE TEMA =====
+// ===============================
+// THEME MANAGER
+// ===============================
 class ThemeManager {
   constructor() {
-    this.themeButton = document.getElementById('theme');
     this.html = document.documentElement;
-    // FIX: Escludi #logoSwap dalla gestione automatica
-    this.logo = document.querySelector('.theme-img:not(#logoSwap)');
-    this.oldTheme = null;
+    this.themeButton = document.getElementById("theme");
+    this.customTheme = null;
+
     this.init();
   }
-  
+
   init() {
-    const savedTheme = localStorage.getItem('totemino_theme') || 
-                       (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+    const savedTheme =
+      localStorage.getItem("totemino_theme") ||
+      (window.matchMedia("(prefers-color-scheme: dark)").matches
+        ? "dark"
+        : "light");
+
     this.setTheme(savedTheme);
-    
-    this.themeButton?.addEventListener('click', () => this.toggleTheme());
+    this.loadCustomTheme();
+
+    this.themeButton?.addEventListener("click", () => this.toggleTheme());
   }
-  
+
   setTheme(theme) {
-    this.html.setAttribute('data-theme', theme);
-    localStorage.setItem('totemino_theme', theme);
-    
-    // FIX: Escludi #logoSwap dall'aggiornamento automatico
-    document.querySelectorAll('.theme-img:not(#logoSwap)').forEach(img => {
-      const src = img.getAttribute(`data-${theme}`);
-      if (src) img.src = src;
-    });
-    
-    // FIX: Lancia l'evento per logo-pop.js
-    dispatchThemeChange(theme);
+    this.html.setAttribute("data-theme", theme);
+    localStorage.setItem("totemino_theme", theme);
+
+    // Applica tema custom se presente
+    if (this.customTheme) {
+      this.applyCustomTheme();
+    }
+
+    // Notifica il cambio tema
+    this.dispatchThemeChange(theme);
   }
-  
+
   toggleTheme() {
-    const newTheme = this.html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
-    this.setTheme(newTheme);
-    this.themeButton?.classList.add('theme-clicked');
-    setTimeout(() => this.themeButton?.classList.remove('theme-clicked'), 200);
+    const current = this.html.getAttribute("data-theme");
+    const next = current === "dark" ? "light" : "dark";
+
+    this.setTheme(next);
+
+    // Animazione bottone
+    this.themeButton?.classList.add("theme-clicked");
+    setTimeout(() => {
+      this.themeButton?.classList.remove("theme-clicked");
+    }, 200);
+  }
+
+  async loadCustomTheme() {
+    const params = new URLSearchParams(window.location.search);
+    const restaurantId = params.get("id");
+    if (!restaurantId) return;
+
+    try {
+      const res = await fetch(`/IDs/${restaurantId}/settings.json`);
+      if (!res.ok) return;
+
+      const settings = await res.json();
+
+      if (
+        settings.customTheme &&
+        settings.customTheme.light &&
+        settings.customTheme.dark
+      ) {
+        this.customTheme = settings.customTheme;
+        this.applyCustomTheme();
+      }
+    } catch (err) {
+      console.error("Errore caricamento tema custom:", err);
+    }
+  }
+
+  applyCustomTheme() {
+    if (!this.customTheme) return;
+
+    const currentTheme =
+      this.html.getAttribute("data-theme") || "light";
+
+    const themeConfig = this.customTheme[currentTheme];
+    if (!themeConfig) return;
+
+    document.documentElement.style.setProperty(
+      "--bg-hue",
+      `${themeConfig.hue}deg`
+    );
+    document.documentElement.style.setProperty(
+      "--bg-sat",
+      themeConfig.sat
+    );
+  }
+
+  dispatchThemeChange(theme) {
+    document.dispatchEvent(
+      new CustomEvent("themeChanged", {
+        detail: { theme }
+      })
+    );
   }
 }
 
-// Inizializza ThemeManager
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', () => {
+// ===============================
+// THEME IMAGES HANDLER
+// ===============================
+function updateThemeImages() {
+  const theme =
+    localStorage.getItem("totemino_theme") || "light";
+
+  document
+    .querySelectorAll(".theme-img:not(#logoSwap)")
+    .forEach(img => {
+      const light = img.getAttribute("data-light");
+      const dark = img.getAttribute("data-dark");
+
+      if (!light || !dark) return;
+      img.src = theme === "dark" ? dark : light;
+    });
+}
+
+// Applica subito
+updateThemeImages();
+
+// Aggiorna a ogni cambio tema
+document.addEventListener("themeChanged", updateThemeImages);
+
+// ===============================
+// INIT
+// ===============================
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", () => {
     window.themeManager = new ThemeManager();
   });
 } else {
   window.themeManager = new ThemeManager();
-}
-
-// ===== GESTIONE IMMAGINI =====
-function updateThemeImages() {
-  const theme = localStorage.getItem("totemino_theme") || "light";
-  // FIX: Escludi #logoSwap
-  document.querySelectorAll(".theme-img:not(#logoSwap)").forEach(img => {
-    const light = img.getAttribute("data-light");
-    const dark  = img.getAttribute("data-dark");
-    if (light && dark) img.src = theme === "dark" ? dark : light;
-  });
-}
-
-// Aggiorna subito al caricamento
-updateThemeImages();
-
-// Aggiorna ogni volta che cambia tema
-document.addEventListener("themeChanged", updateThemeImages);
-
-// ===== EVENTO PERSONALIZZATO =====
-function dispatchThemeChange(theme) {
-  const event = new CustomEvent('themeChanged', { detail: { theme } });
-  document.dispatchEvent(event);
 }

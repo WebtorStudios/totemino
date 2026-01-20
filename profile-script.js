@@ -89,6 +89,7 @@ function setMenuLinks() {
     document.getElementById('prenotazioniCard').href = `prenotazioni.html?id=${restaurantId}`;
     document.getElementById('bannersCard').href = `create-banners.html?id=${restaurantId}`;
     document.getElementById('promoCard').href = `create-promo.html?id=${restaurantId}`;
+    document.getElementById('themeCard').href = `custom-theme.html?id=${restaurantId}`;
 
     document.getElementById('previewCard').href = `menu-select.html?id=${restaurantId}`;
 }

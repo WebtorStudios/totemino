@@ -11,6 +11,9 @@
   --text-accent-gradient-low: #a855a823;
   --text-accent-inverted: #fdf8db;
   
+  --bg-hue: 0deg;
+  --bg-sat: 1;
+  
   /* Componenti UI */
   --index-btn: #601f40;
   --index-card-bg: #601f40;
@@ -59,6 +62,9 @@
   --text-accent-gradient-low: #defcff23;
   --text-accent-inverted: #601f40;
 
+  --bg-hue: 0deg;
+  --bg-sat: 1;
+  
   /* Componenti UI */
   --index-btn: #468af7;
   --index-card-bg: #2a3446;
@@ -71,7 +77,7 @@
   --checkout-bg: linear-gradient(90deg, transparent, #2a3446, transparent);
   
   /* Stati e accenti */
-  --accent-gold: #468af7;
+  --accent-gold: #4589f7;
   --accent-pink: #6b46f7;
   --badge-red: #468af7;
   --selected-glow: #60a5facc;
@@ -225,7 +231,7 @@ input[type="number"]::-webkit-outer-spin-button {
   width: 90vw;
   height: 90vw;
   border-radius: 50%;
-  filter: blur(100px);
+  filter: blur(100px) hue-rotate(var(--bg-hue)) saturate(var(--bg-sat));;
   opacity: 0.5;
   pointer-events: none;
   z-index: -1;
