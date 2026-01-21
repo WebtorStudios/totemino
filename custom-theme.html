@@ -3,14 +3,21 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <script>
-    (function() {
-      const saved = localStorage.getItem('totemino_theme');
-      const theme = saved || 
-      (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
-      document.documentElement.setAttribute('data-theme', theme);
-    })();
-  </script>
+  
+    <script>
+        (function() {
+            const saved = localStorage.getItem('totemino_theme');
+            const theme = saved || 
+                (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+            document.documentElement.setAttribute('data-theme', theme);
+        })();
+        window.addEventListener('pageshow', function(event) {
+            if (event.persisted || performance.getEntriesByType('navigation')[0]?.type === 'back_forward') {
+              location.reload();
+            }
+        });
+    </script>
+    
   <title>Cambia Tema - Totemino</title>
   <link rel="icon" type="image/png" href="img/favicon.png">
   <link rel="stylesheet" href="custom-theme-styles.css">
@@ -40,14 +47,14 @@
   <div class="theme-container">
     <div class="theme-section">
       <div class="section-header">
-        <h2 class="section-title">Temi Predefiniti</h2>
+        <h2 class="section-title">Temi pronti all'uso</h2>
         <button class="reset-btn" id="reset-btn">
           <i class="fas fa-rotate-left"></i>
           Reimposta
         </button>
       </div>
       <div class="presets-grid">
-        <button class="preset-card preset-borgogna" data-light-hue="0" data-light-sat="1" data-dark-hue="140" data-dark-sat="1.5">
+        <button class="preset-card preset-borgogna" data-light-hue="0" data-light-sat="1" data-dark-hue="60" data-dark-sat="1.0">
           <div class="preset-preview">
             <div class="preview-circle c1"></div>
             <div class="preview-circle c2"></div>
@@ -110,7 +117,7 @@
               <span id="sat-value">1.0</span>
             </label>
             <div class="slider-wrapper">
-              <input type="range" id="sat-slider" min="0.5" max="2" value="1" step="0.1">
+              <input type="range" id="sat-slider" min="0" max="2" value="1" step="0.1">
             </div>
           </div>
         </div>

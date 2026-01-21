@@ -19,8 +19,13 @@
 	</script>	
     <title>Accesso Negato - Totemino</title>
     <link rel="icon" type="image/png" href="img/favicon.png">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="stylesheet" href="index-styles.css">
     <style>
+        .pricing {
+            background: none!important;
+        }
+
         /* Animazione loading dots per bottoni pricing */
         .btn-pricing.loading {
             pointer-events: none;
@@ -97,9 +102,146 @@
         </div>
     </nav>
 
+    <!-- Comparison Table -->
+    <section class="comparison-section" style="margin-top: 8rem;">
+        <div class="section-header">
+            <h2>Confronta i Piani</h2>
+            <p>Scegli il piano perfetto per il tuo ristorante</p>
+        </div>
+        
+        <div class="comparison-wrapper">
+            <table class="comparison-table">
+                <thead>
+                    <tr>
+                        <th>Funzionalità</th>
+                        <th class="th-hobby">Hobby</th>
+                        <th class="th-premium">Premium</th>
+                        <th class="th-pro">Pro</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="feature-name">Menù digitale a solo visualizzazione</td>
+                        <td class="td-hobby"><i class="fas fa-check"></i></td>
+                        <td class="td-premium"><i class="fas fa-check"></i></td>
+                        <td class="td-pro"><i class="fas fa-check"></i></td>
+                    </tr>
+                    <tr>
+                        <td class="feature-name">QR code personalizzati</td>
+                        <td class="td-hobby"><i class="fas fa-check"></i></td>
+                        <td class="td-premium"><i class="fas fa-check"></i></td>
+                        <td class="td-pro"><i class="fas fa-check"></i></td>
+                    </tr>
+                    <tr>
+                        <td class="feature-name">Gestione menù facile</td>
+                        <td class="td-hobby"><i class="fas fa-check"></i></td>
+                        <td class="td-premium"><i class="fas fa-check"></i></td>
+                        <td class="td-pro"><i class="fas fa-check"></i></td>
+                    </tr>
+                    <tr>
+                        <td class="feature-name">Aggiunta di prodotti illimitati</td>
+                        <td class="td-hobby"><i class="fas fa-check"></i></td>
+                        <td class="td-premium"><i class="fas fa-check"></i></td>
+                        <td class="td-pro"><i class="fas fa-check"></i></td>
+                    </tr>
+                    <tr>
+                        <td class="feature-name">Ingredienti e allergeni</td>
+                        <td class="td-hobby"><i class="fas fa-check"></i></td>
+                        <td class="td-premium"><i class="fas fa-check"></i></td>
+                        <td class="td-pro"><i class="fas fa-check"></i></td>
+                    </tr>
+                    <tr>
+                        <td class="feature-name">Supporto 24/7</td>
+                        <td class="td-hobby"><i class="fas fa-check"></i></td>
+                        <td class="td-premium"><i class="fas fa-check"></i></td>
+                        <td class="td-pro"><i class="fas fa-check"></i></td>
+                    </tr>
+                    <tr>
+                        <td class="feature-name">Ordinazioni dall'app</td>
+                        <td class="td-hobby"><i class="fas fa-times"></i></td>
+                        <td class="td-premium"><i class="fas fa-check"></i></td>
+                        <td class="td-pro"><i class="fas fa-check"></i></td>
+                    </tr>
+                    <tr>
+                        <td class="feature-name">Gestione comande LIVE</td>
+                        <td class="td-hobby"><i class="fas fa-times"></i></td>
+                        <td class="td-premium"><i class="fas fa-check"></i></td>
+                        <td class="td-pro"><i class="fas fa-check"></i></td>
+                    </tr>
+                    <tr>
+                        <td class="feature-name">Menù con Servizio al tavolo e Take away</td>
+                        <td class="td-hobby"><i class="fas fa-times"></i></td>
+                        <td class="td-premium"><i class="fas fa-check"></i></td>
+                        <td class="td-pro"><i class="fas fa-check"></i></td>
+                    </tr>
+                    <tr>
+                        <td class="feature-name">Prenotazione tavoli</td>
+                        <td class="td-hobby"><i class="fas fa-times"></i></td>
+                        <td class="td-premium"><i class="fas fa-check"></i></td>
+                        <td class="td-pro"><i class="fas fa-check"></i></td>
+                    </tr>
+                    <tr>
+                        <td class="feature-name">Banner promozionali</td>
+                        <td class="td-hobby"><i class="fas fa-times"></i></td>
+                        <td class="td-premium"><i class="fas fa-check"></i></td>
+                        <td class="td-pro"><i class="fas fa-check"></i></td>
+                    </tr>
+                    <tr>
+                        <td class="feature-name">Codici sconto e promozioni</td>
+                        <td class="td-hobby"><i class="fas fa-times"></i></td>
+                        <td class="td-premium"><i class="fas fa-check"></i></td>
+                        <td class="td-pro"><i class="fas fa-check"></i></td>
+                    </tr>
+                    <tr>
+                        <td class="feature-name">Boost alle recensioni</td>
+                        <td class="td-hobby"><i class="fas fa-times"></i></td>
+                        <td class="td-premium"><i class="fas fa-check"></i></td>
+                        <td class="td-pro"><i class="fas fa-check"></i></td>
+                    </tr>
+                    <tr>
+                        <td class="feature-name">Configurazione orari e costi consegna</td>
+                        <td class="td-hobby"><i class="fas fa-times"></i></td>
+                        <td class="td-premium"><i class="fas fa-times"></i></td>
+                        <td class="td-pro"><i class="fas fa-check"></i></td>
+                    </tr>
+                    <tr>
+                        <td class="feature-name">Report e statistiche dettagliate mensili</td>
+                        <td class="td-hobby"><i class="fas fa-times"></i></td>
+                        <td class="td-premium"><i class="fas fa-times"></i></td>
+                        <td class="td-pro"><i class="fas fa-check"></i></td>
+                    </tr>
+                    <tr>
+                        <td class="feature-name">Suggerimenti con IA al checkout (+20% ATV)</td>
+                        <td class="td-hobby"><i class="fas fa-times"></i></td>
+                        <td class="td-premium"><i class="fas fa-times"></i></td>
+                        <td class="td-pro"><i class="fas fa-check"></i></td>
+                    </tr>
+                    <tr>
+                        <td class="feature-name">Domicilio con 0% commissioni</td>
+                        <td class="td-hobby"><i class="fas fa-times"></i></td>
+                        <td class="td-premium"><i class="fas fa-times"></i></td>
+                        <td class="td-pro"><i class="fas fa-check"></i></td>
+                    </tr>
+                    <tr>
+                        <td class="feature-name">Setup del menù iniziale</td>
+                        <td class="td-hobby"><i class="fas fa-times"></i></td>
+                        <td class="td-premium"><i class="fas fa-times"></i></td>
+                        <td class="td-pro"><i class="fas fa-check"></i></td>
+                    </tr>
+                    <tr>
+                        <td class="feature-name">Temi e colori personalizzati</td>
+                        <td class="td-hobby"><i class="fas fa-times"></i></td>
+                        <td class="td-premium"><i class="fas fa-times"></i></td>
+                        <td class="td-pro"><i class="fas fa-check"></i></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
 
+    
     <!-- Pricing Section -->
-    <section class="pricing" style="margin-top: 2rem;">
+    <section class="pricing">
         <div class="section-header">
             <h2>Migliora il tuo Ristorante</h2>
             <p>Per aumentare le tue vendite e la tua presenza online, fai l'upgrade al piano</p>
@@ -192,15 +334,56 @@
         </div>
     </section>
 
+    <!-- Footer -->
+    <footer class="site-footer">
+        <div class="footer-container">
+            
+            <div class="footer-content">
+            <div class="footer-left">
+                <p class="footer-brand">Totemino</p>
+                <p class="footer-tagline">Il tuo compagno di ristorazione</p>
+                <p class="footer-contact">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path>
+                </svg>
+                351 054 8462
+                </p>
+            </div>
 
-	<footer>
-        <p>Fatto con amore da &copy; Webtor Studios<br>Cell. 351 054 8462</p>
-        <div class="footer-img">
-          <a href="https://wa.me/+393510548462"><img src="img/whatsapp-logo.png" title="WhatsApp" draggable="false"></a>
-          <a href="https://instagram.com/webtorstudios"><img src="img/instagram-logo.png" title="Instagram" draggable="false"></a>
-          <a href="https://bit.ly/4buVxwY"><img src="img/mail-logo.png" title="Invia una email" draggable="false"></a>
+            <nav class="footer-nav">
+                <h4 class="footer-nav-title">Cosa offriamo</h4>
+                <a href="servizi.html">Servizi</a>
+                <a href="upgrade.html">Piani</a>
+                <a href="about.html">Chi siamo</a>
+                <a href="#">Contattaci</a>
+            </nav>
+
+            <div class="footer-social-section">
+                <h4 class="footer-nav-title">Seguici</h4>
+                <div class="footer-social">
+                <a href="https://wa.me/+393510548462" aria-label="WhatsApp">
+                    <img src="img/whatsapp-logo.png" alt="WhatsApp">
+                </a>
+                <a href="https://instagram.com/webtorstudios" aria-label="Instagram">
+                    <img src="img/instagram-logo.png" alt="Instagram">
+                </a>
+                <a href="mailto:webtorstudios@gmail.com" aria-label="Email">
+                    <img src="img/mail-logo.png" alt="Email">
+                </a>
+                </div>
+            </div>
+            </div>
+
         </div>
-        <a href="termini-e-condizioni.html">Termini e condizioni</a> <a id="nohover"> | </a> <a href="cookie-policy.html">Informativa Privacy</a>
+
+        <div class="footer-bottom">
+            <p>© 2026 Totemino. Tutti i diritti riservati.</p>
+            <div class="footer-links">
+            <a href="termini-e-condizioni.html">Termini e condizioni</a>
+            <span class="separator">•</span>
+            <a href="cookie-policy.html">Informativa Privacy</a>
+            </div>
+        </div>
     </footer>
 	
  	<script src="index-script.js"></script>

@@ -943,53 +943,222 @@ input[type="number"]::-webkit-outer-spin-button {
   
 }
 
-/* FOOTER */
-footer a {
+
+
+
+.site-footer {
+  background: #601f40;
   color: #fdf8db;
-  transition: color 0.3s ease;
+  padding: 60px 20px 0;
+  min-height: 320px;
 }
 
-footer a:hover:not(#nohover) {
-  color: hsl(51, 69%, 73%);
+[data-theme="dark"] .site-footer {
+  background-color: #10121d;
 }
 
-footer {
-  text-align: center;
-  padding-top: 4em;
-  padding-bottom: 4em;
-  color: #fdf8db;
-  background: hsl(330, 51%, 15%);
+.footer-container {
+  max-width: 900px;
+  margin: 0 auto;
 }
 
-[data-theme="dark"] footer {
-  background: hsl(219, 25%, 12%);
+.footer-content {
+  display: grid;
+  grid-template-columns: 2fr 2.3fr 1fr;
+  gap: 50px;
+  padding-bottom: 50px;
+  border-bottom: 1px solid rgba(253, 248, 219, 0.2);
 }
 
-.footer-img {
-  margin: 1em 0;
+.footer-left {
   display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.footer-brand {
+  font-family: 'CalSans', sans-serif;
+  color: #fdf8db;
+  font-size: 1.8rem;
+  font-weight: 600;
+  margin: 0 0 5px 0;
+  letter-spacing: 0.5px;
+}
+
+.footer-tagline {
+  font-size: 0.95rem;
+  color: rgba(253, 248, 219, 0.8);
+  margin: 0 0 10px 0;
+}
+
+.footer-contact {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 1rem;
+  color: #fdf8db;
+  margin: 0;
+}
+
+.footer-contact svg {
+  flex-shrink: 0;
+}
+
+.footer-nav-title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin: 0 0 11px 0;
+  color: #fdf8db;
+  letter-spacing: 0.5px;
+}
+
+.footer-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.footer-nav a {
+  color: rgba(253, 248, 219, 0.85);
+  text-decoration: none;
+  font-size: 0.95rem;
+  transition: all 0.3s ease;
+  padding: 4px 0;
+  position: relative;
+  width: fit-content;
+}
+
+.footer-nav a::before {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 0;
+  height: 2px;
+  background: #fdf8db;
+  transition: width 0.3s ease;
+}
+
+.footer-nav a:hover {
+  color: #fdf8db;
+  transform: translateX(5px);
+}
+
+.footer-nav a:hover::before {
+  width: 100%;
+}
+
+.footer-social-section {
+  display: flex;
+  flex-direction: column;
+}
+
+.footer-social {
+  display: flex;
+  gap: 18px;
+  margin-top: 12px;
+  align-items: center;
+}
+
+.footer-social a {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  background: rgba(253, 248, 219, 0.1);
+  border-radius: 50%;
+  transition: all 0.3s ease;
+}
+
+.footer-social a:hover {
+  background: rgba(253, 248, 219, 0.2);
+  transform: translateY(-3px);
+}
+
+.footer-social img {
+  width: 22px;
+  aspect-ratio: 1!important;
+  transition: filter 0.3s;
+}
+
+.footer-social img:hover {
+  filter: brightness(1.2);
+}
+
+.footer-bottom {
+  padding: 25px 0;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: center;
+}
+
+.footer-bottom p {
+  font-size: 0.9rem;
+  color: rgba(253, 248, 219, 0.7);
+  margin: 0;
+}
+
+.footer-links {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
   justify-content: center;
 }
 
-.footer-img img {
-  margin: 0 0.5em;
-  height: 2em;
-  width: 2em;
-  transition: opacity 0.3s ease;
+.footer-bottom a {
+  color: rgba(253, 248, 219, 0.85);
+  text-decoration: none;
+  font-size: 0.9rem;
+  transition: color 0.3s ease;
 }
 
-.footer-img img:hover {
-  opacity: 1;
+.footer-bottom a:hover {
+  color: #fdf8db;
+  text-decoration: underline;
 }
 
-.footer-img a {
-  opacity: 0.5;
-  transition: opacity 0.2s ease;
+.separator {
+  color: rgba(253, 248, 219, 0.4);
+  font-size: 0.9rem;
 }
 
-.footer-img a:hover {
-  opacity: 0.8;
+/* Responsive */
+@media (max-width: 768px) {
+  .site-footer {
+    padding: 50px 20px 0;
+  }
+  
+  .footer-content {
+    grid-template-columns: 1fr;
+    gap: 40px;
+    text-align: center;
+  }
+  
+  .footer-left {
+    align-items: center;
+  }
+  
+  .footer-nav {
+    align-items: center;
+  }
+  
+  .footer-nav a::before {
+    display: none;
+  }
+  
+  .footer-nav a:hover {
+    transform: none;
+  }
+  
+  .footer-social-section {
+    align-items: center;
+  }
+  
+  .footer-social {
+    justify-content: center;
+  }
 }
-
-
-

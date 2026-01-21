@@ -86,7 +86,7 @@
 
 .preset-card.active {
   border-color: var(--accent-gold);
-  background-color: color-mix(in srgb, var(--accent-gold) 20%, white);
+  background-color: color-mix(in srgb, var(--accent-gold) 20%, var(--bg-primary));
 }
 
 .preset-card span {
