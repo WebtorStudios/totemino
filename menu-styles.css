@@ -191,11 +191,11 @@ body {
   color: var(--text-primary);
   background-attachment: fixed;
   touch-action: manipulation;
-  overscroll-behavior: none;
   transition: background-color 0.4s, color 0.4s;
 }
 
 body.noscroll {
+  overflow: hidden;
   position: fixed;
   width: 100%;
 }
@@ -1163,4 +1163,5 @@ input[type="number"]::-webkit-outer-spin-button {
   }
 
 }
+
 
